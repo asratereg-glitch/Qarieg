@@ -186,7 +186,8 @@
       goalYear: 24,
       goalMonth: 2,
       uiLangToggled: false,
-      gbKey: ""
+      gbKey: "",
+      layout: "auto"
     },
     books: [],
     // {id,title,author,format,cover,fileKey,source,addedAt,shelf,customShelves:[],progress,location,totalPages,currentPage,rating,review,subjects,isbn,finishedAt}
@@ -540,6 +541,12 @@
   // src/i18n.js
   var STR = {
     ar: {
+      toc: "\u062C\u062F\u0648\u0644 \u0627\u0644\u0645\u062D\u062A\u0648\u064A\u0627\u062A",
+      tocNone: "\u0627\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 \u0645\u0641\u064A\u0647\u0648\u0634 \u062C\u062F\u0648\u0644 \u0645\u062D\u062A\u0648\u064A\u0627\u062A. \u0627\u0633\u062A\u062E\u062F\u0645 \u0634\u0631\u064A\u0637 \u0627\u0644\u0635\u0641\u062D\u0627\u062A \u062A\u062D\u062A.",
+      layoutAuto: "\u062A\u0646\u0633\u064A\u0642 \u062A\u0644\u0642\u0627\u0626\u064A",
+      layoutPhone: "\u062A\u0646\u0633\u064A\u0642 \u0627\u0644\u0645\u0648\u0628\u0627\u064A\u0644",
+      layoutTablet: "\u062A\u0646\u0633\u064A\u0642 \u0627\u0644\u062A\u0627\u0628\u0644\u062A",
+      pagesPreparing: "\u0628\u064A\u062C\u0647\u0651\u0632 \u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u0635\u0641\u062D\u0627\u062A\u060C \u062C\u0631\u0628 \u0643\u0645\u0627\u0646 \u062B\u0648\u0627\u0646\u064A",
       appName: "\u0642\u0627\u0631\u0626",
       navLibrary: "\u0645\u0643\u062A\u0628\u062A\u064A",
       navShelves: "\u0627\u0644\u0631\u0641\u0648\u0641",
@@ -669,6 +676,12 @@
       sampleNote: "\u0643\u062A\u0627\u0628 \u0645\u0631\u062C\u0639\u064A \u0645\u0646 Open Library (\u0628\u064A\u0627\u0646\u0627\u062A \u0648\u063A\u0644\u0627\u0641)."
     },
     en: {
+      toc: "Table of contents",
+      tocNone: "This book has no table of contents. Use the page bar below.",
+      layoutAuto: "Auto layout",
+      layoutPhone: "Phone layout",
+      layoutTablet: "Tablet layout",
+      pagesPreparing: "Preparing page numbers, try again in a few seconds",
       appName: "Qari",
       navLibrary: "My Library",
       navShelves: "Shelves",
@@ -1989,6 +2002,155 @@
   var $4 = (s, r = document) => r.querySelector(s);
   var R = null;
   var HL_COLORS = ["#ffd54a", "#8ee08e", "#7ec8ff", "#ff9db0"];
+  function layoutMode() {
+    const l = getState().settings.layout || "auto";
+    if (l !== "auto") return l;
+    const w = window.innerWidth;
+    return w < 700 ? "phone" : w < 1100 ? "tablet" : "desktop";
+  }
+  function applyLayout(resize = true) {
+    const m = layoutMode();
+    const stage = $4("#readerStage"), body = $4("#readerBody");
+    if (!stage || !body) return;
+    ["phone", "tablet", "desktop"].forEach((x) => {
+      stage.classList.toggle("lay-" + x, x === m);
+      body.classList.toggle("lay-" + x, x === m);
+    });
+    const l = getState().settings.layout || "auto";
+    $4("#phoneBtn") && $4("#phoneBtn").classList.toggle("on", l === "phone");
+    $4("#tabletBtn") && $4("#tabletBtn").classList.toggle("on", l === "tablet");
+    if (!resize || !R) return;
+    if (R.rendition) {
+      applyEpubTheme();
+      try {
+        R.rendition.resize();
+      } catch {
+      }
+    } else if (R.pdf) renderPdfPage();
+    else if (R.txtPages) renderTxtPage();
+  }
+  function setLayout(mode) {
+    const s = getState().settings;
+    const cur = s.layout || "auto";
+    const next2 = cur === mode ? "auto" : mode;
+    const patch = { layout: next2 };
+    if (next2 === "phone") Object.assign(patch, { fontSize: 18, lineHeight: 1.8 });
+    if (next2 === "tablet") Object.assign(patch, { fontSize: 21, lineHeight: 1.9 });
+    Object.assign(s, patch);
+    save();
+    applyLayout();
+    toast(next2 === "auto" ? t("layoutAuto") : next2 === "phone" ? t("layoutPhone") : t("layoutTablet"));
+  }
+  async function showTocPanel() {
+    const panel = $4("#readerPanel");
+    panel.classList.remove("hidden");
+    panel.dataset.kind = "toc";
+    panel.innerHTML = `<h3>\u{1F4D1} ${t("toc")}</h3><div id="tocList"><p class="muted">\u2026</p></div>`;
+    const list = panel.querySelector("#tocList");
+    const items = [];
+    try {
+      if (R.epub) {
+        const walk = (arr, d) => (arr || []).forEach((it) => {
+          items.push({ label: (it.label || "").trim(), depth: d, go: () => R.rendition.display(it.href) });
+          walk(it.subitems, d + 1);
+        });
+        walk(R.epub.navigation && R.epub.navigation.toc, 0);
+      } else if (R.pdf) {
+        const ol = await R.pdf.getOutline();
+        const walk = async (arr, d) => {
+          for (const it of arr || []) {
+            const go = async () => {
+              try {
+                let dest = it.dest;
+                if (typeof dest === "string") dest = await R.pdf.getDestination(dest);
+                const idx = await R.pdf.getPageIndex(dest[0]);
+                R.pdfPage = idx + 1;
+                renderPdfPage();
+              } catch {
+              }
+            };
+            items.push({ label: (it.title || "").trim(), depth: d, go });
+            await walk(it.items, d + 1);
+          }
+        };
+        await walk(ol, 0);
+      } else if (R.txtPages) {
+        const re = /^[ \t]*((?:chapter|part|book|section|الفصل|فصل|الباب|باب|الجزء|جزء|الكتاب)\b[^\n]{0,70})$/gim;
+        R.txtPages.forEach((p, i) => {
+          re.lastIndex = 0;
+          const m = re.exec(p);
+          if (m) items.push({ label: m[1].trim(), depth: 0, go: () => {
+            R.txtIdx = i;
+            renderTxtPage();
+          } });
+        });
+      }
+    } catch (e) {
+      console.warn("toc failed", e);
+    }
+    if (!items.length) {
+      list.innerHTML = `<p class="muted">${t("tocNone")}</p>`;
+      return;
+    }
+    list.innerHTML = "";
+    items.forEach((it) => {
+      const b = document.createElement("button");
+      b.className = "toc-item" + (it.depth ? " sub" : "");
+      b.textContent = it.label || "\u2014";
+      b.style.paddingInlineStart = 0.3 + it.depth * 1 + "rem";
+      b.onclick = async () => {
+        await it.go();
+        panel.classList.add("hidden");
+      };
+      list.appendChild(b);
+    });
+  }
+  var sliderDrag = false;
+  function bindSlider() {
+    const sl = $4("#pageSlider");
+    if (!sl || sl._bound) return;
+    sl._bound = true;
+    const label = (v) => {
+      if (!R) return "";
+      if (R.pdf) return `${t("pageN").replace("{n}", Math.max(1, Math.round(v / 1e3 * (R.pdf.numPages - 1)) + 1))} ${t("of")} ${R.pdf.numPages}`;
+      if (R.txtPages) return `${Math.round(v / 1e3 * (R.txtPages.length - 1)) + 1} / ${R.txtPages.length}`;
+      if (R.rendition && R.locationsReady) {
+        const tot = R.epub.locations.total;
+        return `${Math.max(1, Math.round(v / 1e3 * (tot - 1)) + 1)} / ${tot} \xB7 ${Math.round(v / 10)}%`;
+      }
+      return Math.round(v / 10) + "%";
+    };
+    sl.addEventListener("pointerdown", () => {
+      sliderDrag = true;
+    });
+    sl.addEventListener("input", () => {
+      sliderDrag = true;
+      $4("#readerProgressLabel").textContent = label(+sl.value);
+    });
+    sl.addEventListener("change", () => {
+      sliderDrag = false;
+      if (!R) return;
+      const v = +sl.value / 1e3;
+      if (R.pdf) {
+        R.pdfPage = Math.round(v * (R.pdf.numPages - 1)) + 1;
+        renderPdfPage();
+      } else if (R.txtPages) {
+        R.txtIdx = Math.round(v * (R.txtPages.length - 1));
+        renderTxtPage();
+      } else if (R.rendition) {
+        if (!R.locationsReady) {
+          toast(t("pagesPreparing"));
+          updateProgress();
+          return;
+        }
+        const cfi = R.epub.locations.cfiFromPercentage(Math.min(0.999, v));
+        if (cfi) R.rendition.display(cfi);
+      }
+    });
+    document.addEventListener("pointerup", () => {
+      sliderDrag = false;
+    });
+  }
   async function openReader(book) {
     const ov = $4("#readerOverlay");
     ov.classList.remove("hidden");
@@ -2010,6 +2172,8 @@
       locationsReady: false
     };
     bindChrome();
+    bindSlider();
+    applyLayout(false);
     if (book.format === "web" || !book.fileKey) {
       renderWebRef(book);
       return;
@@ -2118,7 +2282,7 @@
         "font-size": s.fontSize + "px !important",
         "line-height": s.lineHeight + " !important",
         "font-family": fontStack(s.fontFamily) + " !important",
-        padding: "0 8px"
+        padding: layoutMode() === "phone" ? "0 4px" : layoutMode() === "tablet" ? "0 16px" : "0 8px"
       },
       p: { "margin-bottom": "0.7em" },
       img: { "max-width": "100%" }
@@ -2266,6 +2430,13 @@
       if (loc && loc.start) {
         pct = Math.round((loc.start.percentage || 0) * 100);
         label = pct + "%";
+        if (R.locationsReady) {
+          try {
+            const n = R.epub.locations.locationFromCfi(loc.start.cfi);
+            label = `${n + 1} / ${R.epub.locations.total} \xB7 ${pct}%`;
+          } catch {
+          }
+        }
       }
     } else if (R.pdf) {
       pct = Math.round(R.pdfPage / R.pdf.numPages * 100);
@@ -2274,7 +2445,11 @@
       pct = Math.round((R.txtIdx + 1) / R.txtPages.length * 100);
       label = `${R.txtIdx + 1} / ${R.txtPages.length} \xB7 ${pct}%`;
     }
-    $4("#readerProgressLabel").textContent = label;
+    if (!sliderDrag) {
+      $4("#readerProgressLabel").textContent = label;
+      const sl = $4("#pageSlider");
+      if (sl) sl.value = R.pdf ? R.pdf.numPages > 1 ? Math.round((R.pdfPage - 1) / (R.pdf.numPages - 1) * 1e3) : 0 : R.txtPages ? R.txtPages.length > 1 ? Math.round(R.txtIdx / (R.txtPages.length - 1) * 1e3) : 0 : pct * 10;
+    }
     $4("#readerProgressFill").style.width = pct + "%";
   }
   function showSelPop(contents, text, onAction) {
@@ -2423,7 +2598,7 @@
     chromeBound = true;
     const closeFloating = (e) => {
       const pn = $4("#readerPanel"), sp = $4("#selPop");
-      if (pn && !pn.classList.contains("hidden") && !(e && e.target && e.target.closest && e.target.closest("#readerPanel,#readerSettingsBtn,#hlListBtn"))) pn.classList.add("hidden");
+      if (pn && !pn.classList.contains("hidden") && !(e && e.target && e.target.closest && e.target.closest("#readerPanel,#readerSettingsBtn,#hlListBtn,#tocBtn"))) pn.classList.add("hidden");
       if (sp && !sp.classList.contains("hidden") && !(e && e.target && e.target.closest && e.target.closest("#selPop"))) sp.classList.add("hidden");
     };
     document.addEventListener("pointerdown", closeFloating, true);
@@ -2438,6 +2613,19 @@
     });
     $4("#readerClose").onclick = closeReader;
     $4("#ttsBtn").onclick = toggleTts;
+    $4("#tocBtn").onclick = () => {
+      const p = $4("#readerPanel");
+      if (!p.classList.contains("hidden") && p.dataset.kind === "toc") {
+        p.classList.add("hidden");
+        return;
+      }
+      showTocPanel();
+    };
+    $4("#phoneBtn").onclick = () => setLayout("phone");
+    $4("#tabletBtn").onclick = () => setLayout("tablet");
+    window.addEventListener("resize", () => {
+      if (R && !$4("#readerOverlay").classList.contains("hidden")) applyLayout(true);
+    });
     $4("#readerSettingsBtn").onclick = () => {
       const p = $4("#readerPanel");
       if (!p.classList.contains("hidden") && p.dataset.kind === "settings") {

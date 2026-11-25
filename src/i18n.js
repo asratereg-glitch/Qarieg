@@ -1,6 +1,7 @@
 // i18n.js — Arabic (default) / English UI strings
 const STR = {
   ar: {
+    toc:'جدول المحتويات', tocNone:'الكتاب ده مفيهوش جدول محتويات. استخدم شريط الصفحات تحت.', layoutAuto:'تنسيق تلقائي', layoutPhone:'تنسيق الموبايل', layoutTablet:'تنسيق التابلت', pagesPreparing:'بيجهّز أرقام الصفحات، جرب كمان ثواني',
     appName:'قارئ', navLibrary:'مكتبتي', navShelves:'الرفوف', navStats:'إحصائياتي',
     navDiscover:'اكتشف', navCommunity:'المجتمع', navSettings:'الإعدادات', navLists:'القوائم',
     addBook:'أضف كتاب', tabFile:'من جهازك', tabOnline:'بحث أونلاين',
@@ -40,6 +41,7 @@ const STR = {
     readOnline:'اقرأ نسخة أونلاين', sampleNote:'كتاب مرجعي من Open Library (بيانات وغلاف).',
   },
   en: {
+    toc:'Table of contents', tocNone:'This book has no table of contents. Use the page bar below.', layoutAuto:'Auto layout', layoutPhone:'Phone layout', layoutTablet:'Tablet layout', pagesPreparing:'Preparing page numbers, try again in a few seconds',
     appName:'Qari', navLibrary:'My Library', navShelves:'Shelves', navStats:'My Stats',
     navDiscover:'Discover', navCommunity:'Community', navSettings:'Settings', navLists:'Lists',
     addBook:'Add book', tabFile:'From device', tabOnline:'Search online',

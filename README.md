@@ -76,3 +76,7 @@
 ## v1.2.0
 - GitHub sync (Settings > Sync across devices): saves data.json (library, progress, notes, highlights, lists, settings) and book files to a PRIVATE repo (default `qari-data`) through the GitHub contents API. Token (fine-grained, Contents read/write on that repo only) is stored on the device only. Auto-pull on open/focus/every 90s, auto-push 12s after a change, "Sync now". Last write wins; a warning banner appears on conflict and the overwritten local copy can be downloaded. Google Books key and Open Library cache are not synced.
 - Hosted on GitHub Pages: manifest + icons for Add to Home Screen.
+
+## v1.3.0
+- Reader top bar: new 📑 table of contents (EPUB nav, PDF outline, TXT chapter headings), 📱 phone layout and ▭ tablet layout presets (tap again to go back to auto). Auto layout picks phone/tablet/desktop from screen width.
+- Page bar: the progress bar at the bottom is now a slider. Drag to jump to any page (EPUB shows page n / total once page numbers are ready, PDF and TXT show page numbers).

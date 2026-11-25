@@ -271,3 +271,27 @@ h1,h2,h3{font-weight:700}
 .author-link:hover{color:var(--accent)}
 .bp-alink{color:inherit;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
 .bp-alink:hover{color:#ffe9a8}
+
+/* ===== v1.3.0 reader ===== */
+#readerProgressBar{position:relative;height:22px;background:none;overflow:visible;display:flex;align-items:center}
+#readerProgressFill{display:none}
+#pageSlider{width:100%;margin:0;accent-color:var(--accent);height:22px;touch-action:pan-y;background:transparent}
+#readerActions{display:flex;gap:.1rem;flex-wrap:nowrap}
+#readerActions .icon-btn.on{background:var(--accent);color:#fff}
+#readerStage.lay-phone{padding:.15rem .1rem}
+#readerStage.lay-tablet{max-width:780px;margin:0 auto;padding:.5rem 1.2rem}
+#readerStage.lay-phone .txt-page{padding:.9rem .8rem;border-radius:8px}
+#readerStage.lay-tablet .txt-page{padding:1.6rem 1.8rem}
+#readerBody.lay-phone .turn-zone{width:28px}
+#readerBody.lay-tablet .turn-zone{width:64px}
+#readerPanel .toc-item{display:block;width:100%;text-align:start;background:none;border:none;color:var(--text);padding:.45rem .3rem;border-bottom:1px solid var(--border);font-size:.95rem;cursor:pointer}
+#readerPanel .toc-item:hover{background:var(--surface2)}
+#readerPanel .toc-item.sub{padding-inline-start:1.2rem;font-size:.88rem;color:var(--muted)}
+@media(max-width:700px){
+  #readerTop{padding:.3rem .4rem}
+  #readerTitle{display:none}
+  #readerActions{flex:1;justify-content:space-around}
+  #readerActions .icon-btn{font-size:1.05rem;padding:.3rem .35rem}
+  #readerPanel{inset-inline:8px;width:auto;max-width:none;top:50px}
+  #readerBottom{padding:.35rem .6rem;gap:.5rem}
+}

@@ -35,6 +35,9 @@
     <button id="readerClose" class="icon-btn" title="Close">✕</button>
     <div id="readerTitle"></div>
     <div id="readerActions">
+      <button id="tocBtn" class="icon-btn" title="Table of contents">📑</button>
+      <button id="phoneBtn" class="icon-btn" title="Phone layout">📱</button>
+      <button id="tabletBtn" class="icon-btn" title="Tablet layout">▭</button>
       <button id="ttsBtn" class="icon-btn" title="TTS">🔊</button>
       <button id="hlListBtn" class="icon-btn" title="Highlights">🖊</button>
       <button id="readerSettingsBtn" class="icon-btn" title="Settings">⚙</button>
@@ -47,7 +50,7 @@
   </div>
   <div id="readerBottom">
     <span id="readerProgressLabel"></span>
-    <div id="readerProgressBar"><div id="readerProgressFill"></div></div>
+    <div id="readerProgressBar"><div id="readerProgressFill"></div><input type="range" id="pageSlider" min="0" max="1000" value="0" aria-label="page"></div>
     <span id="sessionTimer" title="Session">0:00</span>
   </div>
   <div id="readerPanel" class="hidden"></div>
