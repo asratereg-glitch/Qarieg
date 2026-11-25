@@ -80,3 +80,6 @@
 ## v1.3.0
 - Reader top bar: new 📑 table of contents (EPUB nav, PDF outline, TXT chapter headings), 📱 phone layout and ▭ tablet layout presets (tap again to go back to auto). Auto layout picks phone/tablet/desktop from screen width.
 - Page bar: the progress bar at the bottom is now a slider. Drag to jump to any page (EPUB shows page n / total once page numbers are ready, PDF and TXT show page numbers).
+
+## v1.3.1
+- 🖼 in the reader top bar: add your own image into an EPUB or TXT book. It goes after the selected text, or after the first paragraph on the current page. Optional caption, list with jump/delete, tap an image in the book to remove it. Images are shrunk to max 1600px, stored on the device, included in .qari backups and GitHub sync. Not supported for PDF.

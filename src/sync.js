@@ -98,7 +98,8 @@ async function applyRemote(remote, why) {
 
 /* ---------- book files ---------- */
 async function syncFiles() {
-  const books = store.getState().books.filter(b => b.fileKey && b.format !== 'web');
+  const st = store.getState();
+  const books = st.books.filter(b => b.fileKey && b.format !== 'web').concat((st.images || []).filter(i => i.fileKey));
   if (!books.length) return;
   const r = await gh('GET', `${repoPath()}/contents/files`);
   let remote = new Set();

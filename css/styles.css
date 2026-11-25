@@ -295,3 +295,8 @@ h1,h2,h3{font-weight:700}
   #readerPanel{inset-inline:8px;width:auto;max-width:none;top:50px}
   #readerBottom{padding:.35rem .6rem;gap:.5rem}
 }
+
+/* v1.3.1 images in books */
+.txt-page figure.qari-img{margin:1rem auto;text-align:center;white-space:normal}
+.txt-page figure.qari-img img{max-width:100%;max-height:70vh;border-radius:6px;cursor:pointer}
+.txt-page figure.qari-img figcaption{font-size:.85em;opacity:.7;margin-top:.3em}

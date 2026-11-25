@@ -96,6 +96,132 @@ function bindSlider() {
   document.addEventListener('pointerup', () => { sliderDrag = false; });
 }
 
+/* ---- v1.3.1: user images inside books ---- */
+const imgUrlCache = new Map();
+async function imgDataUrl(im) {
+  if (imgUrlCache.has(im.id)) return imgUrlCache.get(im.id);
+  const blob = await db.getFile(im.fileKey); if (!blob) return '';
+  const u = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
+  imgUrlCache.set(im.id, u); return u;
+}
+async function shrinkImage(file) {   // max 1600px, JPEG 0.85 (keeps sync light)
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bad image')); i.src = url; });
+    const sc = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * sc); c.height = Math.round(img.naturalHeight * sc);
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85));
+  } finally { URL.revokeObjectURL(url); }
+}
+function blockAfter(range, doc) {
+  let el = range.endContainer; while (el && el.nodeType !== 1) el = el.parentNode;
+  const body = doc.body;
+  while (el && el !== body && el.parentElement !== body && !/^(P|DIV|H[1-6]|LI|BLOCKQUOTE|SECTION|FIGURE|TABLE|PRE|UL|OL)$/.test(el.tagName)) el = el.parentElement;
+  return el || body;
+}
+function makeFigure(doc, im, url) {
+  const fig = doc.createElement('figure'); fig.className = 'qari-img'; fig.dataset.id = im.id;
+  fig.setAttribute('style', 'margin:1em auto;text-align:center;break-inside:avoid;max-width:100%');
+  const img = doc.createElement('img'); img.src = url; img.alt = ''; img.setAttribute('style', 'max-width:100%;max-height:80vh;height:auto;border-radius:6px');
+  fig.appendChild(img);
+  if (im.caption) { const c = doc.createElement('figcaption'); c.textContent = im.caption; c.setAttribute('style', 'font-size:.85em;opacity:.7;margin-top:.3em'); fig.appendChild(c); }
+  fig.addEventListener('click', () => window.parent.__qariAskRemoveImage && window.parent.__qariAskRemoveImage(im.id));
+  img.addEventListener('load', () => { try { R && R.rendition && R.rendition.resize(); } catch {} });
+  return fig;
+}
+async function placeEpubImages(contents) {
+  if (!R || !R.epub) return;
+  const doc = contents.document;
+  doc.querySelectorAll('figure.qari-img').forEach(f => f.remove());
+  const imgs = store.bookImages(R.book.id).filter(i => i.cfi && i.fileKey).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  for (const im of imgs) {
+    try {
+      const sec = R.epub.spine.get(im.cfi);
+      if (!sec || sec.index !== contents.sectionIndex) continue;
+      const range = contents.range(im.cfi, 'qari-img'); if (!range) continue;
+      const url = await imgDataUrl(im); if (!url) continue;
+      const fig = makeFigure(doc, im, url);
+      const el = blockAfter(range, doc);
+      if (el === doc.body) doc.body.appendChild(fig); else el.insertAdjacentElement('afterend', fig);
+    } catch (e) { console.warn('place image failed', e); }
+  }
+}
+function refreshImages() {
+  if (!R) return;
+  if (R.rendition) { try { R.rendition.getContents().forEach(c => placeEpubImages(c)); setTimeout(() => { try { R.rendition.resize(); } catch {} }, 150); } catch {} }
+  else if (R.txtPages) renderTxtPage();
+}
+function askRemoveImage(id) {
+  if (!confirm(getLang() === 'ar' ? 'مسح الصورة دي من الكتاب؟' : 'Remove this image from the book?')) return;
+  const im = (store.getState().images || []).find(i => i.id === id);
+  store.removeImage(id); if (im) db.deleteFile(im.fileKey).catch(() => {}); imgUrlCache.delete(id);
+  refreshImages(); const p = $('#readerPanel'); if (p && p.dataset.kind === 'img') showImagePanel();
+}
+window.__qariAskRemoveImage = askRemoveImage;
+function capturePos() {          // where a new image goes: after the selected text, else the current page start
+  if (R.rendition) {
+    try {
+      const c = R.rendition.getContents()[0];
+      const sel = c.window.getSelection();
+      if (sel && sel.rangeCount && !sel.isCollapsed) return { cfi: c.cfiFromRange(sel.getRangeAt(0), 'qari-img') };
+    } catch {}
+    const loc = R.rendition.currentLocation();
+    if (loc && loc.start) return { cfi: loc.start.cfi };
+    return null;
+  }
+  if (R.txtPages) {
+    let at = null;
+    try {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount && !sel.isCollapsed) {
+        const rg = sel.getRangeAt(0); let n = rg.endContainer; if (n.nodeType === 3) n = n.parentNode;
+        const sp = n.closest && n.closest('.seg');
+        if (sp) at = (+sp.dataset.off) + (rg.endContainer.nodeType === 3 ? rg.endOffset : 0);
+      }
+    } catch {}
+    return { page: R.txtIdx + 1, at };
+  }
+  return null;
+}
+async function showImagePanel() {
+  const panel = $('#readerPanel'); panel.classList.remove('hidden'); panel.dataset.kind = 'img';
+  const ar = getLang() === 'ar';
+  if (R.pdf || !(R.rendition || R.txtPages)) { panel.innerHTML = `<h3>🖼 ${t('addImage')}</h3><p class="muted">${t('imgNoPdf')}</p>`; return; }
+  if (!panel._pos || panel._bookId !== R.book.id || !panel._keep) { panel._pos = capturePos(); }
+  panel._bookId = R.book.id; panel._keep = false;
+  const list = store.bookImages(R.book.id);
+  panel.innerHTML = `<h3>🖼 ${t('addImage')}</h3>
+    <p class="muted" style="margin-bottom:.6rem">${t('imgHint')}</p>
+    <input id="imgCap" placeholder="${t('imgCaption')}" style="width:100%;margin-bottom:.5rem">
+    <button id="imgPick" class="btn btn-primary" style="margin-bottom:.4rem">＋ ${t('imgChoose')}</button>
+    <input type="file" id="imgFile" accept="image/*" hidden>
+    <h4 style="margin:.8rem 0 .4rem">${t('imgInBook')} (${list.length})</h4><div id="imgList"></div>`;
+  panel.querySelector('#imgPick').onclick = () => { panel._keep = true; panel.querySelector('#imgFile').click(); };
+  panel.querySelector('#imgFile').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const pos = panel._pos || capturePos(); if (!pos) throw new Error(t('imgNoPos'));
+      const blob = await shrinkImage(f);
+      const im = store.addImage(Object.assign({ bookId: R.book.id, caption: panel.querySelector('#imgCap').value.trim() }, pos));
+      await db.putFile(im.fileKey, blob);
+      panel._pos = null; refreshImages(); toast(t('added'));
+    } catch (err) { toast('⚠ ' + (err.message || err), 3500); }
+    showImagePanel();
+  };
+  const lh = panel.querySelector('#imgList');
+  if (!list.length) lh.innerHTML = `<p class="muted">${t('imgNone')}</p>`;
+  list.forEach(async im => {
+    const row = document.createElement('div'); row.className = 'comment'; row.style.display = 'flex'; row.style.gap = '.5rem'; row.style.alignItems = 'center';
+    row.innerHTML = `<img style="width:56px;height:56px;object-fit:cover;border-radius:6px"><div style="flex:1" class="muted"></div><button class="icon-btn" data-act="jump">↩</button><button class="icon-btn" data-act="del">🗑</button>`;
+    row.querySelector('div').textContent = im.caption || (im.page ? (t('pageN').replace('{n}', im.page)) : '');
+    imgDataUrl(im).then(u => { if (u) row.querySelector('img').src = u; });
+    row.querySelector('[data-act=jump]').onclick = () => { if (im.cfi && R.rendition) R.rendition.display(im.cfi); else if (im.page && R.txtPages) { R.txtIdx = im.page - 1; renderTxtPage(); } };
+    row.querySelector('[data-act=del]').onclick = () => askRemoveImage(im.id);
+    lh.appendChild(row);
+  });
+}
+
 export async function openReader(book) {
   const ov = $('#readerOverlay');
   ov.classList.remove('hidden');
@@ -138,11 +264,12 @@ async function openEpub(blob, book) {
   R.epub = epub;
   const s = store.getState().settings;
   const stage = $('#readerStage'); stage.innerHTML = '';
-  const rendition = epub.renderTo(stage, { width: '100%', height: '100%', flow: s.flow === 'scrolled' ? 'scrolled-doc' : 'paginated', spread: 'none', allowScriptedContent: false });
+  const rendition = epub.renderTo(stage, { width: '100%', height: '100%', flow: s.flow === 'scrolled' ? 'scrolled-doc' : 'paginated', spread: 'none', allowScriptedContent: false, ignoreClass: 'qari-img' });
   R.rendition = rendition;
   rendition.hooks.content.register(contents => {
     try { const st = contents.document.createElement('style'); st.textContent = fontFaceCSS(); contents.document.head.appendChild(st); } catch (e) { console.warn('font inject failed', e); }
   });
+  rendition.hooks.content.register(contents => { placeEpubImages(contents); });
   await epub.ready;
   await epub.loaded.navigation.catch(() => {});
   await rendition.display(book.location || undefined);
@@ -262,7 +389,20 @@ function renderTxtPage() {
   div.style.setProperty('--rfs', s.fontSize + 'px');
   if (s.fontFamily && s.fontFamily !== 'auto') div.style.fontFamily = fontStack(s.fontFamily);
   div.style.setProperty('--rlh', s.lineHeight);
-  div.textContent = R.txtPages[R.txtIdx];
+  const pageText = R.txtPages[R.txtIdx];
+  const pimgs = store.bookImages(R.book.id).filter(i => i.page === R.txtIdx + 1 && i.fileKey).sort((a, b) => (a.at || 0) - (b.at || 0));
+  let pos = 0;
+  const seg = (from, to) => { const sp = document.createElement('span'); sp.className = 'seg'; sp.dataset.off = from; sp.textContent = pageText.slice(from, to); div.appendChild(sp); };
+  pimgs.forEach(im => {
+    const at = Math.min(pageText.length, Math.max(pos, im.at == null ? pageText.length : im.at));
+    seg(pos, at); pos = at;
+    const fig = document.createElement('figure'); fig.className = 'qari-img'; fig.dataset.id = im.id;
+    fig.innerHTML = '<img alt=""><figcaption></figcaption>'; fig.querySelector('figcaption').textContent = im.caption || '';
+    fig.onclick = () => askRemoveImage(im.id);
+    imgDataUrl(im).then(u => { if (u) fig.querySelector('img').src = u; });
+    div.appendChild(fig);
+  });
+  seg(pos, pageText.length);
   stage.appendChild(div);
   div.addEventListener('mouseup', () => {
     const sel = window.getSelection();
@@ -460,7 +600,7 @@ function bindChrome() {
   if (chromeBound) return; chromeBound = true;
   const closeFloating = (e) => {
     const pn = $('#readerPanel'), sp = $('#selPop');
-    if (pn && !pn.classList.contains('hidden') && !(e && e.target && e.target.closest && e.target.closest('#readerPanel,#readerSettingsBtn,#hlListBtn,#tocBtn'))) pn.classList.add('hidden');
+    if (pn && !pn.classList.contains('hidden') && !(e && e.target && e.target.closest && e.target.closest('#readerPanel,#readerSettingsBtn,#hlListBtn,#tocBtn,#imgBtn'))) pn.classList.add('hidden');
     if (sp && !sp.classList.contains('hidden') && !(e && e.target && e.target.closest && e.target.closest('#selPop'))) sp.classList.add('hidden');
   };
   document.addEventListener('pointerdown', closeFloating, true);
@@ -476,6 +616,7 @@ function bindChrome() {
   $('#readerClose').onclick = closeReader;
   $('#ttsBtn').onclick = toggleTts;
   $('#tocBtn').onclick = () => { const p = $('#readerPanel'); if (!p.classList.contains('hidden') && p.dataset.kind === 'toc') { p.classList.add('hidden'); return; } showTocPanel(); };
+  $('#imgBtn').onclick = () => { const p = $('#readerPanel'); if (!p.classList.contains('hidden') && p.dataset.kind === 'img') { p.classList.add('hidden'); return; } p._pos = null; showImagePanel(); };
   $('#phoneBtn').onclick = () => setLayout('phone');
   $('#tabletBtn').onclick = () => setLayout('tablet');
   window.addEventListener('resize', () => { if (R && !$('#readerOverlay').classList.contains('hidden')) applyLayout(true); });

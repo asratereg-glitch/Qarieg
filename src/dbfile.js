@@ -19,7 +19,7 @@ async function build() {
   zip.file('manifest.json', JSON.stringify({ format: FORMAT, version: 1, savedAt: new Date().toISOString() }));
   zip.file('data.json', JSON.stringify(store.snapshot()));
   const keys = await db.allFileKeys();
-  const used = new Set(store.getState().books.map(b => b.fileKey).filter(Boolean));
+  const used = new Set(store.getState().books.map(b => b.fileKey).concat((store.getState().images || []).map(i => i.fileKey)).filter(Boolean));
   for (const k of keys) { if (!used.has(k)) continue; const b = await db.getFile(k); if (b) zip.file('files/' + k, b, { binary: true }); }
   return zip.generateAsync({ type: 'blob', compression: 'STORE' });
 }

@@ -16,6 +16,7 @@ const DEFAULTS = () => ({
   achievements: {},     // {id: isoDate}
   comments: [],         // {id,bookId,chapter,author,text,createdAt,origin:'me'|'buddy'}
   lists: [],            // {id,name,desc,bookIds:[],createdAt}
+  images: [],           // user images inside books {id,bookId,fileKey,cfi|page+at,caption,createdAt}
   metaCache: {},        // olKey -> {ts, meta}
   buddy: { name: '' },
   activity: [],         // {type:'rating'|'review'|'comment'|'finished',bookId,text,createdAt}
@@ -72,9 +73,15 @@ export function removeBook(id) {
   state.books = state.books.filter(b => b.id !== id);
   state.highlights = state.highlights.filter(h => h.bookId !== id);
   state.comments = state.comments.filter(c => c.bookId !== id);
+  state.images = (state.images || []).filter(i => i.bookId !== id);
   state.lists.forEach(l => { l.bookIds = l.bookIds.filter(x => x !== id); });
   save();
 }
+
+/* ---- images placed inside books ---- */
+export function addImage(img) { const o = Object.assign({ id: uid(), caption: '', createdAt: new Date().toISOString() }, img); (state.images = state.images || []).push(o); o.fileKey = o.fileKey || ('img-' + o.id); save(); return o; }
+export function removeImage(id) { state.images = (state.images || []).filter(i => i.id !== id); save(); }
+export function bookImages(bookId) { return (state.images || []).filter(i => i.bookId === bookId); }
 
 /* ---- shelves ---- */
 export function addCustomShelf(name){ if (name && !state.customShelves.includes(name)) { state.customShelves.push(name); save(); } }
