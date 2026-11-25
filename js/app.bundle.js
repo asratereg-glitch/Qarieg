@@ -366,8 +366,8 @@
     const m = state.metaCache[olKey];
     return m ? m.meta : null;
   }
-  function setMeta(olKey, meta) {
-    state.metaCache[olKey] = { ts: Date.now(), meta };
+  function setMeta(olKey, meta2) {
+    state.metaCache[olKey] = { ts: Date.now(), meta: meta2 };
     const keys = Object.keys(state.metaCache);
     if (keys.length > 60) keys.sort((a, b) => state.metaCache[a].ts - state.metaCache[b].ts).slice(0, keys.length - 60).forEach((k) => delete state.metaCache[k]);
     save();
@@ -1521,11 +1521,11 @@
       const ttl = path.map(nm).join(" \u203A ");
       showResults(view, "\u{1F3C5} " + ttl + (yr ? " \xB7 " + $2("#topYear", view).selectedOptions[0].textContent : "") + " \xB7 " + SOURCES[src][0], (page) => SOURCES[src][1]({ kind: path[0].kind, q: node.q, yr }, page), true);
     };
-    const rerun = () => {
+    const rerun2 = () => {
       if (lastRun) lastRun();
     };
-    $2("#topSrc", view).onchange = rerun;
-    $2("#topYear", view).onchange = rerun;
+    $2("#topSrc", view).onchange = rerun2;
+    $2("#topYear", view).onchange = rerun2;
     const showLevel = (nodes, path) => {
       tc.innerHTML = "";
       crumb.textContent = path.map(nm).join(" \u203A ");
@@ -1722,7 +1722,7 @@
     grid.innerHTML = `<p class="muted">${t("loading")}</p>`;
     sec.scrollIntoView({ behavior: "smooth" });
     const all = [];
-    let page = 0, more = true, busy = false, token = {};
+    let page = 0, more = true, busy2 = false, token = {};
     grid.__token = token;
     let sortMode = "default", saveBtn = null;
     if (sortSel) {
@@ -1748,8 +1748,8 @@
     box.className = "more-box";
     sec.appendChild(box);
     const loadPage = async () => {
-      if (busy || !more || grid.__token !== token) return;
-      busy = true;
+      if (busy2 || !more || grid.__token !== token) return;
+      busy2 = true;
       try {
         const r = await fetcher(page);
         const items = Array.isArray(r) ? r : r.items;
@@ -1778,7 +1778,7 @@
         if (page === 0) grid.innerHTML = `<p class="muted">\u26A0 ${esc(e.message)}</p>`;
         more = false;
       }
-      busy = false;
+      busy2 = false;
       box.innerHTML = more ? `<button class="btn" style="margin:1rem auto;display:block">${getLang() === "ar" ? "\u0639\u0631\u0636 \u0627\u0644\u0645\u0632\u064A\u062F" : "Load more"}</button>` : all.length ? `<p class="muted" style="text-align:center">${all.length} ${getLang() === "ar" ? "\u0643\u062A\u0627\u0628" : "books"}</p>` : "";
       const btn = box.querySelector("button");
       if (btn) {
@@ -2598,20 +2598,20 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
   function basicMeta(b) {
     return { olKey: b.olKey || "", title: b.title, author: b.author, cover: b.cover, subjects: b.subjects || [], isbn: b.isbn, pages: b.totalPages || 0, basic: true };
   }
-  function ensureLib(meta) {
-    const subj = cleanSubjects(meta.subjects);
+  function ensureLib(meta2) {
+    const subj = cleanSubjects(meta2.subjects);
     return addBook({
-      title: meta.title || "?",
-      author: meta.author || "",
+      title: meta2.title || "?",
+      author: meta2.author || "",
       format: "web",
-      cover: meta.cover || "",
+      cover: meta2.cover || "",
       source: "openlibrary",
       subjects: subj,
-      isbn: meta.isbn || "",
-      olKey: meta.olKey || "",
-      year: meta.year || "",
+      isbn: meta2.isbn || "",
+      olKey: meta2.olKey || "",
+      year: meta2.year || "",
       shelf: "want",
-      totalPages: meta.pages || 0
+      totalPages: meta2.pages || 0
     });
   }
   async function renderBookPage(view, arg2, kind2) {
@@ -2632,9 +2632,9 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       }
     }
     const tok = ++TOKEN;
-    let meta = olKey && getMeta(olKey) || null;
-    if (meta) {
-      draw(view, lib, meta, tok);
+    let meta2 = olKey && getMeta(olKey) || null;
+    if (meta2) {
+      draw(view, lib, meta2, tok);
       return;
     }
     draw(view, lib, lib ? basicMeta(lib) : { olKey, title: "\u2026", author: "", subjects: [], basic: true }, tok, true);
@@ -2657,13 +2657,13 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     if (!value) return `<div class="bp-rate muted-box"><div class="bp-rate-l">${label}</div><div class="bp-rate-v">\u2014</div><div class="muted">${tr("\u0645\u0641\u064A\u0634 \u062A\u0642\u064A\u064A\u0645\u0627\u062A", "no ratings")}</div></div>`;
     return `<div class="bp-rate"><div class="bp-rate-l">${label}</div><div class="bp-rate-v">\u2605 ${value.toFixed(1)}<small>/5</small></div><div class="muted">${nf(count)} ${tr("\u062A\u0642\u064A\u064A\u0645", "ratings")}${extra}</div></div>`;
   }
-  function draw(view, lib, meta, tok, loading = false) {
-    const title = lib && lib.title || meta.title || "?";
-    const author = lib && lib.author || meta.author || "";
-    const cover = lib && lib.cover || meta.cover || "";
-    const ol = meta.olKey;
-    const subjects = cleanSubjects(meta.subjects && meta.subjects.length ? meta.subjects : lib ? lib.subjects : []).slice(0, 8);
-    const gb = meta.gb;
+  function draw(view, lib, meta2, tok, loading = false) {
+    const title = lib && lib.title || meta2.title || "?";
+    const author = lib && lib.author || meta2.author || "";
+    const cover = lib && lib.cover || meta2.cover || "";
+    const ol = meta2.olKey;
+    const subjects = cleanSubjects(meta2.subjects && meta2.subjects.length ? meta2.subjects : lib ? lib.subjects : []).slice(0, 8);
+    const gb = meta2.gb;
     const hls = lib ? bookHighlights(lib.id) : [];
     const comments = lib ? bookComments(lib.id) : [];
     const myLists = lib ? listsOfBook(lib.id) : [];
@@ -2671,12 +2671,12 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const details = [
       [tr("\u0627\u0644\u0639\u0646\u0648\u0627\u0646", "Title"), title],
       [tr("\u0627\u0644\u0645\u0624\u0644\u0641", "Author"), author],
-      [tr("\u0623\u0648\u0644 \u0646\u0634\u0631", "First published"), meta.year],
-      [tr("\u0639\u062F\u062F \u0627\u0644\u0635\u0641\u062D\u0627\u062A", "Pages"), meta.pages ? nf(meta.pages) : ""],
-      [tr("\u0639\u062F\u062F \u0627\u0644\u0625\u0635\u062F\u0627\u0631\u0627\u062A", "Editions"), meta.editions ? nf(meta.editions) : ""],
-      [tr("\u0627\u0644\u0646\u0627\u0634\u0631", "Publisher"), meta.publisher || gb && gb.publisher],
-      [tr("\u0627\u0644\u0644\u063A\u0627\u062A", "Languages"), (meta.languages || []).join(", ")],
-      ["ISBN", meta.isbn],
+      [tr("\u0623\u0648\u0644 \u0646\u0634\u0631", "First published"), meta2.year],
+      [tr("\u0639\u062F\u062F \u0627\u0644\u0635\u0641\u062D\u0627\u062A", "Pages"), meta2.pages ? nf(meta2.pages) : ""],
+      [tr("\u0639\u062F\u062F \u0627\u0644\u0625\u0635\u062F\u0627\u0631\u0627\u062A", "Editions"), meta2.editions ? nf(meta2.editions) : ""],
+      [tr("\u0627\u0644\u0646\u0627\u0634\u0631", "Publisher"), meta2.publisher || gb && gb.publisher],
+      [tr("\u0627\u0644\u0644\u063A\u0627\u062A", "Languages"), (meta2.languages || []).join(", ")],
+      ["ISBN", meta2.isbn],
       [tr("\u0627\u0644\u0635\u064A\u063A\u0629", "Format"), lib && lib.format !== "web" ? lib.format.toUpperCase() : ""]
     ].filter((r) => r[1]);
     view.innerHTML = `
@@ -2685,15 +2685,15 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     <div class="bp-hero-inner">
       <div class="bp-poster"><div class="cover">${cover ? `<img src="${esc(cover)}" alt="">` : coverHTML({ title, format: lib ? lib.format : "web" })}</div></div>
       <div class="bp-info">
-        <h1>${esc(title)} ${meta.year ? `<span class="bp-year">(${esc(meta.year)})</span>` : ""}</h1>
-        <div class="bp-sub">${author ? `<a href="#/discover" id="bpAuthor" class="bp-alink" title="${tr("\u0643\u0644 \u0643\u062A\u0628 \u0627\u0644\u0645\u0624\u0644\u0641", "All books by this author")}">${esc(author)}</a>` : ""}${meta.pages ? ` \xB7 ${nf(meta.pages)} ${t("pages")}` : ""}${meta.editions ? ` \xB7 ${nf(meta.editions)} ${tr("\u0625\u0635\u062F\u0627\u0631", "editions")}` : ""}</div>
+        <h1>${esc(title)} ${meta2.year ? `<span class="bp-year">(${esc(meta2.year)})</span>` : ""}</h1>
+        <div class="bp-sub">${author ? `<a href="#/discover" id="bpAuthor" class="bp-alink" title="${tr("\u0643\u0644 \u0643\u062A\u0628 \u0627\u0644\u0645\u0624\u0644\u0641", "All books by this author")}">${esc(author)}</a>` : ""}${meta2.pages ? ` \xB7 ${nf(meta2.pages)} ${t("pages")}` : ""}${meta2.editions ? ` \xB7 ${nf(meta2.editions)} ${tr("\u0625\u0635\u062F\u0627\u0631", "editions")}` : ""}</div>
         <div class="bp-chips">${subjects.map(chip).join("")}${loading ? `<span class="muted">${t("loading")}</span>` : ""}</div>
         <div class="bp-ratings">
-          ${ratingBox("Open Library", meta.rating, meta.ratingCount)}
+          ${ratingBox("Open Library", meta2.rating, meta2.ratingCount)}
           ${gb ? ratingBox("Google Books", gb.rating, gb.count) : ""}
           <div class="bp-rate bp-mine"><div class="bp-rate-l">${tr("\u062A\u0642\u064A\u064A\u0645\u0643", "Your rating")}</div><div id="ratingHost"></div><div class="muted">${tr("\u0627\u0636\u063A\u0637 \u0627\u0644\u0646\u062C\u0648\u0645", "tap the stars")}</div></div>
         </div>
-        ${meta.wantToRead || meta.alreadyRead || meta.currentlyReading ? `<div class="bp-community">\u{1F516} ${nf(meta.wantToRead)} ${tr("\u0639\u0627\u064A\u0632\u064A\u0646 \u064A\u0642\u0631\u0648\u0647", "want to read")} \xB7 \u{1F4D6} ${nf(meta.currentlyReading)} ${tr("\u0628\u064A\u0642\u0631\u0648\u0647", "reading")} \xB7 \u2705 ${nf(meta.alreadyRead)} ${tr("\u0642\u0631\u0648\u0647", "have read")}</div>` : ""}
+        ${meta2.wantToRead || meta2.alreadyRead || meta2.currentlyReading ? `<div class="bp-community">\u{1F516} ${nf(meta2.wantToRead)} ${tr("\u0639\u0627\u064A\u0632\u064A\u0646 \u064A\u0642\u0631\u0648\u0647", "want to read")} \xB7 \u{1F4D6} ${nf(meta2.currentlyReading)} ${tr("\u0628\u064A\u0642\u0631\u0648\u0647", "reading")} \xB7 \u2705 ${nf(meta2.alreadyRead)} ${tr("\u0642\u0631\u0648\u0647", "have read")}</div>` : ""}
         <div class="bp-actions">
           ${lib ? `<button id="readBtn" class="btn btn-primary">\u25B6 ${t("startReading")}</button><button id="attachBtn" class="btn" title="${tr("\u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628 \u0645\u0646 \u062C\u0647\u0627\u0632\u0643", "Choose the book file from your device")}">\u{1F4CE} ${lib.fileKey ? tr("\u063A\u064A\u0651\u0631 \u0627\u0644\u0645\u0644\u0641", "Change file") : tr("\u0627\u0631\u0628\u0637 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628", "Link book file")}</button>` : ""}
           ${!lib ? `<button id="addLibBtn" class="btn btn-primary">\uFF0B ${t("addToLibrary")}</button>` : ""}
@@ -2714,8 +2714,8 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
   <div class="bp-cols">
     <div class="bp-main">
       <div class="chart-box"><h3>${tr("\u0646\u0628\u0630\u0629", "Overview")}</h3>
-        ${meta.description ? `<p class="bp-desc" id="descP" dir="auto">${esc(meta.description)}</p><button class="btn bp-more" id="moreDesc">${tr("\u0627\u0642\u0631\u0623 \u0627\u0644\u0645\u0632\u064A\u062F", "Read more")}</button>` : `<p class="muted">${loading ? t("loading") : meta.notFound ? tr("\u0645\u0641\u064A\u0634 \u0628\u064A\u0627\u0646\u0627\u062A \u0623\u0648\u0646\u0644\u0627\u064A\u0646 \u0644\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 (\u0623\u0648 \u0645\u0641\u064A\u0634 \u0646\u062A).", "No online data found for this book (or you are offline).") : tr("\u0645\u0641\u064A\u0634 \u0648\u0635\u0641 \u0645\u062A\u0627\u062D.", "No description available.")}</p>`}
-        ${meta.firstSentence ? `<blockquote class="bp-quote" dir="auto">\u201C${esc(meta.firstSentence)}\u201D<div class="muted">${tr("\u0623\u0648\u0644 \u062C\u0645\u0644\u0629", "First sentence")}</div></blockquote>` : ""}
+        ${meta2.description ? `<p class="bp-desc" id="descP" dir="auto">${esc(meta2.description)}</p><button class="btn bp-more" id="moreDesc">${tr("\u0627\u0642\u0631\u0623 \u0627\u0644\u0645\u0632\u064A\u062F", "Read more")}</button>` : `<p class="muted">${loading ? t("loading") : meta2.notFound ? tr("\u0645\u0641\u064A\u0634 \u0628\u064A\u0627\u0646\u0627\u062A \u0623\u0648\u0646\u0644\u0627\u064A\u0646 \u0644\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 (\u0623\u0648 \u0645\u0641\u064A\u0634 \u0646\u062A).", "No online data found for this book (or you are offline).") : tr("\u0645\u0641\u064A\u0634 \u0648\u0635\u0641 \u0645\u062A\u0627\u062D.", "No description available.")}</p>`}
+        ${meta2.firstSentence ? `<blockquote class="bp-quote" dir="auto">\u201C${esc(meta2.firstSentence)}\u201D<div class="muted">${tr("\u0623\u0648\u0644 \u062C\u0645\u0644\u0629", "First sentence")}</div></blockquote>` : ""}
       </div>
 
       <div class="chart-box"><h3>\u{1F4AC} ${tr("\u062A\u0639\u0644\u064A\u0642\u0627\u062A\u064A", "My comments")} (${comments.length})</h3>
@@ -2739,17 +2739,17 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         <table class="bp-table">${details.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</table>
         <div class="bp-links">${ol ? `<a href="https://openlibrary.org/works/${esc(ol)}" target="_blank" rel="noopener">Open Library \u2197</a>` : ""}${gb && gb.link ? `<a href="${esc(gb.link)}" target="_blank" rel="noopener">Google Books \u2197</a>` : ""}</div>
       </div>
-      ${meta.authorKey && (meta.authorBio || meta.authorPhoto) ? `<div class="chart-box"><h3>${tr("\u0639\u0646 \u0627\u0644\u0645\u0624\u0644\u0641", "About the author")}</h3>
-        <div class="bp-author">${meta.authorPhoto ? `<img src="${esc(meta.authorPhoto)}" alt="">` : ""}<div><strong>${esc(author)}</strong>
-        <div class="muted">${esc([meta.authorBorn, meta.authorDied].filter(Boolean).join(" \u2013 "))}</div></div></div>
-        ${meta.authorBio ? `<p class="bp-bio" dir="auto">${esc(meta.authorBio)}</p>` : ""}</div>` : ""}
+      ${meta2.authorKey && (meta2.authorBio || meta2.authorPhoto) ? `<div class="chart-box"><h3>${tr("\u0639\u0646 \u0627\u0644\u0645\u0624\u0644\u0641", "About the author")}</h3>
+        <div class="bp-author">${meta2.authorPhoto ? `<img src="${esc(meta2.authorPhoto)}" alt="">` : ""}<div><strong>${esc(author)}</strong>
+        <div class="muted">${esc([meta2.authorBorn, meta2.authorDied].filter(Boolean).join(" \u2013 "))}</div></div></div>
+        ${meta2.authorBio ? `<p class="bp-bio" dir="auto">${esc(meta2.authorBio)}</p>` : ""}</div>` : ""}
       ${lib ? `<button id="delBtn" class="btn btn-danger" style="width:100%">\u{1F5D1} ${t("removeBook")}</button>` : ""}
     </aside>
   </div>`;
-    const redraw = () => draw(view, lib, meta, tok, false);
+    const redraw = () => draw(view, lib, meta2, tok, false);
     const need = () => {
       if (!lib) {
-        lib = ensureLib(meta);
+        lib = ensureLib(meta2);
         toast(t("added"));
       }
       return lib;
@@ -2825,7 +2825,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         const open2 = p.classList.toggle("open");
         md.textContent = open2 ? tr("\u0623\u0642\u0644", "Show less") : tr("\u0627\u0642\u0631\u0623 \u0627\u0644\u0645\u0632\u064A\u062F", "Read more");
       };
-      if (meta.description.length < 480) md.remove();
+      if (meta2.description.length < 480) md.remove();
     }
     $5("#cmAdd", view).onclick = () => {
       const text = $5("#cmText", view).value.trim();
@@ -2918,14 +2918,14 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         const ti = document.getElementById(titleId);
         if (ti) ti.hidden = true;
       });
-      const curTitle = lib && lib.title || meta.title;
+      const curTitle = lib && lib.title || meta2.title;
       const authorItems = (async () => {
-        let items = meta.authorKey ? await moreByAuthor(meta.authorKey, meta.olKey).catch(() => []) : [];
-        if (!items.length && author) items = (await worksByAuthor(author, 0, 14).catch(() => ({ items: [] }))).items.filter((x) => x.olKey !== meta.olKey && x.title !== curTitle).slice(0, 12);
+        let items = meta2.authorKey ? await moreByAuthor(meta2.authorKey, meta2.olKey).catch(() => []) : [];
+        if (!items.length && author) items = (await worksByAuthor(author, 0, 14).catch(() => ({ items: [] }))).items.filter((x) => x.olKey !== meta2.olKey && x.title !== curTitle).slice(0, 12);
         return items;
       })();
       fill("authorRow", "authorRowT", authorItems);
-      fill("simRow", "simRowT", relatedBooks({ subjects: meta.subjects || lib && lib.subjects || [], olKey: meta.olKey, authorKey: meta.authorKey, title: curTitle, author }));
+      fill("simRow", "simRowT", relatedBooks({ subjects: meta2.subjects || lib && lib.subjects || [], olKey: meta2.olKey, authorKey: meta2.authorKey, title: curTitle, author }));
     }
   }
   function openListsPicker(getBook2, peekBook, onDone) {
@@ -3361,6 +3361,330 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     });
   }
 
+  // src/sync.js
+  var KEY2 = "qari.sync";
+  var API = "https://api.github.com";
+  var DATA_PATH = "data.json";
+  var MAX_FILE = 40 * 1024 * 1024;
+  var PUSH_DELAY = 12e3;
+  var POLL_MS = 9e4;
+  var meta = { token: "", owner: "", repo: "qari-data", sha: null, hash: null, changedAt: 0, lastSync: 0 };
+  var status2 = "off";
+  var lastError2 = "";
+  var lastNote = "";
+  var conflictNote = "";
+  var conflictBackup = null;
+  var busy = false;
+  var rerun = false;
+  var applying = false;
+  var pushTimer = null;
+  var pollTimer = null;
+  var subs2 = /* @__PURE__ */ new Set();
+  var hooks = { onApplied: () => {
+  }, confirm: (msg) => window.confirm(msg), lang: () => "ar" };
+  var emit = () => subs2.forEach((f) => {
+    try {
+      f();
+    } catch {
+    }
+  });
+  var setStatus = (s, err = "") => {
+    status2 = s;
+    lastError2 = err;
+    emit();
+  };
+  var saveMeta = () => localStorage.setItem(KEY2, JSON.stringify(meta));
+  var tt = (ar, en) => hooks.lang() === "ar" ? ar : en;
+  var onStatus2 = (fn) => subs2.add(fn);
+  var configure = (h) => Object.assign(hooks, h);
+  var info2 = () => ({
+    status: status2,
+    error: lastError2,
+    note: lastNote,
+    conflictNote,
+    connected: !!meta.token,
+    owner: meta.owner,
+    repo: meta.repo,
+    lastSync: meta.lastSync,
+    hasConflictBackup: !!conflictBackup
+  });
+  function canon(v) {
+    if (Array.isArray(v)) return "[" + v.map(canon).join(",") + "]";
+    if (v && typeof v === "object") return "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + canon(v[k])).join(",") + "}";
+    return JSON.stringify(v);
+  }
+  function syncState(s) {
+    const c = JSON.parse(JSON.stringify(s));
+    delete c.metaCache;
+    if (c.settings) delete c.settings.gbKey;
+    return c;
+  }
+  var hashNow = () => canon(syncState(getState()));
+  var isEmptyLib = () => {
+    const s = getState();
+    return !s.books.length && !s.lists.length && !s.highlights.length && !s.comments.length;
+  };
+  var b64 = (str) => {
+    const bytes = new TextEncoder().encode(str);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(bin);
+  };
+  var unb64 = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, "")), (c) => c.charCodeAt(0)));
+  var blobToB64 = (blob) => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1]);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(blob);
+  });
+  var enc = (p) => p.split("/").map(encodeURIComponent).join("/");
+  async function gh(method, path, body, accept) {
+    const r = await fetch(API + path + (method === "GET" ? (path.includes("?") ? "&" : "?") + "_=" + Date.now() : ""), {
+      method,
+      cache: "no-store",
+      headers: Object.assign({ Authorization: "Bearer " + meta.token, Accept: accept || "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }, body ? { "Content-Type": "application/json" } : {}),
+      body: body ? JSON.stringify(body) : void 0
+    });
+    return r;
+  }
+  var repoPath = () => `/repos/${encodeURIComponent(meta.owner)}/${encodeURIComponent(meta.repo)}`;
+  async function errOf(r) {
+    let m = "";
+    try {
+      m = (await r.json()).message || "";
+    } catch {
+    }
+    return `GitHub ${r.status}${m ? ": " + m : ""}`;
+  }
+  async function getRemote() {
+    const r = await gh("GET", `${repoPath()}/contents/${DATA_PATH}`);
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(await errOf(r));
+    const j = await r.json();
+    let text;
+    if (j.encoding === "base64" && j.content) text = unb64(j.content);
+    else {
+      const rr = await gh("GET", `${repoPath()}/contents/${DATA_PATH}`, null, "application/vnd.github.raw");
+      if (!rr.ok) throw new Error(await errOf(rr));
+      text = await rr.text();
+    }
+    const doc = JSON.parse(text);
+    if (!doc || doc.format !== "qari-sync" || !doc.state || !Array.isArray(doc.state.books)) throw new Error(tt("\u0627\u0644\u0645\u0644\u0641 \u0641\u064A \u0627\u0644\u0631\u064A\u0628\u0648 \u0645\u0634 \u0628\u062A\u0627\u0639 \u0642\u0627\u0631\u0626", "data.json in the repo is not a Qari file"));
+    return { sha: j.sha, doc };
+  }
+  async function pushData(sha) {
+    const doc = { format: "qari-sync", version: 1, savedAt: (/* @__PURE__ */ new Date()).toISOString(), state: syncState(getState()) };
+    const hash = canon(doc.state);
+    const body = { message: "Qari sync " + doc.savedAt, content: b64(JSON.stringify(doc)) };
+    if (sha) body.sha = sha;
+    const r = await gh("PUT", `${repoPath()}/contents/${DATA_PATH}`, body);
+    if (r.status === 409 || r.status === 422) return { conflict: true };
+    if (!r.ok) throw new Error(await errOf(r));
+    const j = await r.json();
+    meta.sha = j.content.sha;
+    meta.hash = hash;
+    meta.lastSync = Date.now();
+    saveMeta();
+    return { ok: true };
+  }
+  async function applyRemote(remote, why) {
+    if (!isEmptyLib() && canon(syncState(remote.doc.state)) !== hashNow()) {
+      conflictBackup = JSON.stringify({ format: "qari-sync", savedAt: (/* @__PURE__ */ new Date()).toISOString(), state: syncState(getState()) });
+    }
+    const local = getState();
+    const data = Object.assign({}, remote.doc.state, { metaCache: local.metaCache || {} });
+    data.settings = Object.assign({}, data.settings || {}, { gbKey: local.settings && local.settings.gbKey || "" });
+    applying = true;
+    try {
+      replaceState(data);
+    } finally {
+      applying = false;
+    }
+    meta.sha = remote.sha;
+    meta.hash = hashNow();
+    meta.lastSync = Date.now();
+    meta.changedAt = 0;
+    saveMeta();
+    try {
+      hooks.onApplied();
+    } catch {
+    }
+    lastNote = why || "";
+  }
+  async function syncFiles() {
+    const books = getState().books.filter((b) => b.fileKey && b.format !== "web");
+    if (!books.length) return;
+    const r = await gh("GET", `${repoPath()}/contents/files`);
+    let remote = /* @__PURE__ */ new Set();
+    if (r.ok) (await r.json()).forEach((f) => remote.add(f.name));
+    else if (r.status !== 404) throw new Error(await errOf(r));
+    const local = new Set(await allFileKeys());
+    let skipped = 0;
+    for (const b of books) {
+      const k = b.fileKey;
+      if (local.has(k) && !remote.has(k)) {
+        const blob = await getFile(k);
+        if (!blob) continue;
+        if (blob.size > MAX_FILE) {
+          skipped++;
+          continue;
+        }
+        const pr = await gh("PUT", `${repoPath()}/contents/files/${enc(k)}`, { message: "Qari book file " + k, content: await blobToB64(blob) });
+        if (!pr.ok && pr.status !== 422) throw new Error(await errOf(pr));
+      } else if (!local.has(k) && remote.has(k)) {
+        const dr = await gh("GET", `${repoPath()}/contents/files/${enc(k)}`, null, "application/vnd.github.raw");
+        if (!dr.ok) throw new Error(await errOf(dr));
+        await putFile(k, await dr.blob());
+      }
+    }
+    if (skipped) lastNote = tt(`${skipped} \u0643\u062A\u0627\u0628 \u0623\u0643\u0628\u0631 \u0645\u0646 40MB \u0645\u0627 \u0627\u062A\u0631\u0641\u0639\u0634`, `${skipped} book file(s) over 40MB were not uploaded`);
+  }
+  async function syncNow(reason = "manual") {
+    if (!meta.token) return false;
+    if (busy) {
+      rerun = true;
+      return false;
+    }
+    busy = true;
+    clearTimeout(pushTimer);
+    lastNote = "";
+    setStatus("syncing");
+    try {
+      const remote = await getRemote();
+      const h = hashNow();
+      if (!remote) {
+        if (!isEmptyLib()) {
+          const p = await pushData(null);
+          if (p.conflict) {
+            rerun = true;
+          }
+        }
+      } else if (!meta.sha) {
+        if (isEmptyLib() || canon(syncState(remote.doc.state)) === h) await applyRemote(remote, "");
+        else if (hooks.confirm(tt("\u0627\u0644\u0631\u064A\u0628\u0648 \u0641\u064A\u0647 \u0628\u064A\u0627\u0646\u0627\u062A \u0648\u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647 \u0643\u0645\u0627\u0646 \u0641\u064A\u0647 \u0628\u064A\u0627\u0646\u0627\u062A.\nOK = \u0627\u0633\u062A\u062E\u062F\u0645 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0631\u064A\u0628\u0648 (\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u062C\u0647\u0627\u0632 \u0628\u062A\u062A\u062D\u0641\u0638 \u0646\u0633\u062E\u0629 \u062A\u0642\u062F\u0631 \u062A\u0646\u0632\u0644\u0647\u0627).\nCancel = \u0627\u0631\u0641\u0639 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u062C\u0647\u0627\u0632 \u0641\u0648\u0642 \u0627\u0644\u0631\u064A\u0628\u0648.", "The repo has data and this device has data too.\nOK = use the repo data (this device's data is kept as a downloadable copy).\nCancel = upload this device's data over the repo."))) {
+          await applyRemote(remote, tt("\u0627\u062A\u0633\u062A\u062E\u062F\u0645\u062A \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0631\u064A\u0628\u0648", "Repo data was used"));
+        } else {
+          const p = await pushData(remote.sha);
+          if (p.conflict) rerun = true;
+        }
+      } else if (remote.sha === meta.sha) {
+        if (h !== meta.hash) {
+          const p = await pushData(meta.sha);
+          if (p.conflict) rerun = true;
+        }
+      } else {
+        const dirty = h !== meta.hash;
+        if (canon(syncState(remote.doc.state)) === h) {
+          meta.sha = remote.sha;
+          meta.hash = h;
+          meta.lastSync = Date.now();
+          saveMeta();
+        } else if (!dirty) await applyRemote(remote, "");
+        else {
+          const remoteAt = Date.parse(remote.doc.savedAt) || 0;
+          if (remoteAt >= (meta.changedAt || 0)) {
+            await applyRemote(remote, "");
+            conflictNote = tt("\u26A0 \u062A\u0639\u0627\u0631\u0636: \u0627\u062A\u0639\u062F\u0651\u0644 \u0645\u0646 \u062C\u0647\u0627\u0632\u064A\u0646. \u0627\u062A\u0627\u062E\u062F\u062A \u0627\u0644\u0646\u0633\u062E\u0629 \u0627\u0644\u0623\u062D\u062F\u062B (\u0645\u0646 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u062A\u0627\u0646\u064A) \u0648\u0646\u0633\u062E\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647 \u0627\u062A\u062D\u0641\u0638\u062A \u0648\u062A\u0642\u062F\u0631 \u062A\u0646\u0632\u0644\u0647\u0627.", "\u26A0 Conflict: edited on two devices. The newer version (from the other device) was kept; this device's copy was saved and can be downloaded.");
+          } else {
+            const p = await pushData(remote.sha);
+            if (p.conflict) rerun = true;
+            conflictNote = tt("\u26A0 \u062A\u0639\u0627\u0631\u0636: \u0627\u062A\u0639\u062F\u0651\u0644 \u0645\u0646 \u062C\u0647\u0627\u0632\u064A\u0646. \u0627\u062A\u0627\u062E\u062F\u062A \u0627\u0644\u0646\u0633\u062E\u0629 \u0627\u0644\u0623\u062D\u062F\u062B (\u0628\u062A\u0627\u0639\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647) \u0648\u0627\u062A\u062D\u0641\u0638\u062A \u0641\u064A \u0627\u0644\u0631\u064A\u0628\u0648. \u0627\u0644\u0642\u062F\u064A\u0645\u0629 \u0645\u0648\u062C\u0648\u062F\u0629 \u0641\u064A \u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0631\u064A\u0628\u0648 (commits).", "\u26A0 Conflict: edited on two devices. The newer version (this device) was kept and pushed. The older one is in the repo history (commits).");
+          }
+          conflictNote = conflictNote + " (" + (/* @__PURE__ */ new Date()).toLocaleTimeString() + ")";
+        }
+      }
+      if (!rerun) await syncFiles();
+      setStatus("idle");
+      return true;
+    } catch (e) {
+      console.error(e);
+      setStatus("error", e.message || String(e));
+      return false;
+    } finally {
+      busy = false;
+      if (rerun) {
+        rerun = false;
+        setTimeout(() => syncNow("rerun"), 500);
+      }
+    }
+  }
+  function onLocalChange() {
+    if (applying || !meta.token) return;
+    if (hashNow() === meta.hash) return;
+    meta.changedAt = Date.now();
+    saveMeta();
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => syncNow("auto"), PUSH_DELAY);
+  }
+  async function connect(owner, repo, token) {
+    owner = (owner || "").trim();
+    repo = (repo || "").trim();
+    token = (token || "").trim();
+    if (!owner || !repo || !token) throw new Error(tt("\u0627\u0645\u0644\u0627 \u0627\u0644\u062E\u0627\u0646\u0627\u062A \u0627\u0644\u062A\u0644\u0627\u062A\u0629", "Fill all three fields"));
+    const prev2 = meta;
+    meta = { token, owner, repo, sha: null, hash: null, changedAt: 0, lastSync: 0 };
+    try {
+      const r = await gh("GET", repoPath());
+      if (r.status === 404 || r.status === 403 || r.status === 401) throw new Error(tt("\u0645\u0634 \u0642\u0627\u062F\u0631 \u0623\u062F\u062E\u0644 \u0639\u0644\u0649 \u0627\u0644\u0631\u064A\u0628\u0648. \u0627\u062A\u0623\u0643\u062F \u0645\u0646 \u0627\u0644\u0627\u0633\u0645 \u0648\u0627\u0644\u062A\u0648\u0643\u0646 \u0648\u0625\u0646\u0647 \u0645\u062F\u0651\u064A Contents \u0642\u0631\u0627\u0621\u0629 \u0648\u0643\u062A\u0627\u0628\u0629 \u0644\u0644\u0631\u064A\u0628\u0648 \u062F\u0647.", "Cannot reach the repo. Check the name, and that the token has Contents read and write on it."));
+      if (!r.ok) throw new Error(await errOf(r));
+      const j = await r.json();
+      if (!j.private) throw new Error(tt("\u0627\u0644\u0631\u064A\u0628\u0648 \u062F\u0647 \u0639\u0627\u0645 (Public). \u0628\u064A\u0627\u0646\u0627\u062A\u0643 \u0644\u0627\u0632\u0645 \u062A\u062A\u062D\u0641\u0638 \u0641\u064A \u0631\u064A\u0628\u0648 \u062E\u0627\u0635 (Private).", "This repo is public. Your data must go to a private repo."));
+      if (j.permissions && j.permissions.push === false) throw new Error(tt("\u0627\u0644\u062A\u0648\u0643\u0646 \u0645\u0641\u064A\u0647\u0648\u0634 \u0635\u0644\u0627\u062D\u064A\u0629 \u0643\u062A\u0627\u0628\u0629 \u0639\u0644\u0649 \u0627\u0644\u0631\u064A\u0628\u0648.", "The token has no write access to the repo."));
+    } catch (e) {
+      meta = prev2;
+      throw e;
+    }
+    saveMeta();
+    setStatus("idle");
+    startPolling();
+    return syncNow("connect");
+  }
+  function disconnect2() {
+    meta = { token: "", owner: "", repo: "qari-data", sha: null, hash: null, changedAt: 0, lastSync: 0 };
+    localStorage.removeItem(KEY2);
+    clearTimeout(pushTimer);
+    clearInterval(pollTimer);
+    conflictBackup = null;
+    lastNote = "";
+    conflictNote = "";
+    setStatus("off");
+  }
+  function dismissConflict() {
+    conflictNote = "";
+    emit();
+  }
+  function downloadConflictBackup() {
+    if (!conflictBackup) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([conflictBackup], { type: "application/json" }));
+    a.download = "qari-local-copy-" + (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace(/[:T]/g, "-") + ".json";
+    a.click();
+  }
+  var savedDefaults = () => ({ owner: meta.owner, repo: meta.repo });
+  function startPolling() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(() => {
+      if (document.visibilityState === "visible" && !busy) syncNow("poll");
+    }, POLL_MS);
+  }
+  function init2() {
+    try {
+      const raw = localStorage.getItem(KEY2);
+      if (raw) Object.assign(meta, JSON.parse(raw));
+    } catch {
+    }
+    onChange(onLocalChange);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") syncNow("visible");
+    });
+    window.addEventListener("online", () => syncNow("online"));
+    if (meta.token) {
+      setStatus("idle");
+      startPolling();
+      syncNow("start");
+    }
+  }
+
   // src/app.js
   function pickBookFile(book) {
     return new Promise((resolve) => {
@@ -3716,6 +4040,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       <div class="set-row" style="flex-wrap:wrap"><span>Google Books API key <span class="muted">(${getLang() === "ar" ? "\u0627\u062E\u062A\u064A\u0627\u0631\u064A\u060C \u0644\u0648 \u062A\u0642\u064A\u064A\u0645\u0627\u062A \u062C\u0648\u062C\u0644 \u0645\u0634 \u0638\u0627\u0647\u0631\u0629" : "optional, if Google ratings do not show"})</span></span><input id="gbKey" style="flex:1;min-width:200px" value="${esc(s.gbKey || "")}" placeholder="AIza\u2026"></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div id="dbBox" class="stat-card"></div>
+      <div id="syncBox" class="stat-card" style="margin-top:1rem"></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div class="set-row"><span>${t("exportData")}</span><button id="exportBtn" class="btn">\u2B07 JSON</button></div>
       <div class="set-row"><span>${t("importData")}</span><button id="importBtn" class="btn">\u2B06 JSON</button></div>
@@ -3751,6 +4076,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     $7("#fontHost", view).appendChild(fontPicker(s.fontFamily, (id) => upd({ fontFamily: id })));
     $7("#gbKey", view).oninput = (e) => upd({ gbKey: e.target.value.trim() });
     drawDbBox(view);
+    drawSyncBox(view);
     $7("#exportBtn", view).onclick = () => {
       const blob = new Blob([exportJSON()], { type: "application/json" });
       const a = document.createElement("a");
@@ -3846,6 +4172,84 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       route();
     });
   }
+  var syncText = () => {
+    const ar = getLang() === "ar", i = info2();
+    const when = i.lastSync ? new Date(i.lastSync).toLocaleString() : "";
+    if (!i.connected) return ar ? "\u26AA \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629 \u0645\u0634 \u0645\u062A\u0648\u0635\u0644\u0629" : "\u26AA Sync is not connected";
+    if (i.status === "syncing") return ar ? "\u{1F7E1} \u0628\u064A\u0632\u0627\u0645\u0646\u2026" : "\u{1F7E1} Syncing\u2026";
+    if (i.status === "error") return "\u{1F534} " + i.error;
+    return (ar ? "\u{1F7E2} \u0645\u062A\u0632\u0627\u0645\u0646 \u0645\u0639 " : "\u{1F7E2} Synced with ") + i.owner + "/" + i.repo + (when ? " \xB7 " + when : "");
+  };
+  function updateSyncUi() {
+    const c = $7("#syncChip");
+    const i = info2();
+    if (c) {
+      c.style.display = i.connected ? "" : "none";
+      c.textContent = { idle: "\u2601\u2713", syncing: "\u2601\u2026", error: "\u2601\u2715", off: "\u2601" }[i.status] || "\u2601";
+      c.title = syncText();
+      c.dataset.s = i.status;
+    }
+    const sb = $7("#syncStatus");
+    if (sb) sb.textContent = syncText();
+    const sn = $7("#syncNote");
+    if (sn) sn.textContent = i.note || "";
+    let bn = $7("#syncBanner");
+    if (i.conflictNote) {
+      if (!bn) {
+        bn = document.createElement("div");
+        bn.id = "syncBanner";
+        bn.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;background:#b45309;color:#fff;padding:.6rem .8rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;font-size:.9rem";
+        document.body.appendChild(bn);
+      }
+      const ar = getLang() === "ar";
+      bn.innerHTML = `<span style="flex:1;min-width:200px"></span>${i.hasConflictBackup ? `<button class="btn" id="syncBakBtn">${ar ? "\u0646\u0632\u0651\u0644 \u0646\u0633\u062E\u0629 \u0627\u0644\u062C\u0647\u0627\u0632" : "Download this device copy"}</button>` : ""}<button class="btn" id="syncOkBtn">${ar ? "\u062A\u0645\u0627\u0645" : "OK"}</button>`;
+      bn.firstChild.textContent = i.conflictNote;
+      const bk = bn.querySelector("#syncBakBtn");
+      if (bk) bk.onclick = () => downloadConflictBackup();
+      bn.querySelector("#syncOkBtn").onclick = () => dismissConflict();
+    } else if (bn) bn.remove();
+  }
+  function drawSyncBox(view) {
+    const box = $7("#syncBox", view);
+    if (!box) return;
+    const ar = getLang() === "ar", i = info2(), d = savedDefaults();
+    box.innerHTML = `<h3 style="margin-bottom:.5rem">\u2601 ${ar ? "\u0645\u0632\u0627\u0645\u0646\u0629 \u0628\u064A\u0646 \u0627\u0644\u0623\u062C\u0647\u0632\u0629 (GitHub)" : "Sync across devices (GitHub)"}</h3>
+    <p class="muted" style="margin-bottom:.6rem">${ar ? "\u0628\u064A\u062D\u0641\u0638 \u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0648\u0627\u0644\u062A\u0642\u062F\u0645 \u0648\u0627\u0644\u062A\u0639\u0644\u064A\u0642\u0627\u062A \u0648\u0627\u0644\u0647\u0627\u064A\u0644\u0627\u064A\u062A\u0633 \u0648\u0627\u0644\u0642\u0648\u0627\u0626\u0645 \u0648\u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A (\u0648\u0645\u0644\u0641\u0627\u062A \u0627\u0644\u0643\u062A\u0628) \u0641\u064A \u0631\u064A\u0628\u0648 \u062E\u0627\u0635 (Private) \u0639\u0644\u0649 \u062D\u0633\u0627\u0628\u0643\u060C \u0648\u0628\u064A\u062D\u062F\u0651\u062B\u0647\u0627 \u062A\u0644\u0642\u0627\u0626\u064A\u064B\u0627. \u0644\u0648 \u0627\u062A\u0639\u062F\u0651\u0644 \u0645\u0646 \u062C\u0647\u0627\u0632\u064A\u0646 \u0641\u064A \u0646\u0641\u0633 \u0627\u0644\u0648\u0642\u062A \u0627\u0644\u0646\u0633\u062E\u0629 \u0627\u0644\u0623\u062D\u062F\u062B \u0628\u062A\u0643\u0633\u0628 \u0648\u0628\u062A\u0638\u0647\u0631\u0644\u0643 \u0631\u0633\u0627\u0644\u0629. \u0627\u0644\u062A\u0648\u0643\u0646 \u0628\u064A\u062A\u062E\u0632\u0646 \u0639\u0644\u0649 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647 \u0628\u0633." : "Saves library, progress, notes, highlights, lists, settings (and book files) to a private repo on your account and keeps it updated. If two devices edit at once the newer version wins and you get a warning. The token is stored on this device only."}</p>
+    <div id="syncStatus" style="margin-bottom:.4rem;font-weight:600">${esc(syncText())}</div>
+    <div id="syncNote" class="muted" style="margin-bottom:.6rem"></div>
+    ${i.connected ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap"><button id="syncNow" class="btn btn-primary">${ar ? "\u0632\u0627\u0645\u0646 \u0627\u0644\u0622\u0646" : "Sync now"}</button><button id="syncOff" class="btn btn-danger">${ar ? "\u0641\u0635\u0644 \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629" : "Disconnect"}</button></div>` : `<div style="display:grid;gap:.5rem;max-width:420px">
+        <input id="syncOwner" placeholder="GitHub username" value="${esc(d.owner || "asratereg-glitch")}" autocomplete="off">
+        <input id="syncRepo" placeholder="repo" value="${esc(d.repo || "qari-data")}" autocomplete="off">
+        <input id="syncToken" type="password" placeholder="${ar ? "\u0627\u0644\u062A\u0648\u0643\u0646 (github_pat_\u2026)" : "Token (github_pat_\u2026)"}" autocomplete="off">
+        <button id="syncGo" class="btn btn-primary">${ar ? "\u062A\u0648\u0635\u064A\u0644 \u0648\u0628\u062F\u0621 \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629" : "Connect and start syncing"}</button></div>`}`;
+    const guard = (fn) => async () => {
+      try {
+        await fn();
+      } catch (e) {
+        toast("\u26A0 " + (e.message || e), 5e3);
+      }
+      drawSyncBox(view);
+      updateSyncUi();
+    };
+    const go = $7("#syncGo", box);
+    if (go) go.onclick = guard(async () => {
+      go.disabled = true;
+      await connect($7("#syncOwner", box).value, $7("#syncRepo", box).value, $7("#syncToken", box).value);
+      const e = info2();
+      toast(e.status === "error" ? "\u26A0 " + e.error : "\u2713", 3e3);
+    });
+    const sn = $7("#syncNow", box);
+    if (sn) sn.onclick = guard(async () => {
+      await syncNow("manual");
+      const e = info2();
+      toast(e.status === "error" ? "\u26A0 " + e.error : "\u2713", 3e3);
+    });
+    const so = $7("#syncOff", box);
+    if (so) so.onclick = guard(async () => {
+      if (confirm(ar ? "\u0641\u0635\u0644 \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629\u061F \u0628\u064A\u0627\u0646\u0627\u062A\u0643 \u0639\u0644\u0649 \u0627\u0644\u062C\u0647\u0627\u0632 \u0648\u0627\u0644\u0631\u064A\u0628\u0648 \u0647\u062A\u0641\u0636\u0644 \u0632\u064A \u0645\u0627 \u0647\u064A." : "Disconnect sync? Data on this device and in the repo stays as is.")) disconnect2();
+    });
+    updateSyncUi();
+  }
   function renderStatsRoute(view) {
     renderStats(view);
   }
@@ -3877,7 +4281,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     }
     const fileKey = "file-" + uid();
     await putFile(fileKey, file);
-    let meta = { title: file.name.replace(/\.(epub|pdf|txt)$/i, ""), author: "", cover: "", subjects: [] };
+    let meta2 = { title: file.name.replace(/\.(epub|pdf|txt)$/i, ""), author: "", cover: "", subjects: [] };
     if (ext === "epub") {
       try {
         const zip = await JSZip.loadAsync(await file.arrayBuffer());
@@ -3890,8 +4294,8 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
           const el = doc.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", tag)[0] || doc.getElementsByTagName("dc:" + tag)[0];
           return el ? el.textContent.trim() : "";
         };
-        if (getMeta2("title")) meta.title = getMeta2("title");
-        if (getMeta2("creator")) meta.author = getMeta2("creator");
+        if (getMeta2("title")) meta2.title = getMeta2("title");
+        if (getMeta2("creator")) meta2.author = getMeta2("creator");
         const items = [...doc.getElementsByTagName("item")];
         let coverHref = "";
         const metaCover = [...doc.getElementsByTagName("meta")].find((x) => x.getAttribute("name") === "cover");
@@ -3908,7 +4312,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
           const cf = zip.file(base + coverHref) || zip.file(coverHref);
           if (cf) {
             const blob = await cf.async("blob");
-            meta.cover = await new Promise((res) => {
+            meta2.cover = await new Promise((res) => {
               const fr = new FileReader();
               fr.onload = () => res(fr.result);
               fr.onerror = () => res("");
@@ -3920,7 +4324,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         console.warn("epub meta read failed", e);
       }
     }
-    const b = addBook({ ...meta, format: ext, fileKey, source: "local", shelf: "want" });
+    const b = addBook({ ...meta2, format: ext, fileKey, source: "local", shelf: "want" });
     toast(t("added"));
     closeAddModal();
     location.hash = "#/book/" + b.id;
@@ -3985,6 +4389,21 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     });
     await init();
     updateDbChip();
+    const sc = document.createElement("button");
+    sc.id = "syncChip";
+    sc.className = "icon-btn";
+    sc.style.display = "none";
+    sc.onclick = () => {
+      location.hash = "#/settings";
+    };
+    $7("#topbar").appendChild(sc);
+    configure({ lang: getLang, onApplied: () => {
+      applySettings();
+      route();
+    } });
+    onStatus2(updateSyncUi);
+    init2();
+    updateSyncUi();
     $7("#addBookBtn").onclick = openAddModal;
     $$("#addModal .modal-close").forEach((b) => b.onclick = closeAddModal);
     $7("#addModal").addEventListener("click", (e) => {

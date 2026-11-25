@@ -10,6 +10,7 @@ import { renderBookPage } from './bookpage.js';
 import { renderLists } from './lists.js';
 import { fontPicker } from './fonts.js';
 import * as dbfile from './dbfile.js';
+import * as sync from './sync.js';
 
 export { db, store, t, getLang };
 
@@ -284,6 +285,7 @@ function renderSettings(view) {
       <div class="set-row" style="flex-wrap:wrap"><span>Google Books API key <span class="muted">(${getLang() === 'ar' ? 'اختياري، لو تقييمات جوجل مش ظاهرة' : 'optional, if Google ratings do not show'})</span></span><input id="gbKey" style="flex:1;min-width:200px" value="${esc(s.gbKey || '')}" placeholder="AIza…"></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div id="dbBox" class="stat-card"></div>
+      <div id="syncBox" class="stat-card" style="margin-top:1rem"></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div class="set-row"><span>${t('exportData')}</span><button id="exportBtn" class="btn">⬇ JSON</button></div>
       <div class="set-row"><span>${t('importData')}</span><button id="importBtn" class="btn">⬆ JSON</button></div>
@@ -299,6 +301,7 @@ function renderSettings(view) {
   $('#fontHost', view).appendChild(fontPicker(s.fontFamily, id => upd({ fontFamily: id })));
   $('#gbKey', view).oninput = e => upd({ gbKey: e.target.value.trim() });
   drawDbBox(view);
+  drawSyncBox(view);
   $('#exportBtn', view).onclick = () => {
     const blob = new Blob([store.exportJSON()], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -360,6 +363,51 @@ function drawDbBox(view) {
   b('#dbDl').onclick = guard(() => dbfile.downloadBackup());
   b('#dbUp').onclick = () => b('#dbUpIn').click();
   b('#dbUpIn').onchange = guard(async e => { const f = e.target.files[0]; if (!f) return; if (st.books.length && !confirmRestore()) return; const r = await dbfile.restoreFrom(f); applySettings(); toast(`✓ ${r.books} ${ar ? 'كتاب اتسترجعوا' : 'books restored'}`); route(); });
+}
+
+
+/* ---------- GitHub sync ---------- */
+const syncText = () => {
+  const ar = getLang() === 'ar', i = sync.info();
+  const when = i.lastSync ? new Date(i.lastSync).toLocaleString() : '';
+  if (!i.connected) return ar ? '⚪ المزامنة مش متوصلة' : '⚪ Sync is not connected';
+  if (i.status === 'syncing') return ar ? '🟡 بيزامن…' : '🟡 Syncing…';
+  if (i.status === 'error') return '🔴 ' + i.error;
+  return (ar ? '🟢 متزامن مع ' : '🟢 Synced with ') + i.owner + '/' + i.repo + (when ? ' · ' + when : '');
+};
+function updateSyncUi() {
+  const c = $('#syncChip'); const i = sync.info();
+  if (c) { c.style.display = i.connected ? '' : 'none'; c.textContent = ({ idle: '☁✓', syncing: '☁…', error: '☁✕', off: '☁' })[i.status] || '☁'; c.title = syncText(); c.dataset.s = i.status; }
+  const sb = $('#syncStatus'); if (sb) sb.textContent = syncText();
+  const sn = $('#syncNote'); if (sn) sn.textContent = i.note || '';
+  let bn = $('#syncBanner');
+  if (i.conflictNote) {
+    if (!bn) { bn = document.createElement('div'); bn.id = 'syncBanner'; bn.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b45309;color:#fff;padding:.6rem .8rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;font-size:.9rem'; document.body.appendChild(bn); }
+    const ar = getLang() === 'ar';
+    bn.innerHTML = `<span style="flex:1;min-width:200px"></span>${i.hasConflictBackup ? `<button class="btn" id="syncBakBtn">${ar ? 'نزّل نسخة الجهاز' : 'Download this device copy'}</button>` : ''}<button class="btn" id="syncOkBtn">${ar ? 'تمام' : 'OK'}</button>`;
+    bn.firstChild.textContent = i.conflictNote;
+    const bk = bn.querySelector('#syncBakBtn'); if (bk) bk.onclick = () => sync.downloadConflictBackup();
+    bn.querySelector('#syncOkBtn').onclick = () => sync.dismissConflict();
+  } else if (bn) bn.remove();
+}
+function drawSyncBox(view) {
+  const box = $('#syncBox', view); if (!box) return;
+  const ar = getLang() === 'ar', i = sync.info(), d = sync.savedDefaults();
+  box.innerHTML = `<h3 style="margin-bottom:.5rem">☁ ${ar ? 'مزامنة بين الأجهزة (GitHub)' : 'Sync across devices (GitHub)'}</h3>
+    <p class="muted" style="margin-bottom:.6rem">${ar ? 'بيحفظ المكتبة والتقدم والتعليقات والهايلايتس والقوائم والإعدادات (وملفات الكتب) في ريبو خاص (Private) على حسابك، وبيحدّثها تلقائيًا. لو اتعدّل من جهازين في نفس الوقت النسخة الأحدث بتكسب وبتظهرلك رسالة. التوكن بيتخزن على الجهاز ده بس.' : 'Saves library, progress, notes, highlights, lists, settings (and book files) to a private repo on your account and keeps it updated. If two devices edit at once the newer version wins and you get a warning. The token is stored on this device only.'}</p>
+    <div id="syncStatus" style="margin-bottom:.4rem;font-weight:600">${esc(syncText())}</div>
+    <div id="syncNote" class="muted" style="margin-bottom:.6rem"></div>
+    ${i.connected ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap"><button id="syncNow" class="btn btn-primary">${ar ? 'زامن الآن' : 'Sync now'}</button><button id="syncOff" class="btn btn-danger">${ar ? 'فصل المزامنة' : 'Disconnect'}</button></div>`
+    : `<div style="display:grid;gap:.5rem;max-width:420px">
+        <input id="syncOwner" placeholder="GitHub username" value="${esc(d.owner || 'asratereg-glitch')}" autocomplete="off">
+        <input id="syncRepo" placeholder="repo" value="${esc(d.repo || 'qari-data')}" autocomplete="off">
+        <input id="syncToken" type="password" placeholder="${ar ? 'التوكن (github_pat_…)' : 'Token (github_pat_…)'}" autocomplete="off">
+        <button id="syncGo" class="btn btn-primary">${ar ? 'توصيل وبدء المزامنة' : 'Connect and start syncing'}</button></div>`}`;
+  const guard = fn => async () => { try { await fn(); } catch (e) { toast('⚠ ' + (e.message || e), 5000); } drawSyncBox(view); updateSyncUi(); };
+  const go = $('#syncGo', box); if (go) go.onclick = guard(async () => { go.disabled = true; await sync.connect($('#syncOwner', box).value, $('#syncRepo', box).value, $('#syncToken', box).value); const e = sync.info(); toast(e.status === 'error' ? '⚠ ' + e.error : '✓', 3000); });
+  const sn = $('#syncNow', box); if (sn) sn.onclick = guard(async () => { await sync.syncNow('manual'); const e = sync.info(); toast(e.status === 'error' ? '⚠ ' + e.error : '✓', 3000); });
+  const so = $('#syncOff', box); if (so) so.onclick = guard(async () => { if (confirm(ar ? 'فصل المزامنة؟ بياناتك على الجهاز والريبو هتفضل زي ما هي.' : 'Disconnect sync? Data on this device and in the repo stays as is.')) sync.disconnect(); });
+  updateSyncUi();
 }
 
 /* ---------- stats / discover / community routes ---------- */
@@ -449,6 +497,10 @@ async function boot() {
   chip.onclick = async () => { const i = dbfile.info(); if (i.status === 'needs-permission') { try { await dbfile.grant(); } catch {} } else location.hash = '#/settings'; };
   dbfile.onStatus(() => { updateDbChip(); const sb = $('#dbStatus'); if (sb) sb.textContent = dbText(); });
   await dbfile.init(); updateDbChip();
+  const sc = document.createElement('button'); sc.id = 'syncChip'; sc.className = 'icon-btn'; sc.style.display = 'none'; sc.onclick = () => { location.hash = '#/settings'; }; $('#topbar').appendChild(sc);
+  sync.configure({ lang: getLang, onApplied: () => { applySettings(); route(); } });
+  sync.onStatus(updateSyncUi);
+  sync.init(); updateSyncUi();
   $('#addBookBtn').onclick = openAddModal;
   $$('#addModal .modal-close').forEach(b => b.onclick = closeAddModal);
   $('#addModal').addEventListener('click', e => { if (e.target.id === 'addModal') closeAddModal(); });

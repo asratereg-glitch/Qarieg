@@ -72,3 +72,7 @@
 - **إغلاق القوائم بالضغط بره**: أي قايمة أو نافذة منبثقة (إعدادات القارئ، قايمة الهايلايتس، القاموس، شريط التحديد، نافذة إضافة لقائمة، نافذة إضافة كتاب) بتقفل لما تضغط برّاها، حتى لو الضغط جوه صفحة الكتاب (EPUB).
 - **اسم المؤلف**: بقى لينك في كل مكان (المكتبة، القوائم، اكتشف، صفحة الكتاب، الكتب المشابهة) ويفتح كل كتبه في اكتشف. البحث بيحدد المؤلف الأول بالضبط في Open Library (يشتغل مع الأسماء العربية والأسماء المتعددة) وبيعرض كتبه الأشهر الأول، حتى لو كنت في صفحة اكتشف بالفعل.
 - **كتب مشابهة**: بقت بتظهر في كل صفحة كتاب (حتى الكتب اللي من ملفات). لو مفيش نتائج بالتصنيف بتجرب: كتب المؤلف، Google Books، عنوان مشابه، وأخيرًا أشهر الكتب، فمبتبقاش فاضية. وكمان "كمان للمؤلف" شغال حتى من غير بيانات Open Library كاملة.
+
+## v1.2.0
+- GitHub sync (Settings > Sync across devices): saves data.json (library, progress, notes, highlights, lists, settings) and book files to a PRIVATE repo (default `qari-data`) through the GitHub contents API. Token (fine-grained, Contents read/write on that repo only) is stored on the device only. Auto-pull on open/focus/every 90s, auto-push 12s after a change, "Sync now". Last write wins; a warning banner appears on conflict and the overwritten local copy can be downloaded. Google Books key and Open Library cache are not synced.
+- Hosted on GitHub Pages: manifest + icons for Add to Home Screen.

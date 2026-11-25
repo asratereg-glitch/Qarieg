@@ -1,5 +1,5 @@
 // sw.js — offline app shell (book files already live in IndexedDB)
-const CACHE = 'qari-shell-v-114';
+const CACHE = 'qari-shell-v-120';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/app.bundle.js',
