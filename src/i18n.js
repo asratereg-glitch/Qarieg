@@ -1,0 +1,93 @@
+// i18n.js — Arabic (default) / English UI strings
+const STR = {
+  ar: {
+    appName:'قارئ', navLibrary:'مكتبتي', navShelves:'الرفوف', navStats:'إحصائياتي',
+    navDiscover:'اكتشف', navCommunity:'المجتمع', navSettings:'الإعدادات', navLists:'القوائم',
+    addBook:'أضف كتاب', tabFile:'من جهازك', tabOnline:'بحث أونلاين',
+    dropHint:'اختار ملف EPUB أو PDF أو TXT', localNote:'الكتاب بيتحفظ على جهازك بس، مش بيترفع لأي سيرفر.',
+    searchPh:'عنوان الكتاب أو ISBN…', search:'بحث',
+    emptyLib:'مكتبتك فاضية لسه', emptyLibSub:'ضيف أول كتاب من جهازك أو دور أونلاين',
+    shelf_want:'عايز أقرا', shelf_reading:'بقرا حاليًا', shelf_finished:'خلصت',
+    customShelves:'رفوف مخصصة', newShelf:'رف جديد', shelfNamePh:'اسم الرف…', create:'إنشاء',
+    continueReading:'كمّل القراءة', progress:'التقدم', pages:'صفحة', of:'من',
+    myGoals:'أهدافي', yearlyGoal:'هدف السنة', monthlyGoal:'هدف الشهر', booksFinished:'كتاب خلصت',
+    streak:'أيام متواصلة', streakDays:'يوم ورا بعض', todayMin:'دقايق النهارده',
+    totalMin:'إجمالي الدقايق', pagesPerHour:'صفحة/ساعة', badges:'الأوسمة',
+    weeklyChart:'آخر 14 يوم (دقايق)', yearlySummary:'ملخص السنة', topBooks:'أعلى كتب تقييمًا',
+    setGoals:'عدّل الأهداف', save:'حفظ', cancel:'إلغاء', delete:'حذف', edit:'تعديل',
+    recommendations:'ترشيحات على ذوقك', awards:'قوائم الجوائز', moodSearch:'دور على حسب مزاجك',
+    needRatings:'قيّم كتب بـ 4 نجوم أو أكتر عشان تظهرلك ترشيحات',
+    loading:'بيحمّل…', noResults:'مفيش نتائج', addToLibrary:'ضيف للمكتبة', added:'اتضاف ✓',
+    reviews:'المراجعات', myActivity:'نشاطي', buddyRead:'قراءة مشتركة', buddyName:'اسم صاحبك',
+    chapterComments:'تعليقات الفصول', writeReview:'اكتب مراجعة…', yourRating:'تقييمك',
+    exportData:'تصدير بياناتي', importData:'استيراد بيانات', exportHighlights:'تصدير الهايلايتس',
+    importNote:'دمج بيانات من ملف JSON (مش هيمسح الموجود)', exported:'اتصدر ✓', imported:'اتدمج ✓',
+    settings:'الإعدادات', language:'اللغة', theme:'المظهر', themeLight:'فاتح', themeSepia:'سيبيا', themeDark:'ليلي',
+    fontSize:'حجم الخط', lineHeight:'تباعد الأسطر', fontFamily:'خط القراءة', readingMode:'وضع القراءة',
+    paginated:'صفحات', scrolled:'تمرير', ttsVoice:'صوت القراءة', ttsSpeed:'السرعة',
+    highlights:'الهايلايتس', addNote:'ضيف ملاحظة…', noHighlights:'لسه مفيش هايلايتس في الكتاب ده',
+    startReading:'ابدأ القراءة', session:'جلسة', removeBook:'احذف الكتاب', confirmDelete:'متأكد؟ هيتمسح الكتاب وهايلايتسه.',
+    markFinished:'علّم كمخلص', moveTo:'انقل لرف', comments:'التعليقات', addComment:'اكتب تعليق على الفصل…',
+    send:'أرسل', asMe:'أنا', asBuddy:'صاحبي', rate:'قيّم', overview:'نظرة عامة',
+    hugo:'جائزة هوجو', nebula:'جائزة نيبولا', booker:'جائزة بوكر', topRated:'الأعلى تقييمًا',
+    mood_short_thrilling:'قصيرة ومشوقة', mood_cozy:'دافية وهادية', mood_cry:'هتعيطني',
+    mood_think:'تخليني أفكر', mood_adventure:'مغامرة', mood_funny:'خفيفة ومضحكة',
+    dictLoading:'بدوّر في القاموس…', dictNone:'مفيش تعريف متاح أوفلاين — جرّب لما يكون في نت',
+    translate:'ترجمة', define:'قاموس', note:'ملاحظة', highlight:'هايلايت', copied:'اتنسخ',
+    finishedOn:'خلصت في', addedOn:'اتضاف في', sessions:'جلسة', min:'دقيقة',
+    chapters:'الفصول', importBuddy:'استورد تعليقات صاحبك', exportBuddy:'صدر تعليقاتي',
+    goalDone:'مبروك! حققت هدفك 🎉', pageN:'صفحة {n}', listening:'بيقرالك…', stop:'إيقاف',
+    readOnline:'اقرأ نسخة أونلاين', sampleNote:'كتاب مرجعي من Open Library (بيانات وغلاف).',
+  },
+  en: {
+    appName:'Qari', navLibrary:'My Library', navShelves:'Shelves', navStats:'My Stats',
+    navDiscover:'Discover', navCommunity:'Community', navSettings:'Settings', navLists:'Lists',
+    addBook:'Add book', tabFile:'From device', tabOnline:'Search online',
+    dropHint:'Pick an EPUB, PDF or TXT file', localNote:'Books stay on your device; nothing is uploaded.',
+    searchPh:'Book title or ISBN…', search:'Search',
+    emptyLib:'Your library is empty', emptyLibSub:'Add your first book from your device or search online',
+    shelf_want:'Want to read', shelf_reading:'Reading', shelf_finished:'Finished',
+    customShelves:'Custom shelves', newShelf:'New shelf', shelfNamePh:'Shelf name…', create:'Create',
+    continueReading:'Continue reading', progress:'Progress', pages:'pages', of:'of',
+    myGoals:'My goals', yearlyGoal:'Yearly goal', monthlyGoal:'Monthly goal', booksFinished:'books finished',
+    streak:'day streak', streakDays:'days in a row', todayMin:"Today's minutes",
+    totalMin:'Total minutes', pagesPerHour:'pages/hour', badges:'Badges',
+    weeklyChart:'Last 14 days (minutes)', yearlySummary:'Year in review', topBooks:'Top rated books',
+    setGoals:'Edit goals', save:'Save', cancel:'Cancel', delete:'Delete', edit:'Edit',
+    recommendations:'Picked for your taste', awards:'Award lists', moodSearch:'Search by mood',
+    needRatings:'Rate books 4+ stars to get recommendations',
+    loading:'Loading…', noResults:'No results', addToLibrary:'Add to library', added:'Added ✓',
+    reviews:'Reviews', myActivity:'My activity', buddyRead:'Buddy reading', buddyName:"Your friend's name",
+    chapterComments:'Chapter comments', writeReview:'Write a review…', yourRating:'Your rating',
+    exportData:'Export my data', importData:'Import data', exportHighlights:'Export highlights',
+    importNote:'Merge data from a JSON file (existing data is kept)', exported:'Exported ✓', imported:'Merged ✓',
+    settings:'Settings', language:'Language', theme:'Theme', themeLight:'Light', themeSepia:'Sepia', themeDark:'Dark',
+    fontSize:'Font size', lineHeight:'Line spacing', fontFamily:'Reading font', readingMode:'Reading mode',
+    paginated:'Pages', scrolled:'Scroll', ttsVoice:'Reading voice', ttsSpeed:'Speed',
+    highlights:'Highlights', addNote:'Add a note…', noHighlights:'No highlights in this book yet',
+    startReading:'Start reading', session:'session', removeBook:'Remove book', confirmDelete:'Sure? The book and its highlights will be removed.',
+    markFinished:'Mark finished', moveTo:'Move to shelf', comments:'Comments', addComment:'Comment on this chapter…',
+    send:'Send', asMe:'Me', asBuddy:'My friend', rate:'Rate', overview:'Overview',
+    hugo:'Hugo Award', nebula:'Nebula Award', booker:'Booker Prize', topRated:'Top rated',
+    mood_short_thrilling:'Short & thrilling', mood_cozy:'Cozy & calm', mood_cry:'Make me cry',
+    mood_think:'Make me think', mood_adventure:'Adventure', mood_funny:'Light & funny',
+    dictLoading:'Looking up…', dictNone:'No definition available offline — try when online',
+    translate:'Translate', define:'Define', note:'Note', highlight:'Highlight', copied:'Copied',
+    finishedOn:'Finished on', addedOn:'Added on', sessions:'sessions', min:'min',
+    chapters:'Chapters', importBuddy:"Import friend's comments", exportBuddy:'Export my comments',
+    goalDone:'Congrats! Goal reached 🎉', pageN:'Page {n}', listening:'Reading aloud…', stop:'Stop',
+    readOnline:'Read an online copy', sampleNote:'Reference book from Open Library (metadata + cover).',
+  }
+};
+
+let lang = 'ar';
+export function setLang(l){ lang = STR[l] ? l : 'ar'; }
+export function getLang(){ return lang; }
+export function tr(ar, en){ return lang === 'ar' ? ar : en; }
+export function t(key){
+  return (STR[lang] && STR[lang][key]) || STR.ar[key] || key;
+}
+export function applyI18n(root=document){
+  root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  root.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+}

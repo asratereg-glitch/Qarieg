@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>قارئ — Qari</title>
+<meta name="description" content="تطبيق ويب لقراءة الكتب: مكتبة، قارئ EPUB/PDF، أهداف، إحصائيات، وترشيحات.">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f4e5f">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+</head>
+<body>
+<header id="topbar">
+  <div class="brand" id="brandBtn"><span class="brand-icon">📖</span><span class="brand-name" data-i18n="appName">قارئ</span></div>
+  <nav id="mainnav">
+    <a href="#/" data-route="library" data-i18n="navLibrary">مكتبتي</a>
+    <a href="#/shelves" data-route="shelves" data-i18n="navShelves">الرفوف</a>
+    <a href="#/lists" data-route="lists" data-i18n="navLists">القوائم</a>
+    <a href="#/stats" data-route="stats" data-i18n="navStats">إحصائياتي</a>
+    <a href="#/discover" data-route="discover" data-i18n="navDiscover">اكتشف</a>
+    <a href="#/community" data-route="community" data-i18n="navCommunity">المجتمع</a>
+    <a href="#/settings" data-route="settings" data-i18n="navSettings">الإعدادات</a>
+  </nav>
+  <button id="addBookBtn" class="btn btn-primary">＋ <span data-i18n="addBook">أضف كتاب</span></button>
+</header>
+
+<main id="view"><!-- rendered by router --></main>
+
+<!-- Reader overlay -->
+<div id="readerOverlay" class="hidden">
+  <div id="readerTop">
+    <button id="readerClose" class="icon-btn" title="Close">✕</button>
+    <div id="readerTitle"></div>
+    <div id="readerActions">
+      <button id="ttsBtn" class="icon-btn" title="TTS">🔊</button>
+      <button id="hlListBtn" class="icon-btn" title="Highlights">🖊</button>
+      <button id="readerSettingsBtn" class="icon-btn" title="Settings">⚙</button>
+    </div>
+  </div>
+  <div id="readerBody">
+    <button id="prevZone" class="turn-zone" aria-label="previous">‹</button>
+    <div id="readerStage"></div>
+    <button id="nextZone" class="turn-zone" aria-label="next">›</button>
+  </div>
+  <div id="readerBottom">
+    <span id="readerProgressLabel"></span>
+    <div id="readerProgressBar"><div id="readerProgressFill"></div></div>
+    <span id="sessionTimer" title="Session">0:00</span>
+  </div>
+  <div id="readerPanel" class="hidden"></div>
+  <div id="selPop" class="hidden"></div>
+</div>
+
+<!-- Add book modal -->
+<div id="addModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-head"><h2 data-i18n="addBook">أضف كتاب</h2><button class="icon-btn modal-close">✕</button></div>
+    <div class="modal-tabs">
+      <button class="tab active" data-tab="file" data-i18n="tabFile">من جهازك</button>
+      <button class="tab" data-tab="online" data-i18n="tabOnline">بحث أونلاين</button>
+    </div>
+    <div class="tab-pane" id="pane-file">
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept=".epub,.pdf,.txt" hidden>
+        <div class="dz-icon">📥</div>
+        <div data-i18n="dropHint">اختار ملف EPUB أو PDF أو TXT</div>
+      </label>
+      <p class="muted" data-i18n="localNote">الكتاب بيتحفظ على جهازك بس، مش بيترفع لأي سيرفر.</p>
+    </div>
+    <div class="tab-pane hidden" id="pane-online">
+      <div class="search-row">
+        <input type="text" id="onlineQuery" data-i18n-ph="searchPh" placeholder="عنوان الكتاب أو ISBN…">
+        <button id="onlineSearchBtn" class="btn btn-primary" data-i18n="search">بحث</button>
+      </div>
+      <div id="onlineResults" class="results"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+<div id="splash"><div class="splash-book">📖</div><div data-i18n="appName">قارئ</div></div>
+
+<script src="js/vendor/jszip.min.js"></script>
+<script src="js/vendor/epub.min.js"></script>
+<script src="js/vendor/pdf.min.js"></script>
+<script>if(location.protocol==="file:"){document.write('<script src="js/vendor/pdf.worker.min.js"><\/script>');}</script>
+<script src="js/app.bundle.js"></script>
+</body>
+</html>
