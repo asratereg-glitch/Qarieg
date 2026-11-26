@@ -5,6 +5,8 @@ import { t, tr, getLang } from './i18n.js';
 import { authorHTML, openAuthor, findCover, esc, stars, coverHTML, fmtDate, toast, pickBookFile, startReadingBook } from './app.js';
 import { loadMeta, moreByAuthor, similarBooks, relatedBooks, worksByAuthor, cleanSubjects, coverUrl } from './meta.js';
 import { openReader } from './reader.js';
+import { seriesForBook } from './series.js';
+import { seriesBoxHTML, bindSeriesLinks } from './author.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const nf = n => (n || 0).toLocaleString(getLang() === 'ar' ? 'ar-EG' : 'en-US');
@@ -113,6 +115,8 @@ function draw(view, lib, meta, tok, loading = false) {
         ${meta.description ? `<p class="bp-desc" id="descP" dir="auto">${esc(meta.description)}</p><button class="btn bp-more" id="moreDesc">${tr('اقرأ المزيد', 'Read more')}</button>` : `<p class="muted">${loading ? t('loading') : (meta.notFound ? tr('مفيش بيانات أونلاين للكتاب ده (أو مفيش نت).', 'No online data found for this book (or you are offline).') : tr('مفيش وصف متاح.', 'No description available.'))}</p>`}
         ${meta.firstSentence ? `<blockquote class="bp-quote" dir="auto">“${esc(meta.firstSentence)}”<div class="muted">${tr('أول جملة', 'First sentence')}</div></blockquote>` : ''}
       </div>
+
+      <div id="seriesBox"></div>
 
       <div class="chart-box"><h3>💬 ${tr('تعليقاتي', 'My comments')} (${comments.length})</h3>
         <div class="bp-composer">
@@ -237,6 +241,17 @@ function draw(view, lib, meta, tok, loading = false) {
       items.forEach(i => host.appendChild(mini(i)));
     }).catch(() => { const ti = document.getElementById(titleId); if (ti) ti.hidden = true; });
     const curTitle = (lib && lib.title) || meta.title;
+    const sb = document.getElementById('seriesBox');
+    if (sb && author) {
+      sb.innerHTML = `<div class="chart-box"><h3>📚 ${tr('السلسلة', 'Series')}</h3><p class="muted">${tr('بدوّر على السلسلة…', 'Checking for a series…')}</p></div>`;
+      seriesForBook({ title: curTitle, author, olAuthorKey: meta.authorKey }).then(r => {
+        if (tok !== TOKEN) return; const el = document.getElementById('seriesBox'); if (!el) return;
+        if (!r) { el.innerHTML = `<div class="chart-box"><h3>📚 ${tr('السلسلة', 'Series')}</h3><p class="muted">${tr('مفيش معلومات سلسلة لكتاب ده في Wikidata. ممكن يكون ستاند ألون، أو السلسلة مش متسجلة (التغطية ضعيفة للكتب العربية).', 'No series info for this book on Wikidata. It may be a standalone, or the series just is not recorded there (coverage is weak for Arabic books).')} <a href="#" id="seriesAuthorLink">${tr('كل كتب المؤلف', 'All books by this author')}</a></p></div>`; const l = el.querySelector('#seriesAuthorLink'); if (l) l.onclick = e => { e.preventDefault(); openAuthor(author); }; return; }
+        const pos = r.position != null ? `${tr('الكتاب رقم', 'Book')} ${r.position} ${tr('من', 'of')} ${r.total}` : `${tr('الكتاب', 'Book')} ${r.index + 1} ${tr('من', 'of')} ${r.total}`;
+        el.innerHTML = `<div class="chart-box"><h3>📚 ${tr('السلسلة', 'Series')}: ${esc(r.series.name)}</h3><p class="muted" style="margin-bottom:.4rem">${pos} · ${tr('المصدر: Wikidata', 'Source: Wikidata')}</p>${seriesBoxHTML(r.series, curTitle, author).replace(/^<div class="series-card"><h3>.*?<\/h3>/, '<div class="series-card">')}</div>`;
+        bindSeriesLinks(el);
+      }).catch(() => { const el = document.getElementById('seriesBox'); if (el) el.innerHTML = `<div class="chart-box"><h3>📚 ${tr('السلسلة', 'Series')}</h3><p class="muted">${tr('تعذّر تحميل معلومات السلسلة دلوقتي.', 'Could not load series info right now.')}</p></div>`; });
+    }
     const authorItems = (async () => {
       let items = meta.authorKey ? await moreByAuthor(meta.authorKey, meta.olKey).catch(() => []) : [];
       if (!items.length && author) items = (await worksByAuthor(author, 0, 14).catch(() => ({ items: [] }))).items.filter(x => x.olKey !== meta.olKey && x.title !== curTitle).slice(0, 12);

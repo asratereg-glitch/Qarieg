@@ -7,6 +7,7 @@ import { renderDiscover, bindDiscover, searchOpenLibrary } from './discover.js';
 import { renderCommunity, bindCommunity } from './community.js';
 import { openReader } from './reader.js';
 import { renderBookPage } from './bookpage.js';
+import { renderAuthorPage } from './author.js';
 import { renderLists } from './lists.js';
 import { fontPicker } from './fonts.js';
 import * as dbfile from './dbfile.js';
@@ -55,9 +56,8 @@ export function authorHTML(name) {
   return n && n !== '—' ? `<span class="author-link" data-author="${esc(n)}" title="${getLang() === 'ar' ? 'كل كتب المؤلف' : 'All books by this author'}">${esc(n)}</span>` : esc(n || '—');
 }
 export function openAuthor(name) {
-  try { sessionStorage.setItem('qari.pendingSearch', JSON.stringify({ q: String(name).trim(), scope: 'author' })); } catch {}
-  if (location.hash === '#/discover' || location.hash === '#/discover/') { if (window.__qariDiscoverPending) window.__qariDiscoverPending(); }
-  else location.hash = '#/discover';
+  const n = String(name || '').trim(); if (!n) return;
+  location.hash = '#/author/' + encodeURIComponent(n);
 }
 document.addEventListener('click', e => {
   const a = e.target.closest && e.target.closest('.author-link');
@@ -140,7 +140,7 @@ store.onChange(() => { /* live updates handled per-view */ });
 const routes = {
   '': renderLibrary, 'shelves': renderShelves, 'stats': renderStatsRoute,
   'discover': renderDiscoverRoute, 'community': renderCommunityRoute, 'settings': renderSettings,
-  'book': (v, a) => renderBookPage(v, a, 'book'), 'work': (v, a) => renderBookPage(v, a, 'work'), 'lists': renderLists,
+  'author': (v, a) => renderAuthorPage(v, a), 'book': (v, a) => renderBookPage(v, a, 'book'), 'work': (v, a) => renderBookPage(v, a, 'work'), 'lists': renderLists,
 };
 function route() {
   const hash = location.hash.replace(/^#\/?/, '');
@@ -273,7 +273,7 @@ function renderSettings(view) {
   const s = store.getState().settings;
   view.innerHTML = `
     <div class="view-head"><h1>${t('settings')}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.3.6</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.4.0</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t('language')}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === 'ar' ? 'active' : ''}">العربية</button><button data-lang="en" class="${s.lang === 'en' ? 'active' : ''}">English</button></div></div>

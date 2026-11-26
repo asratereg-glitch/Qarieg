@@ -99,3 +99,8 @@
 
 ## v1.3.6
 - Update reliability: the app now fetches its code from the network first (cache only offline), refreshes itself when a new version is installed, and shows the version number at the top of Settings.
+
+## v1.4.0
+- Tapping an author name now opens an author page (bio, every book, and that author's series in order). Replaces the old Discover search jump that sometimes appeared to do nothing.
+- Book pages show the series name, the book's position ("Book 2 of 5") and the other books in order; tapping one opens it.
+- Source: Wikidata (free, works from a static site). Coverage is partial: popular series are good, Arabic and lesser-known books often have no series data, and some series have no book numbers (then ordered by year). Results are cached on the device for 7 days.

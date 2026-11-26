@@ -1486,8 +1486,8 @@
     };
   }
   var SOURCES = { ol: ["Open Library", topOL], gb: ["Google Books", topGB] };
-  async function wikidataAward(qid, page) {
-    const sp = `SELECT ?wLabel ?aLabel ?year WHERE { ?w wdt:P166 wd:${qid} . OPTIONAL{?w wdt:P50 ?a} OPTIONAL{?w wdt:P577 ?d . BIND(YEAR(?d) AS ?year)} SERVICE wikibase:label { bd:serviceParam wikibase:language "en,ar". } } ORDER BY DESC(?year) LIMIT ${PAGE} OFFSET ${page * PAGE}`;
+  async function wikidataAward(qid2, page) {
+    const sp = `SELECT ?wLabel ?aLabel ?year WHERE { ?w wdt:P166 wd:${qid2} . OPTIONAL{?w wdt:P50 ?a} OPTIONAL{?w wdt:P577 ?d . BIND(YEAR(?d) AS ?year)} SERVICE wikibase:label { bd:serviceParam wikibase:language "en,ar". } } ORDER BY DESC(?year) LIMIT ${PAGE} OFFSET ${page * PAGE}`;
     const res = await fetch("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(sp));
     if (!res.ok) throw new Error("Wikidata " + res.status);
     const d = await res.json();
@@ -1629,11 +1629,11 @@
       kindsEl.appendChild(chip2);
     });
     kindsEl.firstChild.click();
-    WD_AWARDS.forEach(([k, ar2, en, qid]) => {
+    WD_AWARDS.forEach(([k, ar2, en, qid2]) => {
       const chip2 = document.createElement("button");
       chip2.className = "chip";
       chip2.textContent = (getLang() === "ar" ? ar2 : en) + " \u2197";
-      chip2.onclick = () => showResults(view, "\u{1F3C6} " + (getLang() === "ar" ? ar2 : en) + " \xB7 Wikidata", (page) => wikidataAward(qid, page));
+      chip2.onclick = () => showResults(view, "\u{1F3C6} " + (getLang() === "ar" ? ar2 : en) + " \xB7 Wikidata", (page) => wikidataAward(qid2, page));
       chips.appendChild(chip2);
     });
     renderAward(view, "hugo");
@@ -3063,10 +3063,227 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     document.body.style.overflow = "";
   }
 
-  // src/bookpage.js
+  // src/series.js
+  var OL2 = "https://openlibrary.org";
+  var WD = "https://query.wikidata.org/sparql";
+  async function getJSON2(url, ms = 3e4) {
+    const ctl = new AbortController();
+    const timer2 = setTimeout(() => ctl.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: ctl.signal });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } finally {
+      clearTimeout(timer2);
+    }
+  }
+  var normTitle = (s) => String(s || "").toLowerCase().replace(/\(.*?\)/g, " ").replace(/^(the|a|an)\s+/, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  var normName = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  var esc2 = (s) => String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  var qid = (u) => (u || "").split("/").pop();
+  async function sparql(q) {
+    let d;
+    try {
+      d = await getJSON2(WD + "?format=json&query=" + encodeURIComponent(q));
+    } catch (e) {
+      if (!/429|503/.test(e.message)) throw e;
+      await new Promise((r) => setTimeout(r, 6e3));
+      d = await getJSON2(WD + "?format=json&query=" + encodeURIComponent(q));
+    }
+    return d.results && d.results.bindings || [];
+  }
+  var memo = /* @__PURE__ */ new Map();
+  async function authorQid(name, olAuthorKey) {
+    const k = "a:" + (olAuthorKey || name);
+    if (memo.has(k)) return memo.get(k);
+    const p = (async () => {
+      if (olAuthorKey) {
+        try {
+          const a = await getJSON2(`${OL2}/authors/${String(olAuthorKey).replace("/authors/", "")}.json`, 9e3);
+          const w = a.remote_ids && a.remote_ids.wikidata;
+          if (w) return w;
+        } catch {
+        }
+      }
+      return "";
+    })();
+    memo.set(k, p);
+    return p;
+  }
+  function parseOrd(v) {
+    if (!v) return null;
+    const m = String(v).match(/\d+(\.\d+)?/);
+    return m ? parseFloat(m[0]) : null;
+  }
+  async function seriesByAuthor({ name, olAuthorKey }) {
+    const k = "s:" + normName(name);
+    if (memo.has(k)) return memo.get(k);
+    const ck = "qari.series." + normName(name);
+    try {
+      const c = JSON.parse(localStorage.getItem(ck) || "null");
+      if (c && Date.now() - c.t < 7 * 864e5) {
+        const r = Promise.resolve(c.v);
+        memo.set(k, r);
+        return r;
+      }
+    } catch {
+    }
+    const p = (async () => {
+      const q = await authorQid(name, olAuthorKey);
+      const who = q ? `VALUES ?au { wd:${q} }` : `?au rdfs:label "${esc2(name)}"@en. ?au wdt:P31 wd:Q5.`;
+      const own = await sparql(`SELECT DISTINCT ?series WHERE { ${who} ?b0 wdt:P50 ?au; wdt:P179 ?series. } LIMIT 40`);
+      const ids = own.map((r) => qid(r.series.value)).filter((x) => /^Q\d+$/.test(x));
+      if (!ids.length) return [];
+      const rows = await sparql(`SELECT ?series ?seriesLabel ?book ?bookLabel ?ord ?date ?authorLabel WHERE {
+      VALUES ?series { ${ids.map((i) => "wd:" + i).join(" ")} }
+      ?book p:P179 ?st. ?st ps:P179 ?series. OPTIONAL { ?st pq:P1545 ?ord } OPTIONAL { ?book wdt:P577 ?date } OPTIONAL { ?book wdt:P50 ?author }
+      SERVICE wikibase:label { bd:serviceParam wikibase:language "en,ar". } }`);
+      const by = /* @__PURE__ */ new Map();
+      for (const r of rows) {
+        const sid = qid(r.series.value);
+        if (/^Q\d+$/.test(r.seriesLabel.value)) continue;
+        const s = by.get(sid) || { id: sid, name: r.seriesLabel.value, books: /* @__PURE__ */ new Map() };
+        const bid = qid(r.book.value);
+        const cur = s.books.get(bid) || { id: bid, title: r.bookLabel.value, ord: null, year: "", author: "" };
+        const o = parseOrd(r.ord && r.ord.value);
+        if (o != null && cur.ord == null) cur.ord = o;
+        if (r.date && !cur.year) cur.year = (r.date.value.match(/^-?\d{1,4}/) || [""])[0];
+        if (r.authorLabel && !cur.author && !/^Q\d+$/.test(r.authorLabel.value)) cur.author = r.authorLabel.value;
+        s.books.set(bid, cur);
+        by.set(sid, s);
+      }
+      return [...by.values()].map((s) => {
+        let books = [...s.books.values()].filter((b) => !/^Q\d+$/.test(b.title));
+        const latin = (x) => /[A-Za-z]/.test(x);
+        const nLatin = books.filter((b) => latin(b.title)).length, preferLatin = nLatin * 2 >= books.length;
+        const seen = /* @__PURE__ */ new Map();
+        for (const b of books) {
+          if (b.ord == null) continue;
+          const prev2 = seen.get(b.ord);
+          if (!prev2 || latin(b.title) === preferLatin && latin(prev2.title) !== preferLatin) seen.set(b.ord, b);
+        }
+        books = books.filter((b) => b.ord == null || seen.get(b.ord) === b);
+        const anyOrd = books.some((b) => b.ord != null);
+        if (anyOrd) books = books.filter((b) => b.ord != null || !/\bseries\b|audiobook|omnibus|collection/i.test(b.title));
+        books.sort((a, b) => anyOrd ? (a.ord ?? 1e9) - (b.ord ?? 1e9) || (a.year || 9999) - (b.year || 9999) : (a.year || 9999) - (b.year || 9999));
+        return { id: s.id, name: s.name, books, ordered: anyOrd };
+      }).filter((s) => s.books.length > 1 && s.books.length <= 30).filter((s) => {
+        const lat = (x) => /[A-Za-z]/.test(x), authLat = lat(name);
+        return s.books.filter((b) => lat(b.title) === authLat).length * 2 >= s.books.length;
+      }).sort((a, b) => b.books.length - a.books.length);
+    })();
+    memo.set(k, p);
+    p.then((v) => {
+      try {
+        localStorage.setItem(ck, JSON.stringify({ t: Date.now(), v }));
+      } catch {
+      }
+    }, () => memo.delete(k));
+    return p;
+  }
+  async function seriesForBook({ title, author, olAuthorKey }) {
+    const list = await seriesByAuthor({ name: author, olAuthorKey });
+    const t2 = normTitle(title);
+    if (!t2) return null;
+    const sub = (x) => normTitle(String(x).split(/[:\u2014]| - /)[0]);
+    for (const eq of [(x) => normTitle(x) === t2, (x) => sub(x) === sub(title)]) {
+      for (const s of list) {
+        const i = s.books.findIndex((b) => eq(b.title));
+        if (i >= 0) return { series: s, index: i, position: s.books[i].ord, total: s.books.length };
+      }
+    }
+    return null;
+  }
+
+  // src/author.js
+  var OL3 = "https://openlibrary.org";
   var $5 = (s, r = document) => r.querySelector(s);
-  var nf = (n) => (n || 0).toLocaleString(getLang() === "ar" ? "ar-EG" : "en-US");
   var TOKEN = 0;
+  async function openBookByTitle(title, author) {
+    toast(t("loading"));
+    const f = await findCover(title, author).catch(() => null);
+    if (f && f.olKey) location.hash = "#/work/" + f.olKey;
+    else toast(tr("\u0645\u0634 \u0644\u0627\u0642\u064A \u0635\u0641\u062D\u0629 \u0644\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 \u0641\u064A Open Library", "No Open Library page found for this book"), 3e3);
+  }
+  function seriesBoxHTML(s, current, author) {
+    const cur = String(current || "").toLowerCase();
+    return `<div class="series-card"><h3>\u{1F4DA} ${esc(s.name)} <small class="muted">\xB7 ${s.books.length} ${tr("\u0643\u062A\u0628", "books")}</small></h3>
+    <ol class="series-list">${s.books.map((b, i) => `<li ${b.title.toLowerCase() === cur ? 'class="cur"' : ""}><a href="#" data-title="${esc(b.title)}" data-author="${esc(b.author || author || "")}"><span class="sn">${b.ord != null ? b.ord : i + 1}</span> ${esc(b.title)}${b.year ? ` <span class="muted">(${esc(b.year)})</span>` : ""}</a></li>`).join("")}</ol>
+    <div class="muted" style="font-size:.75rem">${s.ordered ? tr("\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u062D\u0633\u0628 \u0631\u0642\u0645 \u0627\u0644\u0643\u062A\u0627\u0628 \u0641\u064A Wikidata.", "Order = book number recorded on Wikidata.") : tr("\u0645\u0641\u064A\u0634 \u062A\u0631\u0642\u064A\u0645 \u0645\u0633\u062C\u0651\u0644\u060C \u0641\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u062D\u0633\u0628 \u0633\u0646\u0629 \u0627\u0644\u0646\u0634\u0631.", "No book numbers recorded, so ordered by publication year.")}</div></div>`;
+  }
+  function bindSeriesLinks(root) {
+    root.querySelectorAll(".series-list a").forEach((a) => a.onclick = (e) => {
+      e.preventDefault();
+      openBookByTitle(a.dataset.title, a.dataset.author);
+    });
+  }
+  async function renderAuthorPage(view, rawName) {
+    const name = decodeURIComponent(rawName || "").trim();
+    const tok = ++TOKEN;
+    view.innerHTML = `<div class="view-head"><button class="btn" id="auBack">\u2190 ${tr("\u0631\u062C\u0648\u0639", "Back")}</button><h1 dir="auto">${esc(name)}</h1></div>
+    <div class="chart-box" id="auBio" hidden></div>
+    <div id="auSeries"><p class="muted">${tr("\u0628\u062F\u0648\u0651\u0631 \u0639\u0644\u0649 \u0627\u0644\u0633\u0644\u0627\u0633\u0644\u2026", "Looking for series\u2026")}</p></div>
+    <h2 class="bp-h2">${tr("\u0643\u0644 \u0627\u0644\u0643\u062A\u0628", "All books")}</h2>
+    <div class="grid" id="auGrid"><p class="muted">${t("loading")}</p></div><div id="auMore"></div>`;
+    $5("#auBack", view).onclick = () => history.length > 1 ? history.back() : location.hash = "#/discover";
+    const key = await resolveAuthorKey(name);
+    if (tok !== TOKEN) return;
+    if (key) fetch(`${OL3}/authors/${String(key).replace("/authors/", "")}.json`).then((r) => r.json()).then((a) => {
+      if (tok !== TOKEN) return;
+      const bio = typeof a.bio === "string" ? a.bio : a.bio && a.bio.value || "";
+      const photo = a.photos && a.photos[0] > 0 ? `https://covers.openlibrary.org/a/id/${a.photos[0]}-M.jpg` : "";
+      if (!bio && !photo) return;
+      const box = $5("#auBio", view);
+      box.hidden = false;
+      box.innerHTML = `<div class="bp-author">${photo ? `<img src="${esc(photo)}" alt="">` : ""}<div><strong>${esc(a.name || name)}</strong><div class="muted">${esc([a.birth_date, a.death_date].filter(Boolean).join(" \u2013 "))}</div></div></div>${bio ? `<p class="bp-bio" dir="auto">${esc(bio.split("\n")[0].slice(0, 700))}</p>` : ""}`;
+    }).catch(() => {
+    });
+    seriesByAuthor({ name: firstAuthorName(name), olAuthorKey: key }).then((list) => {
+      if (tok !== TOKEN) return;
+      const host = $5("#auSeries", view);
+      host.innerHTML = list.length ? `<h2 class="bp-h2">${tr("\u0627\u0644\u0633\u0644\u0627\u0633\u0644", "Series")}</h2>` + list.map((s) => seriesBoxHTML(s, "", name)).join("") + `<p class="muted" style="font-size:.75rem">${tr("\u0627\u0644\u0645\u0635\u062F\u0631: Wikidata. \u0627\u0644\u062A\u063A\u0637\u064A\u0629 \u0645\u0634 \u0643\u0627\u0645\u0644\u0629\u060C \u062E\u0635\u0648\u0635\u064B\u0627 \u0644\u0644\u0643\u062A\u0628 \u0627\u0644\u0639\u0631\u0628\u064A\u0629 \u0648\u0627\u0644\u0623\u0642\u0644 \u0634\u0647\u0631\u0629.", "Source: Wikidata. Coverage is partial, especially for Arabic and lesser-known books.")}</p>` : `<p class="muted">${tr("\u0645\u0641\u064A\u0634 \u0628\u064A\u0627\u0646\u0627\u062A \u0633\u0644\u0627\u0633\u0644 \u0644\u0647\u0630\u0627 \u0627\u0644\u0645\u0624\u0644\u0641 \u0641\u064A Wikidata (\u0645\u0645\u0643\u0646 \u064A\u0643\u0648\u0646 \u0639\u0646\u062F\u0647 \u0633\u0644\u0633\u0644\u0629 \u0628\u0633 \u0645\u0634 \u0645\u062A\u0633\u062C\u0644\u0629).", "No series data for this author on Wikidata (a series may exist but not be recorded there).")}</p>`;
+      bindSeriesLinks(host);
+    }).catch(() => {
+      const host = $5("#auSeries", view);
+      if (host) host.innerHTML = `<p class="muted">${tr("\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u064A\u0644 \u0627\u0644\u0633\u0644\u0627\u0633\u0644 (\u0627\u0644\u0646\u062A \u0623\u0648 Wikidata \u0645\u0634 \u0645\u062A\u0627\u062D \u062F\u0644\u0648\u0642\u062A\u064A).", "Could not load series (offline, or Wikidata is busy right now).")}</p>`;
+    });
+    const grid = $5("#auGrid", view), more = $5("#auMore", view);
+    let page = 0, busy2 = false;
+    const seen = /* @__PURE__ */ new Set();
+    const load2 = async () => {
+      if (busy2) return;
+      busy2 = true;
+      try {
+        const r = await worksByAuthor(name, page, 24, key);
+        if (tok !== TOKEN) return;
+        if (!page) grid.innerHTML = "";
+        page++;
+        r.items.forEach((it) => {
+          const k = it.olKey || it.title;
+          if (seen.has(k)) return;
+          seen.add(k);
+          const c = document.createElement("div");
+          c.className = "book-card";
+          c.innerHTML = `<div class="cover">${coverImgHTML(it)}</div><div class="book-meta"><div class="book-title">${esc(it.title)}</div><div class="book-author">${it.year ? esc(it.year) : ""}${it.rating ? " \xB7 \u2605 " + it.rating.toFixed(1) : ""}</div></div>`;
+          c.onclick = () => it.olKey ? location.hash = "#/work/" + it.olKey : openBookByTitle(it.title, name);
+          grid.appendChild(c);
+        });
+        if (!seen.size) grid.innerHTML = `<p class="muted">${t("noResults")}</p>`;
+        more.innerHTML = r.more ? `<button class="btn" style="margin:1rem auto;display:block">${tr("\u0639\u0631\u0636 \u0627\u0644\u0645\u0632\u064A\u062F", "Load more")}</button>` : "";
+        const b = more.querySelector("button");
+        if (b) b.onclick = load2;
+      } catch (e) {
+        if (!page) grid.innerHTML = `<p class="muted">\u26A0 ${esc(e.message)}</p>`;
+      }
+      busy2 = false;
+    };
+    load2();
+  }
+
+  // src/bookpage.js
+  var $6 = (s, r = document) => r.querySelector(s);
+  var nf = (n) => (n || 0).toLocaleString(getLang() === "ar" ? "ar-EG" : "en-US");
+  var TOKEN2 = 0;
   function basicMeta(b) {
     return { olKey: b.olKey || "", title: b.title, author: b.author, cover: b.cover, subjects: b.subjects || [], isbn: b.isbn, pages: b.totalPages || 0, basic: true };
   }
@@ -3103,7 +3320,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         return;
       }
     }
-    const tok = ++TOKEN;
+    const tok = ++TOKEN2;
     let meta2 = olKey && getMeta(olKey) || null;
     if (meta2) {
       draw(view, lib, meta2, tok);
@@ -3111,7 +3328,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     }
     draw(view, lib, lib ? basicMeta(lib) : { olKey, title: "\u2026", author: "", subjects: [], basic: true }, tok, true);
     const fresh = await loadMeta(lib ? { olKey, title: lib.title, author: lib.author, isbn: lib.isbn, cover: lib.cover } : { olKey });
-    if (tok !== TOKEN) return;
+    if (tok !== TOKEN2) return;
     if (lib && fresh.olKey) {
       const patch = {};
       if (!lib.olKey) patch.olKey = fresh.olKey;
@@ -3190,6 +3407,8 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         ${meta2.firstSentence ? `<blockquote class="bp-quote" dir="auto">\u201C${esc(meta2.firstSentence)}\u201D<div class="muted">${tr("\u0623\u0648\u0644 \u062C\u0645\u0644\u0629", "First sentence")}</div></blockquote>` : ""}
       </div>
 
+      <div id="seriesBox"></div>
+
       <div class="chart-box"><h3>\u{1F4AC} ${tr("\u062A\u0639\u0644\u064A\u0642\u0627\u062A\u064A", "My comments")} (${comments.length})</h3>
         <div class="bp-composer">
           <textarea id="cmText" rows="2" placeholder="${tr("\u0627\u0643\u062A\u0628 \u062A\u0639\u0644\u064A\u0642\u0643 \u0639\u0644\u0649 \u0627\u0644\u0643\u062A\u0627\u0628 \u0623\u0648 \u0641\u0635\u0644\u2026", "Write a comment on the book or a chapter\u2026")}"></textarea>
@@ -3230,38 +3449,38 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       if (created) location.hash = "#/book/" + lib.id;
       else redraw();
     };
-    $5("#ratingHost", view).appendChild(stars(lib ? lib.rating : 0, true, (v) => {
+    $6("#ratingHost", view).appendChild(stars(lib ? lib.rating : 0, true, (v) => {
       const c = !lib;
       need();
       updateBook(lib.id, { rating: v });
       after(c);
     }));
-    const rb = $5("#readBtn", view);
+    const rb = $6("#readBtn", view);
     if (rb) rb.onclick = () => startReadingBook(lib);
-    const ab = $5("#attachBtn", view);
+    const ab = $6("#attachBtn", view);
     if (ab) ab.onclick = async () => {
       if (await pickBookFile(lib)) renderBookPage(view, arg, kind);
     };
-    const ab2 = $5("#addLibBtn", view);
+    const ab2 = $6("#addLibBtn", view);
     if (ab2) ab2.onclick = () => {
       need();
       after(true);
     };
-    $5("#favBtn", view).onclick = () => {
+    $6("#favBtn", view).onclick = () => {
       const c = !lib;
       need();
       const on = toggleFavorite(lib.id);
       toast(on ? "\u2764 " + tr("\u0627\u062A\u0636\u0627\u0641 \u0644\u0644\u0645\u0641\u0636\u0644\u0629", "Added to favorites") : tr("\u0627\u062A\u0634\u0627\u0644 \u0645\u0646 \u0627\u0644\u0645\u0641\u0636\u0644\u0629", "Removed from favorites"));
       after(c);
     };
-    $5("#listsBtn", view).onclick = () => openListsPicker(() => {
+    $6("#listsBtn", view).onclick = () => openListsPicker(() => {
       const c = !lib;
       need();
       return { lib, created: c };
     }, () => lib, () => {
       if (lib) redraw();
     });
-    const sel = $5("#shelfSel", view);
+    const sel = $6("#shelfSel", view);
     if (sel) sel.onchange = (e) => {
       const v = e.target.value;
       if (["want", "reading", "finished"].includes(v)) updateBook(lib.id, { shelf: v });
@@ -3272,12 +3491,12 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       }
       redraw();
     };
-    const fb = $5("#finishBtn", view);
+    const fb = $6("#finishBtn", view);
     if (fb) fb.onclick = () => {
       updateBook(lib.id, { shelf: "finished" });
       redraw();
     };
-    const dl = $5("#delBtn", view);
+    const dl = $6("#delBtn", view);
     if (dl) dl.onclick = async () => {
       if (!confirm(t("confirmDelete"))) return;
       if (lib.fileKey) await deleteFile(lib.fileKey).catch(() => {
@@ -3285,29 +3504,29 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       removeBook(lib.id);
       location.hash = "#/";
     };
-    const sr = $5("#saveReview", view);
+    const sr = $6("#saveReview", view);
     if (sr) sr.onclick = () => {
-      updateBook(lib.id, { review: $5("#reviewBox", view).value });
+      updateBook(lib.id, { review: $6("#reviewBox", view).value });
       toast(t("added"));
     };
-    const md = $5("#moreDesc", view);
+    const md = $6("#moreDesc", view);
     if (md) {
-      const p = $5("#descP", view);
+      const p = $6("#descP", view);
       md.onclick = () => {
         const open2 = p.classList.toggle("open");
         md.textContent = open2 ? tr("\u0623\u0642\u0644", "Show less") : tr("\u0627\u0642\u0631\u0623 \u0627\u0644\u0645\u0632\u064A\u062F", "Read more");
       };
       if (meta2.description.length < 480) md.remove();
     }
-    $5("#cmAdd", view).onclick = () => {
-      const text = $5("#cmText", view).value.trim();
+    $6("#cmAdd", view).onclick = () => {
+      const text = $6("#cmText", view).value.trim();
       if (!text) return;
       const c = !lib;
       need();
-      addComment({ bookId: lib.id, chapter: $5("#cmChapter", view).value.trim(), author: tr("\u0623\u0646\u0627", "Me"), text, origin: "me" });
+      addComment({ bookId: lib.id, chapter: $6("#cmChapter", view).value.trim(), author: tr("\u0623\u0646\u0627", "Me"), text, origin: "me" });
       after(c);
     };
-    const cmHost = $5("#cmList", view);
+    const cmHost = $6("#cmList", view);
     cmHost.innerHTML = comments.length ? "" : `<p class="muted">${tr("\u0644\u0633\u0647 \u0645\u0641\u064A\u0634 \u062A\u0639\u0644\u064A\u0642\u0627\u062A.", "No comments yet.")}</p>`;
     comments.forEach((c) => {
       const row = document.createElement("div");
@@ -3329,7 +3548,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       };
       cmHost.appendChild(row);
     });
-    const hlHost = $5("#hlList", view);
+    const hlHost = $6("#hlList", view);
     if (hlHost) {
       hlHost.innerHTML = hls.length ? "" : `<p class="muted">${t("noHighlights")}</p>`;
       hls.forEach((h) => {
@@ -3376,7 +3595,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         return c;
       };
       const fill = (id, titleId, p) => p.then((items) => {
-        if (tok !== TOKEN) return;
+        if (tok !== TOKEN2) return;
         const host = document.getElementById(id);
         if (!host) return;
         const ti = document.getElementById(titleId);
@@ -3391,6 +3610,30 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         if (ti) ti.hidden = true;
       });
       const curTitle = lib && lib.title || meta2.title;
+      const sb = document.getElementById("seriesBox");
+      if (sb && author) {
+        sb.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}</h3><p class="muted">${tr("\u0628\u062F\u0648\u0651\u0631 \u0639\u0644\u0649 \u0627\u0644\u0633\u0644\u0633\u0644\u0629\u2026", "Checking for a series\u2026")}</p></div>`;
+        seriesForBook({ title: curTitle, author, olAuthorKey: meta2.authorKey }).then((r) => {
+          if (tok !== TOKEN2) return;
+          const el = document.getElementById("seriesBox");
+          if (!el) return;
+          if (!r) {
+            el.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}</h3><p class="muted">${tr("\u0645\u0641\u064A\u0634 \u0645\u0639\u0644\u0648\u0645\u0627\u062A \u0633\u0644\u0633\u0644\u0629 \u0644\u0643\u062A\u0627\u0628 \u062F\u0647 \u0641\u064A Wikidata. \u0645\u0645\u0643\u0646 \u064A\u0643\u0648\u0646 \u0633\u062A\u0627\u0646\u062F \u0623\u0644\u0648\u0646\u060C \u0623\u0648 \u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u0645\u0634 \u0645\u062A\u0633\u062C\u0644\u0629 (\u0627\u0644\u062A\u063A\u0637\u064A\u0629 \u0636\u0639\u064A\u0641\u0629 \u0644\u0644\u0643\u062A\u0628 \u0627\u0644\u0639\u0631\u0628\u064A\u0629).", "No series info for this book on Wikidata. It may be a standalone, or the series just is not recorded there (coverage is weak for Arabic books).")} <a href="#" id="seriesAuthorLink">${tr("\u0643\u0644 \u0643\u062A\u0628 \u0627\u0644\u0645\u0624\u0644\u0641", "All books by this author")}</a></p></div>`;
+            const l = el.querySelector("#seriesAuthorLink");
+            if (l) l.onclick = (e) => {
+              e.preventDefault();
+              openAuthor(author);
+            };
+            return;
+          }
+          const pos = r.position != null ? `${tr("\u0627\u0644\u0643\u062A\u0627\u0628 \u0631\u0642\u0645", "Book")} ${r.position} ${tr("\u0645\u0646", "of")} ${r.total}` : `${tr("\u0627\u0644\u0643\u062A\u0627\u0628", "Book")} ${r.index + 1} ${tr("\u0645\u0646", "of")} ${r.total}`;
+          el.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}: ${esc(r.series.name)}</h3><p class="muted" style="margin-bottom:.4rem">${pos} \xB7 ${tr("\u0627\u0644\u0645\u0635\u062F\u0631: Wikidata", "Source: Wikidata")}</p>${seriesBoxHTML(r.series, curTitle, author).replace(/^<div class="series-card"><h3>.*?<\/h3>/, '<div class="series-card">')}</div>`;
+          bindSeriesLinks(el);
+        }).catch(() => {
+          const el = document.getElementById("seriesBox");
+          if (el) el.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}</h3><p class="muted">${tr("\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u064A\u0644 \u0645\u0639\u0644\u0648\u0645\u0627\u062A \u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u062F\u0644\u0648\u0642\u062A\u064A.", "Could not load series info right now.")}</p></div>`;
+        });
+      }
       const authorItems = (async () => {
         let items = meta2.authorKey ? await moreByAuthor(meta2.authorKey, meta2.olKey).catch(() => []) : [];
         if (!items.length && author) items = (await worksByAuthor(author, 0, 14).catch(() => ({ items: [] }))).items.filter((x) => x.olKey !== meta2.olKey && x.title !== curTitle).slice(0, 12);
@@ -3462,7 +3705,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
   }
 
   // src/lists.js
-  var $6 = (s, r = document) => r.querySelector(s);
+  var $7 = (s, r = document) => r.querySelector(s);
   function smart() {
     const bs = getState().books;
     return [
@@ -3486,7 +3729,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       <p class="muted" style="margin-bottom:.6rem">${tr("\u0641\u064A Goodreads: My Books \u2190 Import and export \u2190 Export Library\u060C \u0648\u0628\u0639\u062F\u064A\u0646 \u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 CSV \u0647\u0646\u0627. \u0628\u064A\u062A\u0639\u0645\u0644 \u0644\u0643\u0644 \u0631\u0641 \u0642\u0627\u0626\u0645\u0629\u060C \u0648\u0627\u0644\u062A\u0642\u064A\u064A\u0645\u0627\u062A \u0648\u0627\u0644\u062A\u0648\u0627\u0631\u064A\u062E \u0628\u062A\u062A\u0646\u0642\u0644.", "On Goodreads: My Books > Import and export > Export Library, then choose the CSV here. Each shelf becomes a list; ratings and dates carry over.")}</p>
       <button id="grBtn" class="btn">\u2B06 ${tr("\u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 CSV", "Choose CSV file")}</button><input type="file" id="grIn" accept=".csv,text/csv" hidden></div>
     <div class="ls-grid" id="lsGrid"></div>`;
-    const host = $6("#lsGrid", view);
+    const host = $7("#lsGrid", view);
     all.forEach((l) => {
       const c = document.createElement("div");
       c.className = "ls-card";
@@ -3497,14 +3740,14 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       host.appendChild(c);
     });
     const mk = () => {
-      const n = $6("#nlName", view).value.trim();
+      const n = $7("#nlName", view).value.trim();
       if (!n) return;
-      const l = createList(n, $6("#nlDesc", view).value.trim());
+      const l = createList(n, $7("#nlDesc", view).value.trim());
       location.hash = "#/lists/" + l.id;
     };
-    $6("#nlBtn", view).onclick = mk;
-    $6("#grBtn", view).onclick = () => $6("#grIn", view).click();
-    $6("#grIn", view).onchange = async (e) => {
+    $7("#nlBtn", view).onclick = mk;
+    $7("#grBtn", view).onclick = () => $7("#grIn", view).click();
+    $7("#grIn", view).onchange = async (e) => {
       const f = e.target.files[0];
       if (!f) return;
       try {
@@ -3515,7 +3758,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         toast("\u26A0 " + err.message, 4e3);
       }
     };
-    $6("#nlName", view).addEventListener("keydown", (e) => {
+    $7("#nlName", view).addEventListener("keydown", (e) => {
       if (e.key === "Enter") mk();
     });
   }
@@ -3538,12 +3781,12 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         <button id="lsCopy" class="btn">\u29C9 ${tr("\u0646\u0633\u062E \u0643\u0646\u0635", "Copy as text")}</button>
         ${l.custom ? `<button id="lsRename" class="btn">${t("edit")}</button><button id="lsDel" class="btn btn-danger">${t("delete")}</button>` : ""}</div></div>
       <div class="grid" id="lsBooks"></div>`;
-      $6("#lsSort", view).value = sort;
-      $6("#lsSort", view).onchange = (e) => {
+      $7("#lsSort", view).value = sort;
+      $7("#lsSort", view).onchange = (e) => {
         sort = e.target.value;
         draw2();
       };
-      const g = $6("#lsBooks", view);
+      const g = $7("#lsBooks", view);
       if (!books.length) g.innerHTML = `<p class="muted">${l.custom ? tr('\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0641\u0627\u0636\u064A\u0629. \u0627\u0641\u062A\u062D \u0623\u064A \u0643\u062A\u0627\u0628 \u0648\u0627\u0636\u063A\u0637 "\u0627\u0644\u0642\u0648\u0627\u0626\u0645" \u0639\u0634\u0627\u0646 \u062A\u0636\u064A\u0641\u0647 \u0647\u0646\u0627.', 'Empty list. Open any book and tap "Lists" to add it here.') : "\u2014"}</p>`;
       books.forEach((b, i) => {
         const el = document.createElement("div");
@@ -3571,7 +3814,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         });
         g.appendChild(el);
       });
-      $6("#lsCopy", view).onclick = async () => {
+      $7("#lsCopy", view).onclick = async () => {
         const txt = `${l.name}
 ` + books.map((b, i) => `${i + 1}. ${b.title}${b.author ? " \u2014 " + b.author : ""}`).join("\n");
         try {
@@ -3582,7 +3825,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         }
       };
       if (l.custom) {
-        $6("#lsRename", view).onclick = () => {
+        $7("#lsRename", view).onclick = () => {
           const n = prompt(tr("\u0627\u0633\u0645 \u0627\u0644\u0642\u0627\u0626\u0645\u0629", "List name"), l.name);
           if (!n || !n.trim()) return;
           const d = prompt(tr("\u0627\u0644\u0648\u0635\u0641", "Description"), l.desc || "");
@@ -3591,7 +3834,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
           l.desc = d || "";
           draw2();
         };
-        $6("#lsDel", view).onclick = () => {
+        $7("#lsDel", view).onclick = () => {
           if (confirm(tr("\u062A\u062D\u0630\u0641 \u0627\u0644\u0642\u0627\u0626\u0645\u0629\u061F \u0627\u0644\u0643\u062A\u0628 \u0647\u062A\u0641\u0636\u0644 \u0641\u064A \u0645\u0643\u062A\u0628\u062A\u0643.", "Delete this list? Books stay in your library."))) {
             deleteList(id);
             location.hash = "#/lists";
@@ -4202,7 +4445,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const b = await pickBookFile(book);
     if (b) openReader(b);
   }
-  var $7 = (sel, root = document) => root.querySelector(sel);
+  var $8 = (sel, root = document) => root.querySelector(sel);
   var $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
   function esc(s = "") {
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -4212,13 +4455,9 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     return n && n !== "\u2014" ? `<span class="author-link" data-author="${esc(n)}" title="${getLang() === "ar" ? "\u0643\u0644 \u0643\u062A\u0628 \u0627\u0644\u0645\u0624\u0644\u0641" : "All books by this author"}">${esc(n)}</span>` : esc(n || "\u2014");
   }
   function openAuthor(name) {
-    try {
-      sessionStorage.setItem("qari.pendingSearch", JSON.stringify({ q: String(name).trim(), scope: "author" }));
-    } catch {
-    }
-    if (location.hash === "#/discover" || location.hash === "#/discover/") {
-      if (window.__qariDiscoverPending) window.__qariDiscoverPending();
-    } else location.hash = "#/discover";
+    const n = String(name || "").trim();
+    if (!n) return;
+    location.hash = "#/author/" + encodeURIComponent(n);
   }
   document.addEventListener("click", (e) => {
     const a = e.target.closest && e.target.closest(".author-link");
@@ -4231,7 +4470,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     openAuthor(a.dataset.author);
   }, true);
   function toast(msg, ms = 2200) {
-    const el = $7("#toast");
+    const el = $8("#toast");
     el.textContent = msg;
     el.classList.remove("hidden");
     clearTimeout(toast._t);
@@ -4328,7 +4567,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     document.documentElement.dir = s.lang === "ar" ? "rtl" : "ltr";
     setLang(s.lang);
     applyI18n();
-    $7("#addBookBtn").firstChild.textContent = "\uFF0B ";
+    $8("#addBookBtn").firstChild.textContent = "\uFF0B ";
   }
   onChange(() => {
   });
@@ -4339,6 +4578,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     "discover": renderDiscoverRoute,
     "community": renderCommunityRoute,
     "settings": renderSettings,
+    "author": (v, a) => renderAuthorPage(v, a),
     "book": (v, a) => renderBookPage(v, a, "book"),
     "work": (v, a) => renderBookPage(v, a, "work"),
     "lists": renderLists
@@ -4348,7 +4588,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const [name, arg2] = hash.split("/");
     const fn = routes[name] || renderLibrary;
     $$("#mainnav a").forEach((a) => a.classList.toggle("active", a.dataset.route === (name || "library")));
-    const view = $7("#view");
+    const view = $8("#view");
     view.innerHTML = "";
     window.scrollTo(0, 0);
     fn(view, arg2);
@@ -4436,7 +4676,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       const match = (b) => (!libFilter.fav || b.favorite) && (!q || (b.title + " " + (b.author || "")).toLowerCase().includes(q));
       const reading = sortBooks(st.books.filter((b) => b.shelf === "reading" && match(b)), libFilter.sort);
       const rest = sortBooks(st.books.filter((b) => b.shelf !== "reading" && match(b)), libFilter.sort);
-      const row = $7("#readingRow", view);
+      const row = $8("#readingRow", view);
       row.innerHTML = "";
       if (reading.length) {
         row.innerHTML = `<h2 style="margin-bottom:.7rem;font-size:1.1rem">\u25B6 ${t("continueReading")}</h2>`;
@@ -4446,23 +4686,23 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
         reading.forEach((b) => g.appendChild(bookCard(b, paint)));
         row.appendChild(g);
       }
-      const grid = $7("#libGrid", view);
+      const grid = $8("#libGrid", view);
       grid.innerHTML = "";
       rest.forEach((b) => grid.appendChild(bookCard(b, paint)));
     };
     paint();
-    const qi = $7("#libQ", view);
+    const qi = $8("#libQ", view);
     if (qi) qi.oninput = () => {
       libFilter.q = qi.value;
       paint();
     };
-    const fc = $7("#favChip", view);
+    const fc = $8("#favChip", view);
     if (fc) fc.onclick = () => {
       libFilter.fav = !libFilter.fav;
       fc.classList.toggle("active", libFilter.fav);
       paint();
     };
-    const ls = $7("#libSort", view);
+    const ls = $8("#libSort", view);
     if (ls) ls.onchange = () => {
       libFilter.sort = ls.value;
       paint();
@@ -4474,14 +4714,14 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     view.innerHTML = `<div class="view-head"><h1>${t("navShelves")}</h1></div>
     <div class="search-row" style="max-width:420px"><input id="newShelfName" placeholder="${t("shelfNamePh")}"><button id="newShelfBtn" class="btn">\uFF0B ${t("newShelf")}</button></div>
     <div id="shelfBlocks"></div>`;
-    $7("#newShelfBtn", view).onclick = () => {
-      const v = $7("#newShelfName", view).value.trim();
+    $8("#newShelfBtn", view).onclick = () => {
+      const v = $8("#newShelfName", view).value.trim();
       if (v) {
         addCustomShelf(v);
         renderShelves(view);
       }
     };
-    const host = $7("#shelfBlocks", view);
+    const host = $8("#shelfBlocks", view);
     const renderBlock = (title, books, removable = null) => {
       const block = document.createElement("div");
       block.className = "shelf-block";
@@ -4504,7 +4744,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const s = getState().settings;
     view.innerHTML = `
     <div class="view-head"><h1>${t("settings")}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.3.6</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.4.0</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t("language")}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === "ar" ? "active" : ""}">\u0627\u0644\u0639\u0631\u0628\u064A\u0629</button><button data-lang="en" class="${s.lang === "en" ? "active" : ""}">English</button></div></div>
@@ -4543,20 +4783,20 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       upd({ flow: b.dataset.flow });
       renderSettings(view);
     });
-    $7("#fsRange", view).oninput = (e) => {
-      $7("#fsVal", view).textContent = e.target.value;
+    $8("#fsRange", view).oninput = (e) => {
+      $8("#fsVal", view).textContent = e.target.value;
       upd({ fontSize: +e.target.value });
     };
-    $7("#lhRange", view).oninput = (e) => {
+    $8("#lhRange", view).oninput = (e) => {
       const v = (+e.target.value / 10).toFixed(1);
-      $7("#lhVal", view).textContent = v;
+      $8("#lhVal", view).textContent = v;
       upd({ lineHeight: +v });
     };
-    $7("#fontHost", view).appendChild(fontPicker(s.fontFamily, (id) => upd({ fontFamily: id })));
-    $7("#gbKey", view).oninput = (e) => upd({ gbKey: e.target.value.trim() });
+    $8("#fontHost", view).appendChild(fontPicker(s.fontFamily, (id) => upd({ fontFamily: id })));
+    $8("#gbKey", view).oninput = (e) => upd({ gbKey: e.target.value.trim() });
     drawDbBox(view);
     drawSyncBox(view);
-    $7("#exportBtn", view).onclick = () => {
+    $8("#exportBtn", view).onclick = () => {
       const blob = new Blob([exportJSON()], { type: "application/json" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -4564,8 +4804,8 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       a.click();
       toast(t("exported"));
     };
-    $7("#importBtn", view).onclick = () => $7("#importFile", view).click();
-    $7("#importFile", view).onchange = async (e) => {
+    $8("#importBtn", view).onclick = () => $8("#importFile", view).click();
+    $8("#importFile", view).onchange = async (e) => {
       const f = e.target.files[0];
       if (!f) return;
       try {
@@ -4590,7 +4830,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     }[i.status];
   };
   function updateDbChip() {
-    const c = $7("#dbChip");
+    const c = $8("#dbChip");
     if (!c) return;
     const i = info();
     c.textContent = { none: "\u{1F4BE}", ready: "\u{1F4BE}\u2713", saving: "\u{1F4BE}\u2026", "needs-permission": "\u{1F4BE}\u26A0", error: "\u{1F4BE}\u2715", unsupported: "\u{1F4BE}" }[i.status];
@@ -4598,7 +4838,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     c.dataset.s = i.status;
   }
   function drawDbBox(view) {
-    const box = $7("#dbBox", view);
+    const box = $8("#dbBox", view);
     if (!box) return;
     const ar = getLang() === "ar", i = info();
     const st = getState();
@@ -4624,7 +4864,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       redraw();
     };
     const confirmRestore = () => confirm(ar ? "\u0627\u0644\u0627\u0633\u062A\u0631\u062C\u0627\u0639 \u0647\u064A\u0633\u062A\u0628\u062F\u0644 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u062D\u0627\u0644\u064A\u0629 \u0641\u064A \u0627\u0644\u0645\u062A\u0635\u0641\u062D \u0628\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0645\u0644\u0641. \u0645\u062A\u0623\u0643\u062F\u061F" : "Restoring replaces the data currently in this browser with the file contents. Continue?");
-    const b = (id) => $7(id, box);
+    const b = (id) => $8(id, box);
     if (b("#dbCreate")) b("#dbCreate").onclick = guard(() => createFile());
     if (b("#dbOpen")) b("#dbOpen").onclick = guard(async () => {
       if (st.books.length && !confirmRestore()) return;
@@ -4660,7 +4900,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     return (ar ? "\u{1F7E2} \u0645\u062A\u0632\u0627\u0645\u0646 \u0645\u0639 " : "\u{1F7E2} Synced with ") + i.owner + "/" + i.repo + (when ? " \xB7 " + when : "");
   };
   function updateSyncUi() {
-    const c = $7("#syncChip");
+    const c = $8("#syncChip");
     const i = info2();
     if (c) {
       c.style.display = i.connected ? "" : "none";
@@ -4668,11 +4908,11 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       c.title = syncText();
       c.dataset.s = i.status;
     }
-    const sb = $7("#syncStatus");
+    const sb = $8("#syncStatus");
     if (sb) sb.textContent = syncText();
-    const sn = $7("#syncNote");
+    const sn = $8("#syncNote");
     if (sn) sn.textContent = i.note || "";
-    let bn = $7("#syncBanner");
+    let bn = $8("#syncBanner");
     if (i.conflictNote) {
       if (!bn) {
         bn = document.createElement("div");
@@ -4689,7 +4929,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     } else if (bn) bn.remove();
   }
   function drawSyncBox(view) {
-    const box = $7("#syncBox", view);
+    const box = $8("#syncBox", view);
     if (!box) return;
     const ar = getLang() === "ar", i = info2(), d = savedDefaults();
     box.innerHTML = `<h3 style="margin-bottom:.5rem">\u2601 ${ar ? "\u0645\u0632\u0627\u0645\u0646\u0629 \u0628\u064A\u0646 \u0627\u0644\u0623\u062C\u0647\u0632\u0629 (GitHub)" : "Sync across devices (GitHub)"}</h3>
@@ -4710,20 +4950,20 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       drawSyncBox(view);
       updateSyncUi();
     };
-    const go = $7("#syncGo", box);
+    const go = $8("#syncGo", box);
     if (go) go.onclick = guard(async () => {
       go.disabled = true;
-      await connect($7("#syncOwner", box).value, $7("#syncRepo", box).value, $7("#syncToken", box).value);
+      await connect($8("#syncOwner", box).value, $8("#syncRepo", box).value, $8("#syncToken", box).value);
       const e = info2();
       toast(e.status === "error" ? "\u26A0 " + e.error : "\u2713", 3e3);
     });
-    const sn = $7("#syncNow", box);
+    const sn = $8("#syncNow", box);
     if (sn) sn.onclick = guard(async () => {
       await syncNow("manual");
       const e = info2();
       toast(e.status === "error" ? "\u26A0 " + e.error : "\u2713", 3e3);
     });
-    const so = $7("#syncOff", box);
+    const so = $8("#syncOff", box);
     if (so) so.onclick = guard(async () => {
       if (confirm(ar ? "\u0641\u0635\u0644 \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629\u061F \u0628\u064A\u0627\u0646\u0627\u062A\u0643 \u0639\u0644\u0649 \u0627\u0644\u062C\u0647\u0627\u0632 \u0648\u0627\u0644\u0631\u064A\u0628\u0648 \u0647\u062A\u0641\u0636\u0644 \u0632\u064A \u0645\u0627 \u0647\u064A." : "Disconnect sync? Data on this device and in the repo stays as is.")) disconnect2();
     });
@@ -4741,16 +4981,16 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     bindCommunity(view);
   }
   function openAddModal() {
-    const m = $7("#addModal");
+    const m = $8("#addModal");
     m.classList.remove("hidden");
     $$(".modal-tabs .tab", m).forEach((tabBtn) => tabBtn.onclick = () => {
       $$(".modal-tabs .tab", m).forEach((x) => x.classList.toggle("active", x === tabBtn));
-      $7("#pane-file", m).classList.toggle("hidden", tabBtn.dataset.tab !== "file");
-      $7("#pane-online", m).classList.toggle("hidden", tabBtn.dataset.tab !== "online");
+      $8("#pane-file", m).classList.toggle("hidden", tabBtn.dataset.tab !== "file");
+      $8("#pane-online", m).classList.toggle("hidden", tabBtn.dataset.tab !== "online");
     });
   }
   function closeAddModal() {
-    $7("#addModal").classList.add("hidden");
+    $8("#addModal").classList.add("hidden");
   }
   async function handleFile(file) {
     const ext = (file.name.split(".").pop() || "").toLowerCase();
@@ -4809,9 +5049,9 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     location.hash = "#/book/" + b.id;
   }
   async function runOnlineSearch() {
-    const q = $7("#onlineQuery").value.trim();
+    const q = $8("#onlineQuery").value.trim();
     if (!q) return;
-    const host = $7("#onlineResults");
+    const host = $8("#onlineResults");
     host.innerHTML = `<p class="muted">${t("loading")}</p>`;
     try {
       const items = await searchOpenLibrary(q);
@@ -4862,7 +5102,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const chip2 = document.createElement("button");
     chip2.id = "dbChip";
     chip2.className = "icon-btn";
-    $7("#topbar").appendChild(chip2);
+    $8("#topbar").appendChild(chip2);
     chip2.onclick = async () => {
       const i = info();
       if (i.status === "needs-permission") {
@@ -4874,7 +5114,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     };
     onStatus(() => {
       updateDbChip();
-      const sb = $7("#dbStatus");
+      const sb = $8("#dbStatus");
       if (sb) sb.textContent = dbText();
     });
     await init();
@@ -4886,7 +5126,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     sc.onclick = () => {
       location.hash = "#/settings";
     };
-    $7("#topbar").appendChild(sc);
+    $8("#topbar").appendChild(sc);
     configure({ lang: getLang, onApplied: () => {
       applySettings();
       route();
@@ -4894,25 +5134,25 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     onStatus2(updateSyncUi);
     init2();
     updateSyncUi();
-    $7("#addBookBtn").onclick = openAddModal;
+    $8("#addBookBtn").onclick = openAddModal;
     $$("#addModal .modal-close").forEach((b) => b.onclick = closeAddModal);
-    $7("#addModal").addEventListener("click", (e) => {
+    $8("#addModal").addEventListener("click", (e) => {
       if (e.target.id === "addModal") closeAddModal();
     });
-    $7("#dropzone").onclick = () => $7("#fileInput").click();
-    $7("#fileInput").onchange = (e) => {
+    $8("#dropzone").onclick = () => $8("#fileInput").click();
+    $8("#fileInput").onchange = (e) => {
       const f = e.target.files[0];
       if (f) handleFile(f);
       e.target.value = "";
     };
-    $7("#dropzone").addEventListener("dragover", (e) => e.preventDefault());
-    $7("#dropzone").addEventListener("drop", (e) => {
+    $8("#dropzone").addEventListener("dragover", (e) => e.preventDefault());
+    $8("#dropzone").addEventListener("drop", (e) => {
       e.preventDefault();
       const f = e.dataTransfer.files[0];
       if (f) handleFile(f);
     });
-    $7("#onlineSearchBtn").onclick = runOnlineSearch;
-    $7("#onlineQuery").addEventListener("keydown", (e) => {
+    $8("#onlineSearchBtn").onclick = runOnlineSearch;
+    $8("#onlineQuery").addEventListener("keydown", (e) => {
       if (e.key === "Enter") runOnlineSearch();
     });
     route();
@@ -4934,7 +5174,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       });
     }
     setTimeout(() => {
-      const sp = $7("#splash");
+      const sp = $8("#splash");
       sp.style.opacity = "0";
       setTimeout(() => sp.remove(), 450);
     }, 500);

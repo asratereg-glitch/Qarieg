@@ -327,3 +327,12 @@ html[data-device=tablet] .modal-card{max-width:720px}
 html[data-device=tablet] #mainnav a{padding:.55rem 1rem;font-size:1rem}
 html[data-device=desktop] .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1.1rem}
 @media(hover:none){.book-card:hover{transform:none;box-shadow:none}}
+
+/* v1.4.0 series + author page */
+.series-card{margin:.6rem 0;padding:.8rem 1rem;border:1px solid var(--border,#8884);border-radius:12px}
+.series-card h3{margin:0 0 .5rem}
+.series-list{margin:0 0 .5rem;padding-inline-start:0;list-style:none;display:grid;gap:.15rem}
+.series-list li a{display:flex;gap:.6rem;align-items:baseline;padding:.3rem .4rem;border-radius:8px;text-decoration:none;color:inherit}
+.series-list li a:hover{background:var(--hover,#8882)}
+.series-list li.cur a{font-weight:700;background:var(--hover,#8883)}
+.series-list .sn{min-width:1.6rem;text-align:center;opacity:.7;font-variant-numeric:tabular-nums}
