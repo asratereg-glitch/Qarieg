@@ -126,7 +126,6 @@ function makeFigure(doc, im, url) {
   if (im.scale && im.scale < 100) img.style.width = im.scale + '%';
   fig.appendChild(img);
   if (im.caption) { const c = doc.createElement('figcaption'); c.textContent = im.caption; c.setAttribute('style', 'font-size:.85em;opacity:.7;margin-top:.3em'); fig.appendChild(c); }
-  fig.addEventListener('click', () => window.parent.__qariAskRemoveImage && window.parent.__qariAskRemoveImage(im.id));
   img.addEventListener('load', () => { try { R && R.rendition && R.rendition.resize(); } catch {} });
   return fig;
 }
@@ -158,7 +157,7 @@ function askRemoveImage(id) {
   store.removeImage(id); if (im) db.deleteFile(im.fileKey).catch(() => {}); imgUrlCache.delete(id);
   refreshImages(); const p = $('#readerPanel'); if (p && p.dataset.kind === 'img') showImagePanel();
 }
-window.__qariAskRemoveImage = askRemoveImage;
+
 function capturePos() {          // where a new image goes: after the selected text, else the current page start
   if (R.rendition) {
     try {
@@ -403,7 +402,6 @@ function renderTxtPage() {
     const fig = document.createElement('figure'); fig.className = 'qari-img'; fig.dataset.id = im.id;
     fig.innerHTML = '<img alt=""><figcaption></figcaption>'; fig.querySelector('figcaption').textContent = im.caption || '';
     if (im.scale && im.scale < 100) fig.querySelector('img').style.width = im.scale + '%';
-    fig.onclick = () => askRemoveImage(im.id);
     imgDataUrl(im).then(u => { if (u) fig.querySelector('img').src = u; });
     div.appendChild(fig);
   });

@@ -93,3 +93,6 @@
 
 ## v1.3.4
 - Images you add to a book are now resizable: every image in the 🖼 panel has a size slider (20–100% of the text column). The size is saved with the image, so it persists on the device and syncs to your other devices like the image itself.
+
+## v1.3.5
+- Fixed: tapping an image in a book no longer asks to delete it (and Cancel no longer removes it). Tapping does nothing now; delete only from the 🗑 button in the 🖼 panel.

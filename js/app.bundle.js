@@ -2243,7 +2243,6 @@
       c.setAttribute("style", "font-size:.85em;opacity:.7;margin-top:.3em");
       fig.appendChild(c);
     }
-    fig.addEventListener("click", () => window.parent.__qariAskRemoveImage && window.parent.__qariAskRemoveImage(im.id));
     img.addEventListener("load", () => {
       try {
         R && R.rendition && R.rendition.resize();
@@ -2300,7 +2299,6 @@
     const p = $4("#readerPanel");
     if (p && p.dataset.kind === "img") showImagePanel();
   }
-  window.__qariAskRemoveImage = askRemoveImage;
   function capturePos() {
     if (R.rendition) {
       try {
@@ -2623,7 +2621,6 @@
       fig.innerHTML = '<img alt=""><figcaption></figcaption>';
       fig.querySelector("figcaption").textContent = im.caption || "";
       if (im.scale && im.scale < 100) fig.querySelector("img").style.width = im.scale + "%";
-      fig.onclick = () => askRemoveImage(im.id);
       imgDataUrl(im).then((u) => {
         if (u) fig.querySelector("img").src = u;
       });
