@@ -3095,12 +3095,6 @@
     const ov = $4("#readerOverlay");
     if (!ov) return;
     ov.classList.toggle("chrome-hidden");
-    if (R && R.rendition) {
-      try {
-        R.rendition.resize();
-      } catch {
-      }
-    }
   }
   function showSettingsPanel() {
     const s = getState().settings;
@@ -4916,7 +4910,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const s = getState().settings;
     view.innerHTML = `
     <div class="view-head"><h1>${t("settings")}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.2</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.3</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t("language")}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === "ar" ? "active" : ""}">\u0627\u0644\u0639\u0631\u0628\u064A\u0629</button><button data-lang="en" class="${s.lang === "en" ? "active" : ""}">English</button></div></div>

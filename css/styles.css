@@ -341,7 +341,7 @@ html[data-device=desktop] .grid{grid-template-columns:repeat(auto-fill,minmax(16
 .series-list .sn{min-width:1.6rem;text-align:center;opacity:.7;font-variant-numeric:tabular-nums}
 
 /* v1.5.2 tap-to-toggle reader chrome */
-#readerOverlay.chrome-hidden #readerTop,#readerOverlay.chrome-hidden #readerBottom{display:none}
+#readerOverlay.chrome-hidden #readerTop,#readerOverlay.chrome-hidden #readerBottom{visibility:hidden}
 
 /* v1.5.0 find this book */
 .find-links{display:flex;flex-wrap:wrap;gap:.4rem}.find-btn{text-decoration:none}

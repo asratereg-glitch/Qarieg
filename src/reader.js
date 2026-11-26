@@ -663,8 +663,8 @@ function bindChrome() {
 
 function toggleReaderChrome() {
   const ov = $('#readerOverlay'); if (!ov) return;
+  // bars are hidden with visibility (no layout change): resizing the epub mid-book shifted the column offset and lost the page
   ov.classList.toggle('chrome-hidden');
-  if (R && R.rendition) { try { R.rendition.resize(); } catch {} }
 }
 
 function showSettingsPanel() {
