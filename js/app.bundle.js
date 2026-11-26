@@ -541,6 +541,7 @@
       themeLight: "\u0641\u0627\u062A\u062D",
       themeSepia: "\u0633\u064A\u0628\u064A\u0627",
       themeDark: "\u0644\u064A\u0644\u064A",
+      themeBlack: "\u0623\u0633\u0648\u062F OLED",
       fontSize: "\u062D\u062C\u0645 \u0627\u0644\u062E\u0637",
       lineHeight: "\u062A\u0628\u0627\u0639\u062F \u0627\u0644\u0623\u0633\u0637\u0631",
       fontFamily: "\u062E\u0637 \u0627\u0644\u0642\u0631\u0627\u0621\u0629",
@@ -685,6 +686,7 @@
       themeLight: "Light",
       themeSepia: "Sepia",
       themeDark: "Dark",
+      themeBlack: "OLED black",
       fontSize: "Font size",
       lineHeight: "Line spacing",
       fontFamily: "Reading font",
@@ -2159,7 +2161,7 @@
   var R = null;
   var HL_COLORS = ["#ffd54a", "#8ee08e", "#7ec8ff", "#ff9db0"];
   function layoutMode() {
-    const w = window.innerWidth;
+    const w = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth);
     return w < 700 ? "phone" : w < 1100 ? "tablet" : "desktop";
   }
   function applyLayout(resize = true) {
@@ -2527,8 +2529,16 @@
       txtPages: null,
       txtIdx: 0,
       ttsActive: false,
-      locationsReady: false
+      locationsReady: false,
+      selAt: 0,
+      timer: null
     };
+    R.timer = setInterval(() => {
+      if (!R || document.hidden || $4("#readerOverlay").classList.contains("hidden")) return;
+      const mins = (Date.now() - R.startedAt) / 6e4;
+      const st = $4("#sessionTimer");
+      if (st) st.textContent = mins < 60 ? `${Math.floor(mins)}:${String(Math.floor(mins % 1 * 60)).padStart(2, "0")}` : `${Math.floor(mins / 60)}h ${Math.floor(mins % 60)}m`;
+    }, 1e3);
     bindChrome();
     bindSlider();
     applyLayout(false);
@@ -2563,38 +2573,58 @@
     stage.innerHTML = "";
     const rendition = epub.renderTo(stage, { width: "100%", height: "100%", flow: s.flow === "scrolled" ? "scrolled-doc" : "paginated", spread: "none", allowScriptedContent: false, ignoreClass: "qari-img" });
     R.rendition = rendition;
-    rendition.hooks.content.register((contents) => {
+    const wireContents = (c) => {
       try {
-        const st = contents.document.createElement("style");
-        st.textContent = fontFaceCSS();
-        contents.document.head.appendChild(st);
-      } catch (e) {
-        console.warn("font inject failed", e);
+        const d = c.document;
+        if (!d || d.__qariWired) return;
+        d.__qariWired = 1;
+        try {
+          const st = d.createElement("style");
+          st.textContent = fontFaceCSS();
+          d.head.appendChild(st);
+        } catch (e) {
+          console.warn("font inject failed", e);
+        }
+        placeEpubImages(c);
+        d.addEventListener("mousedown", () => window.__qariCloseFloating && window.__qariCloseFloating({}));
+        d.addEventListener("touchstart", () => window.__qariCloseFloating && window.__qariCloseFloating({}), { passive: true });
+        d.addEventListener("click", (ev) => {
+          if (!R) return;
+          if (Date.now() - (R.selAt || 0) < 500) return;
+          const tg = ev.target;
+          if (tg && tg.closest && tg.closest("a,button,input,img,figure")) return;
+          const sel = d.getSelection && d.getSelection();
+          if (sel && sel.toString().trim()) {
+            sel.removeAllRanges();
+            hideSelPop();
+          }
+          toggleReaderChrome();
+        });
+      } catch {
       }
-    });
-    rendition.hooks.content.register((contents) => {
-      placeEpubImages(contents);
-    });
+    };
+    rendition.hooks.content.register(wireContents);
     await epub.ready;
     await epub.loaded.navigation.catch(() => {
     });
     await rendition.display(book.location || void 0);
     applyEpubTheme();
-    rendition.on("rendered", () => applyEpubTheme());
-    try {
-      rendition.hooks.content.register((c) => {
-        c.document.addEventListener("mousedown", () => window.__qariCloseFloating && window.__qariCloseFloating({}));
-        c.document.addEventListener("touchstart", () => window.__qariCloseFloating && window.__qariCloseFloating({}), { passive: true });
-      });
-    } catch {
-    }
-    epub.locations.generate(1200).then(() => {
+    rendition.on("rendered", () => {
+      applyEpubTheme();
+      try {
+        R.rendition.getContents().forEach(wireContents);
+      } catch {
+      }
+    });
+    const genLocations = () => epub.locations.generate(1200).then(() => {
       if (R && R.epub === epub) {
         R.locationsReady = true;
         updateProgress();
       }
     }).catch(() => {
     });
+    if ("requestIdleCallback" in window) requestIdleCallback(genLocations, { timeout: 9e3 });
+    else setTimeout(genLocations, 2500);
     updateProgress();
     rendition.on("relocated", () => {
       R.pagesTurned++;
@@ -2606,6 +2636,7 @@
       const range = epub.getRange(cfiRange);
       const text = range ? range.toString().trim() : "";
       if (!text) return;
+      R.selAt = Date.now();
       showSelPop(contents, text, (action, color) => {
         if (action === "highlight") {
           const hl = addHighlight({ bookId: book.id, text: text.slice(0, 500), cfi: cfiRange, color });
@@ -2737,19 +2768,7 @@
     });
     seg(pos, pageText.length);
     stage.appendChild(div);
-    div.addEventListener("mouseup", () => {
-      const sel = window.getSelection();
-      const txt = sel ? sel.toString().trim() : "";
-      if (txt) showSelPop(null, txt, (action, color) => {
-        if (action === "highlight" || action === "note") {
-          const note = action === "note" ? prompt(t("addNote")) || "" : "";
-          addHighlight({ bookId: R.book.id, text: txt.slice(0, 500), page: R.txtIdx + 1, note, color: action === "note" ? "#7ec8ff" : color });
-          sel.removeAllRanges();
-          hideSelPop();
-          toast(t("added"));
-        } else if (action === "define") lookupWord(txt);
-      });
-    });
+    div.addEventListener("mouseup", maybeShowTxtSel);
     R.pagesTurned++;
     savePosition();
     updateProgress();
@@ -2890,6 +2909,25 @@
     const p = $4("#selPop");
     if (p) p.classList.add("hidden");
   }
+  function maybeShowTxtSel() {
+    if (!R || !R.txtPages) return;
+    const sel = window.getSelection();
+    const txt = sel ? sel.toString().trim() : "";
+    if (!txt) return;
+    const st = $4("#readerStage");
+    if (!st || !sel.anchorNode || !st.contains(sel.anchorNode)) return;
+    if (Date.now() - (R.selAt || 0) < 600) return;
+    R.selAt = Date.now();
+    showSelPop(null, txt, (action, color) => {
+      if (action === "highlight" || action === "note") {
+        const note = action === "note" ? prompt(t("addNote")) || "" : "";
+        addHighlight({ bookId: R.book.id, text: txt.slice(0, 500), page: R.txtIdx + 1, note, color: action === "note" ? "#7ec8ff" : color });
+        if (sel && sel.removeAllRanges) sel.removeAllRanges();
+        hideSelPop();
+        toast(t("added"));
+      } else if (action === "define") lookupWord(txt);
+    });
+  }
   async function lookupWord(text) {
     hideSelPop();
     const word = text.split(/\s+/)[0].replace(/[^\p{L}\p{N}''-]/gu, "");
@@ -2989,6 +3027,9 @@
     };
     document.addEventListener("pointerdown", closeFloating, true);
     window.__qariCloseFloating = closeFloating;
+    document.addEventListener("selectionchange", () => {
+      if (R && R.txtPages) maybeShowTxtSel();
+    });
     $4("#prevZone").onclick = prev;
     $4("#nextZone").onclick = next;
     document.addEventListener("keydown", (e) => {
@@ -3037,11 +3078,29 @@
       showHighlightsPanel();
       p.dataset.kind = "hl";
     };
-    setInterval(() => {
+    $4("#readerStage").addEventListener("click", (ev) => {
       if (!R || $4("#readerOverlay").classList.contains("hidden")) return;
-      const mins = (Date.now() - R.startedAt) / 6e4;
-      $4("#sessionTimer").textContent = mins < 60 ? `${Math.floor(mins)}:${String(Math.floor(mins % 1 * 60)).padStart(2, "0")}` : `${Math.floor(mins / 60)}h ${Math.floor(mins % 60)}m`;
-    }, 1e3);
+      if (Date.now() - (R.selAt || 0) < 500) return;
+      const t2 = ev.target;
+      if (t2 && t2.closest && t2.closest("a,button,input,textarea,select,#readerPanel,#selPop")) return;
+      const sel = window.getSelection && window.getSelection();
+      if (sel && sel.toString().trim()) {
+        sel.removeAllRanges();
+        hideSelPop();
+      }
+      toggleReaderChrome();
+    });
+  }
+  function toggleReaderChrome() {
+    const ov = $4("#readerOverlay");
+    if (!ov) return;
+    ov.classList.toggle("chrome-hidden");
+    if (R && R.rendition) {
+      try {
+        R.rendition.resize();
+      } catch {
+      }
+    }
   }
   function showSettingsPanel() {
     const s = getState().settings;
@@ -3051,7 +3110,8 @@
     <div class="set-row"><span>${t("theme")}</span><div class="seg">
       <button data-th="light" class="${s.theme === "light" ? "active" : ""}">${t("themeLight")}</button>
       <button data-th="sepia" class="${s.theme === "sepia" ? "active" : ""}">${t("themeSepia")}</button>
-      <button data-th="dark" class="${s.theme === "dark" ? "active" : ""}">${t("themeDark")}</button></div></div>
+      <button data-th="dark" class="${s.theme === "dark" ? "active" : ""}">${t("themeDark")}</button>
+      <button data-th="black" class="${s.theme === "black" ? "active" : ""}">${t("themeBlack")}</button></div></div>
     <div style="margin-bottom:.6rem"><div style="font-size:.9rem;margin-bottom:.3rem">${t("fontFamily")}</div><div id="rFontHost"></div></div>
     <div class="set-row"><span>${t("fontSize")}</span><input type="range" id="rFs" min="15" max="28" value="${s.fontSize}"><span id="rFsV">${s.fontSize}</span></div>
     <div class="set-row"><span>${t("lineHeight")}</span><input type="range" id="rLh" min="14" max="26" value="${Math.round(s.lineHeight * 10)}"></div>
@@ -3150,6 +3210,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       R.ttsActive = false;
       speechSynthesis.cancel();
     }
+    clearInterval(R.timer);
     const mins = (Date.now() - R.startedAt) / 6e4;
     if (log) logSession(R.book.id, mins, R.pagesTurned);
     savePosition();
@@ -4855,12 +4916,12 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const s = getState().settings;
     view.innerHTML = `
     <div class="view-head"><h1>${t("settings")}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.1</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.2</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t("language")}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === "ar" ? "active" : ""}">\u0627\u0644\u0639\u0631\u0628\u064A\u0629</button><button data-lang="en" class="${s.lang === "en" ? "active" : ""}">English</button></div></div>
       <div class="set-row"><span>${t("theme")}</span>
-        <div class="seg"><button data-th="light" class="${s.theme === "light" ? "active" : ""}">${t("themeLight")}</button><button data-th="sepia" class="${s.theme === "sepia" ? "active" : ""}">${t("themeSepia")}</button><button data-th="dark" class="${s.theme === "dark" ? "active" : ""}">${t("themeDark")}</button></div></div>
+        <div class="seg"><button data-th="light" class="${s.theme === "light" ? "active" : ""}">${t("themeLight")}</button><button data-th="sepia" class="${s.theme === "sepia" ? "active" : ""}">${t("themeSepia")}</button><button data-th="dark" class="${s.theme === "dark" ? "active" : ""}">${t("themeDark")}</button><button data-th="black" class="${s.theme === "black" ? "active" : ""}">${t("themeBlack")}</button></div></div>
       <div class="set-row"><span>${t("fontSize")}</span><input type="range" id="fsRange" min="15" max="28" value="${s.fontSize}"><span id="fsVal">${s.fontSize}</span></div>
       <div class="set-row"><span>${t("lineHeight")}</span><input type="range" id="lhRange" min="14" max="26" value="${Math.round(s.lineHeight * 10)}"><span id="lhVal">${s.lineHeight}</span></div>
       <div style="margin-bottom:.9rem"><div style="margin-bottom:.4rem;font-size:.9rem">${t("fontFamily")}</div><div id="fontHost"></div></div>
@@ -5203,7 +5264,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     }
   }
   function setDevice() {
-    const w = window.innerWidth, h = window.innerHeight;
+    const w = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth), h = window.innerHeight;
     const d = w < 700 ? "phone" : w < 1100 ? "tablet" : "desktop";
     const de = document.documentElement;
     de.dataset.device = d;
@@ -5285,8 +5346,10 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => {
         r.update().catch(() => {
         });
-        setInterval(() => r.update().catch(() => {
-        }), 6e5);
+        setInterval(() => {
+          if (document.visibilityState === "visible") r.update().catch(() => {
+          });
+        }, 18e5);
       }).catch(() => {
       });
     }

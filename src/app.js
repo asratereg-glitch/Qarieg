@@ -274,12 +274,12 @@ function renderSettings(view) {
   const s = store.getState().settings;
   view.innerHTML = `
     <div class="view-head"><h1>${t('settings')}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.1</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.2</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t('language')}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === 'ar' ? 'active' : ''}">العربية</button><button data-lang="en" class="${s.lang === 'en' ? 'active' : ''}">English</button></div></div>
       <div class="set-row"><span>${t('theme')}</span>
-        <div class="seg"><button data-th="light" class="${s.theme === 'light' ? 'active' : ''}">${t('themeLight')}</button><button data-th="sepia" class="${s.theme === 'sepia' ? 'active' : ''}">${t('themeSepia')}</button><button data-th="dark" class="${s.theme === 'dark' ? 'active' : ''}">${t('themeDark')}</button></div></div>
+        <div class="seg"><button data-th="light" class="${s.theme === 'light' ? 'active' : ''}">${t('themeLight')}</button><button data-th="sepia" class="${s.theme === 'sepia' ? 'active' : ''}">${t('themeSepia')}</button><button data-th="dark" class="${s.theme === 'dark' ? 'active' : ''}">${t('themeDark')}</button><button data-th="black" class="${s.theme === 'black' ? 'active' : ''}">${t('themeBlack')}</button></div></div>
       <div class="set-row"><span>${t('fontSize')}</span><input type="range" id="fsRange" min="15" max="28" value="${s.fontSize}"><span id="fsVal">${s.fontSize}</span></div>
       <div class="set-row"><span>${t('lineHeight')}</span><input type="range" id="lhRange" min="14" max="26" value="${Math.round(s.lineHeight * 10)}"><span id="lhVal">${s.lineHeight}</span></div>
       <div style="margin-bottom:.9rem"><div style="margin-bottom:.4rem;font-size:.9rem">${t('fontFamily')}</div><div id="fontHost"></div></div>
@@ -497,7 +497,8 @@ async function runOnlineSearch() {
 
 /* ---------- boot ---------- */
 function setDevice() {
-  const w = window.innerWidth, h = window.innerHeight;
+  // clientWidth stays the real layout width even if Chrome on Android expands the visual viewport on overflow
+  const w = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth), h = window.innerHeight;
   const d = w < 700 ? 'phone' : w < 1100 ? 'tablet' : 'desktop';
   const de = document.documentElement;
   de.dataset.device = d; de.dataset.orient = w >= h ? 'landscape' : 'portrait';
@@ -529,7 +530,7 @@ async function boot() {
     const hadSW = !!navigator.serviceWorker.controller;
     let reloaded = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadSW && !reloaded) { reloaded = true; location.reload(); } });
-    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { r.update().catch(() => {}); setInterval(() => r.update().catch(() => {}), 600000); }).catch(() => {});
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { r.update().catch(() => {}); setInterval(() => { if (document.visibilityState === 'visible') r.update().catch(() => {}); }, 1800000); }).catch(() => {});
   }
   setTimeout(() => { const sp = $('#splash'); sp.style.opacity = '0'; setTimeout(() => sp.remove(), 450); }, 500);
 }

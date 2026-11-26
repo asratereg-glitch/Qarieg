@@ -14,7 +14,8 @@ const HL_COLORS = ['#ffd54a', '#8ee08e', '#7ec8ff', '#ff9db0'];
 /* ---- v1.3.0: layout presets, TOC, page bar ---- */
 export function layoutMode() {
 
-  const w = window.innerWidth;
+  // clientWidth stays the real layout width even if Chrome on Android expands the visual viewport on overflow
+  const w = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth);
   return w < 700 ? 'phone' : w < 1100 ? 'tablet' : 'desktop';
 }
 function applyLayout(resize = true) {
@@ -237,7 +238,13 @@ export async function openReader(book) {
     book, startedAt: Date.now(), pagesTurned: 0,
     epub: null, rendition: null, pdf: null, pdfPage: 1,
     txtPages: null, txtIdx: 0, ttsActive: false, locationsReady: false,
+    selAt: 0, timer: null,
   };
+  R.timer = setInterval(() => {
+    if (!R || document.hidden || $('#readerOverlay').classList.contains('hidden')) return;
+    const mins = (Date.now() - R.startedAt) / 60000;
+    const st = $('#sessionTimer'); if (st) st.textContent = mins < 60 ? `${Math.floor(mins)}:${String(Math.floor((mins % 1) * 60)).padStart(2, '0')}` : `${Math.floor(mins / 60)}h ${Math.floor(mins % 60)}m`;
+  }, 1000);
 
   bindChrome(); bindSlider(); applyLayout(false);
 
@@ -269,17 +276,28 @@ async function openEpub(blob, book) {
   const stage = $('#readerStage'); stage.innerHTML = '';
   const rendition = epub.renderTo(stage, { width: '100%', height: '100%', flow: s.flow === 'scrolled' ? 'scrolled-doc' : 'paginated', spread: 'none', allowScriptedContent: false, ignoreClass: 'qari-img' });
   R.rendition = rendition;
-  rendition.hooks.content.register(contents => {
-    try { const st = contents.document.createElement('style'); st.textContent = fontFaceCSS(); contents.document.head.appendChild(st); } catch (e) { console.warn('font inject failed', e); }
-  });
-  rendition.hooks.content.register(contents => { placeEpubImages(contents); });
+  // epub.js content hooks do not fire reliably in this vendored version, so wire each
+  // loaded section's document directly from the 'rendered' event (guarded to run once per doc)
+  const wireContents = (c) => {
+    try {
+      const d = c.document; if (!d || d.__qariWired) return; d.__qariWired = 1;
+      try { const st = d.createElement('style'); st.textContent = fontFaceCSS(); d.head.appendChild(st); } catch (e) { console.warn('font inject failed', e); }
+      placeEpubImages(c);
+      d.addEventListener('mousedown', () => window.__qariCloseFloating && window.__qariCloseFloating({}));
+      d.addEventListener('touchstart', () => window.__qariCloseFloating && window.__qariCloseFloating({}), { passive: true });
+      // plain tap inside the page toggles the top/bottom bars; a selection gesture (recent 'selected') is ignored
+      d.addEventListener('click', (ev) => { if (!R) return; if (Date.now() - (R.selAt || 0) < 500) return; const tg = ev.target; if (tg && tg.closest && tg.closest('a,button,input,img,figure')) return; const sel = d.getSelection && d.getSelection(); if (sel && sel.toString().trim()) { sel.removeAllRanges(); hideSelPop(); } toggleReaderChrome(); });
+    } catch {}
+  };
+  rendition.hooks.content.register(wireContents);
   await epub.ready;
   await epub.loaded.navigation.catch(() => {});
   await rendition.display(book.location || undefined);
   applyEpubTheme();
-  rendition.on('rendered', () => applyEpubTheme());
-  try { rendition.hooks.content.register(c => { c.document.addEventListener('mousedown', () => window.__qariCloseFloating && window.__qariCloseFloating({})); c.document.addEventListener('touchstart', () => window.__qariCloseFloating && window.__qariCloseFloating({}), { passive: true }); }); } catch {}
-  epub.locations.generate(1200).then(() => { if (R && R.epub === epub) { R.locationsReady = true; updateProgress(); } }).catch(() => {});
+  rendition.on('rendered', () => { applyEpubTheme(); try { R.rendition.getContents().forEach(wireContents); } catch {} });
+  // defer the heavy location walk to idle time so opening a book stays cheap on battery
+  const genLocations = () => epub.locations.generate(1200).then(() => { if (R && R.epub === epub) { R.locationsReady = true; updateProgress(); } }).catch(() => {});
+  if ('requestIdleCallback' in window) requestIdleCallback(genLocations, { timeout: 9000 }); else setTimeout(genLocations, 2500);
   updateProgress();
 
   rendition.on('relocated', () => {
@@ -292,6 +310,7 @@ async function openEpub(blob, book) {
     const range = epub.getRange(cfiRange);
     const text = range ? range.toString().trim() : '';
     if (!text) return;
+    R.selAt = Date.now();
     showSelPop(contents, text, (action, color) => {
       if (action === 'highlight') {
         const hl = store.addHighlight({ bookId: book.id, text: text.slice(0, 500), cfi: cfiRange, color });
@@ -407,17 +426,7 @@ function renderTxtPage() {
   });
   seg(pos, pageText.length);
   stage.appendChild(div);
-  div.addEventListener('mouseup', () => {
-    const sel = window.getSelection();
-    const txt = sel ? sel.toString().trim() : '';
-    if (txt) showSelPop(null, txt, (action, color) => {
-      if (action === 'highlight' || action === 'note') {
-        const note = action === 'note' ? (prompt(t('addNote')) || '') : '';
-        store.addHighlight({ bookId: R.book.id, text: txt.slice(0, 500), page: R.txtIdx + 1, note, color: action === 'note' ? '#7ec8ff' : color });
-        sel.removeAllRanges(); hideSelPop(); toast(t('added'));
-      } else if (action === 'define') lookupWord(txt);
-    });
-  });
+  div.addEventListener('mouseup', maybeShowTxtSel);
   R.pagesTurned++;
   savePosition(); updateProgress();
 }
@@ -533,6 +542,24 @@ function showSelPop(contents, text, onAction) {
 }
 function hideSelPop() { const p = $('#selPop'); if (p) p.classList.add('hidden'); }
 
+// TXT selection -> highlight menu. Fires on mouseup (desktop) and selectionchange (touch long-press).
+function maybeShowTxtSel() {
+  if (!R || !R.txtPages) return;
+  const sel = window.getSelection();
+  const txt = sel ? sel.toString().trim() : '';
+  if (!txt) return;
+  const st = $('#readerStage'); if (!st || !sel.anchorNode || !st.contains(sel.anchorNode)) return;
+  if (Date.now() - (R.selAt || 0) < 600) return;
+  R.selAt = Date.now();
+  showSelPop(null, txt, (action, color) => {
+    if (action === 'highlight' || action === 'note') {
+      const note = action === 'note' ? (prompt(t('addNote')) || '') : '';
+      store.addHighlight({ bookId: R.book.id, text: txt.slice(0, 500), page: R.txtIdx + 1, note, color: action === 'note' ? '#7ec8ff' : color });
+      if (sel && sel.removeAllRanges) sel.removeAllRanges(); hideSelPop(); toast(t('added'));
+    } else if (action === 'define') lookupWord(txt);
+  });
+}
+
 async function lookupWord(text) {
   hideSelPop();
   const word = text.split(/\s+/)[0].replace(/[^\p{L}\p{N}''-]/gu, '');
@@ -608,6 +635,7 @@ function bindChrome() {
   };
   document.addEventListener('pointerdown', closeFloating, true);
   window.__qariCloseFloating = closeFloating;
+  document.addEventListener('selectionchange', () => { if (R && R.txtPages) maybeShowTxtSel(); });
   $('#prevZone').onclick = prev;
   $('#nextZone').onclick = next;
   document.addEventListener('keydown', e => {
@@ -623,11 +651,20 @@ function bindChrome() {
   window.addEventListener('resize', () => { if (R && !$('#readerOverlay').classList.contains('hidden')) applyLayout(true); });
   $('#readerSettingsBtn').onclick = () => { const p = $('#readerPanel'); if (!p.classList.contains('hidden') && p.dataset.kind === 'settings') { p.classList.add('hidden'); return; } showSettingsPanel(); p.dataset.kind = 'settings'; };
   $('#hlListBtn').onclick = () => { const p = $('#readerPanel'); if (!p.classList.contains('hidden') && p.dataset.kind === 'hl') { p.classList.add('hidden'); return; } showHighlightsPanel(); p.dataset.kind = 'hl'; };
-  setInterval(() => {
+  $('#readerStage').addEventListener('click', (ev) => {
     if (!R || $('#readerOverlay').classList.contains('hidden')) return;
-    const mins = (Date.now() - R.startedAt) / 60000;
-    $('#sessionTimer').textContent = mins < 60 ? `${Math.floor(mins)}:${String(Math.floor((mins % 1) * 60)).padStart(2, '0')}` : `${Math.floor(mins / 60)}h ${Math.floor(mins % 60)}m`;
-  }, 1000);
+    if (Date.now() - (R.selAt || 0) < 500) return;
+    const t = ev.target; if (t && t.closest && t.closest('a,button,input,textarea,select,#readerPanel,#selPop')) return;
+    const sel = window.getSelection && window.getSelection();
+    if (sel && sel.toString().trim()) { sel.removeAllRanges(); hideSelPop(); }
+    toggleReaderChrome();
+  });
+}
+
+function toggleReaderChrome() {
+  const ov = $('#readerOverlay'); if (!ov) return;
+  ov.classList.toggle('chrome-hidden');
+  if (R && R.rendition) { try { R.rendition.resize(); } catch {} }
 }
 
 function showSettingsPanel() {
@@ -637,7 +674,8 @@ function showSettingsPanel() {
     <div class="set-row"><span>${t('theme')}</span><div class="seg">
       <button data-th="light" class="${s.theme === 'light' ? 'active' : ''}">${t('themeLight')}</button>
       <button data-th="sepia" class="${s.theme === 'sepia' ? 'active' : ''}">${t('themeSepia')}</button>
-      <button data-th="dark" class="${s.theme === 'dark' ? 'active' : ''}">${t('themeDark')}</button></div></div>
+      <button data-th="dark" class="${s.theme === 'dark' ? 'active' : ''}">${t('themeDark')}</button>
+      <button data-th="black" class="${s.theme === 'black' ? 'active' : ''}">${t('themeBlack')}</button></div></div>
     <div style="margin-bottom:.6rem"><div style="font-size:.9rem;margin-bottom:.3rem">${t('fontFamily')}</div><div id="rFontHost"></div></div>
     <div class="set-row"><span>${t('fontSize')}</span><input type="range" id="rFs" min="15" max="28" value="${s.fontSize}"><span id="rFsV">${s.fontSize}</span></div>
     <div class="set-row"><span>${t('lineHeight')}</span><input type="range" id="rLh" min="14" max="26" value="${Math.round(s.lineHeight * 10)}"></div>
@@ -693,6 +731,7 @@ function showHighlightsPanel() {
 export function closeReader(log = true) {
   if (!R) return;
   if (R.ttsActive) { R.ttsActive = false; speechSynthesis.cancel(); }
+  clearInterval(R.timer);
   const mins = (Date.now() - R.startedAt) / 60000;
   if (log) store.logSession(R.book.id, mins, R.pagesTurned);
   savePosition();
