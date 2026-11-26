@@ -172,6 +172,7 @@
     updateBook: () => updateBook,
     updateComment: () => updateComment,
     updateHighlight: () => updateHighlight,
+    updateImage: () => updateImage,
     updateList: () => updateList
   });
   var KEY = "qari.state.v1";
@@ -310,6 +311,14 @@
   function removeImage(id) {
     state.images = (state.images || []).filter((i) => i.id !== id);
     save();
+  }
+  function updateImage(id, patch) {
+    const im = (state.images || []).find((i) => i.id === id);
+    if (im) {
+      Object.assign(im, patch);
+      save();
+    }
+    return im;
   }
   function bookImages(bookId) {
     return (state.images || []).filter((i) => i.bookId === bookId);
@@ -569,6 +578,7 @@
       imgNone: "\u0645\u0641\u064A\u0634 \u0635\u0648\u0631 \u0644\u0633\u0647.",
       imgNoPos: "\u0645\u0634 \u0642\u0627\u062F\u0631 \u0623\u062D\u062F\u062F \u0627\u0644\u0645\u0643\u0627\u0646\u060C \u0627\u0639\u0645\u0644 \u0635\u0641\u062D\u0629 \u0648\u062C\u0631\u0628 \u062A\u0627\u0646\u064A",
       imgNoPdf: "\u0625\u0636\u0627\u0641\u0629 \u0627\u0644\u0635\u0648\u0631 \u0645\u062F\u0639\u0648\u0645\u0629 \u0641\u064A EPUB \u0648 TXT \u0628\u0633\u060C \u0645\u0634 PDF.",
+      imgSize: "\u0627\u0644\u062D\u062C\u0645",
       toc: "\u062C\u062F\u0648\u0644 \u0627\u0644\u0645\u062D\u062A\u0648\u064A\u0627\u062A",
       tocNone: "\u0627\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 \u0645\u0641\u064A\u0647\u0648\u0634 \u062C\u062F\u0648\u0644 \u0645\u062D\u062A\u0648\u064A\u0627\u062A. \u0627\u0633\u062A\u062E\u062F\u0645 \u0634\u0631\u064A\u0637 \u0627\u0644\u0635\u0641\u062D\u0627\u062A \u062A\u062D\u062A.",
       layoutAuto: "\u062A\u0646\u0633\u064A\u0642 \u062A\u0644\u0642\u0627\u0626\u064A",
@@ -712,6 +722,7 @@
       imgNone: "No images yet.",
       imgNoPos: "Could not find the position, turn a page and retry",
       imgNoPdf: "Adding images works for EPUB and TXT, not PDF.",
+      imgSize: "Size",
       toc: "Table of contents",
       tocNone: "This book has no table of contents. Use the page bar below.",
       layoutAuto: "Auto layout",
@@ -2224,6 +2235,7 @@
     img.src = url;
     img.alt = "";
     img.setAttribute("style", "max-width:100%;max-height:80vh;height:auto;border-radius:6px");
+    if (im.scale && im.scale < 100) img.style.width = im.scale + "%";
     fig.appendChild(img);
     if (im.caption) {
       const c = doc.createElement("figcaption");
@@ -2365,11 +2377,9 @@
     list.forEach(async (im) => {
       const row = document.createElement("div");
       row.className = "comment";
-      row.style.display = "flex";
-      row.style.gap = ".5rem";
-      row.style.alignItems = "center";
-      row.innerHTML = `<img style="width:56px;height:56px;object-fit:cover;border-radius:6px"><div style="flex:1" class="muted"></div><button class="icon-btn" data-act="jump">\u21A9</button><button class="icon-btn" data-act="del">\u{1F5D1}</button>`;
-      row.querySelector("div").textContent = im.caption || (im.page ? t("pageN").replace("{n}", im.page) : "");
+      row.innerHTML = `<div style="display:flex;gap:.5rem;align-items:center"><img style="width:56px;height:56px;object-fit:cover;border-radius:6px"><div style="flex:1" class="muted captext"></div><button class="icon-btn" data-act="jump">\u21A9</button><button class="icon-btn" data-act="del">\u{1F5D1}</button></div>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-top:.35rem"><span class="muted" style="font-size:.8rem">${t("imgSize")}</span><input type="range" min="20" max="100" step="5" value="${im.scale || 100}" style="flex:1"><span class="muted szv" style="font-size:.8rem;min-width:2.6em;text-align:end">${im.scale || 100}%</span></div>`;
+      row.querySelector(".captext").textContent = im.caption || (im.page ? t("pageN").replace("{n}", im.page) : "");
       imgDataUrl(im).then((u) => {
         if (u) row.querySelector("img").src = u;
       });
@@ -2381,6 +2391,14 @@
         }
       };
       row.querySelector("[data-act=del]").onclick = () => askRemoveImage(im.id);
+      const rng = row.querySelector("input[type=range]");
+      rng.oninput = () => {
+        row.querySelector(".szv").textContent = rng.value + "%";
+      };
+      rng.onchange = () => {
+        updateImage(im.id, { scale: +rng.value });
+        refreshImages();
+      };
       lh.appendChild(row);
     });
   }
@@ -2604,6 +2622,7 @@
       fig.dataset.id = im.id;
       fig.innerHTML = '<img alt=""><figcaption></figcaption>';
       fig.querySelector("figcaption").textContent = im.caption || "";
+      if (im.scale && im.scale < 100) fig.querySelector("img").style.width = im.scale + "%";
       fig.onclick = () => askRemoveImage(im.id);
       imgDataUrl(im).then((u) => {
         if (u) fig.querySelector("img").src = u;

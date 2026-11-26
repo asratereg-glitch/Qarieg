@@ -90,3 +90,6 @@
 
 ## v1.3.3
 - Whole app adapts automatically to phone / tablet / desktop and portrait / landscape (phone: bottom tab bar, 2-column grid, bottom-sheet dialogs; tablet: wider grid and dialogs; desktop unchanged). Reader layout follows the same automatic rule, so the manual phone/tablet icons were removed.
+
+## v1.3.4
+- Images you add to a book are now resizable: every image in the 🖼 panel has a size slider (20–100% of the text column). The size is saved with the image, so it persists on the device and syncs to your other devices like the image itself.

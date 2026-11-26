@@ -123,6 +123,7 @@ function makeFigure(doc, im, url) {
   const fig = doc.createElement('figure'); fig.className = 'qari-img'; fig.dataset.id = im.id;
   fig.setAttribute('style', 'margin:1em auto;text-align:center;break-inside:avoid;max-width:100%');
   const img = doc.createElement('img'); img.src = url; img.alt = ''; img.setAttribute('style', 'max-width:100%;max-height:80vh;height:auto;border-radius:6px');
+  if (im.scale && im.scale < 100) img.style.width = im.scale + '%';
   fig.appendChild(img);
   if (im.caption) { const c = doc.createElement('figcaption'); c.textContent = im.caption; c.setAttribute('style', 'font-size:.85em;opacity:.7;margin-top:.3em'); fig.appendChild(c); }
   fig.addEventListener('click', () => window.parent.__qariAskRemoveImage && window.parent.__qariAskRemoveImage(im.id));
@@ -211,12 +212,16 @@ async function showImagePanel() {
   const lh = panel.querySelector('#imgList');
   if (!list.length) lh.innerHTML = `<p class="muted">${t('imgNone')}</p>`;
   list.forEach(async im => {
-    const row = document.createElement('div'); row.className = 'comment'; row.style.display = 'flex'; row.style.gap = '.5rem'; row.style.alignItems = 'center';
-    row.innerHTML = `<img style="width:56px;height:56px;object-fit:cover;border-radius:6px"><div style="flex:1" class="muted"></div><button class="icon-btn" data-act="jump">↩</button><button class="icon-btn" data-act="del">🗑</button>`;
-    row.querySelector('div').textContent = im.caption || (im.page ? (t('pageN').replace('{n}', im.page)) : '');
+    const row = document.createElement('div'); row.className = 'comment';
+    row.innerHTML = `<div style="display:flex;gap:.5rem;align-items:center"><img style="width:56px;height:56px;object-fit:cover;border-radius:6px"><div style="flex:1" class="muted captext"></div><button class="icon-btn" data-act="jump">↩</button><button class="icon-btn" data-act="del">🗑</button></div>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-top:.35rem"><span class="muted" style="font-size:.8rem">${t('imgSize')}</span><input type="range" min="20" max="100" step="5" value="${im.scale || 100}" style="flex:1"><span class="muted szv" style="font-size:.8rem;min-width:2.6em;text-align:end">${im.scale || 100}%</span></div>`;
+    row.querySelector('.captext').textContent = im.caption || (im.page ? (t('pageN').replace('{n}', im.page)) : '');
     imgDataUrl(im).then(u => { if (u) row.querySelector('img').src = u; });
     row.querySelector('[data-act=jump]').onclick = () => { if (im.cfi && R.rendition) R.rendition.display(im.cfi); else if (im.page && R.txtPages) { R.txtIdx = im.page - 1; renderTxtPage(); } };
     row.querySelector('[data-act=del]').onclick = () => askRemoveImage(im.id);
+    const rng = row.querySelector('input[type=range]');
+    rng.oninput = () => { row.querySelector('.szv').textContent = rng.value + '%'; };
+    rng.onchange = () => { store.updateImage(im.id, { scale: +rng.value }); refreshImages(); };
     lh.appendChild(row);
   });
 }
@@ -397,6 +402,7 @@ function renderTxtPage() {
     seg(pos, at); pos = at;
     const fig = document.createElement('figure'); fig.className = 'qari-img'; fig.dataset.id = im.id;
     fig.innerHTML = '<img alt=""><figcaption></figcaption>'; fig.querySelector('figcaption').textContent = im.caption || '';
+    if (im.scale && im.scale < 100) fig.querySelector('img').style.width = im.scale + '%';
     fig.onclick = () => askRemoveImage(im.id);
     imgDataUrl(im).then(u => { if (u) fig.querySelector('img').src = u; });
     div.appendChild(fig);

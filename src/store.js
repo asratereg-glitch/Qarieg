@@ -81,6 +81,7 @@ export function removeBook(id) {
 /* ---- images placed inside books ---- */
 export function addImage(img) { const o = Object.assign({ id: uid(), caption: '', createdAt: new Date().toISOString() }, img); (state.images = state.images || []).push(o); o.fileKey = o.fileKey || ('img-' + o.id); save(); return o; }
 export function removeImage(id) { state.images = (state.images || []).filter(i => i.id !== id); save(); }
+export function updateImage(id, patch) { const im = (state.images || []).find(i => i.id === id); if (im) { Object.assign(im, patch); save(); } return im; }
 export function bookImages(bookId) { return (state.images || []).filter(i => i.bookId === bookId); }
 
 /* ---- shelves ---- */
