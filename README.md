@@ -96,3 +96,6 @@
 
 ## v1.3.5
 - Fixed: tapping an image in a book no longer asks to delete it (and Cancel no longer removes it). Tapping does nothing now; delete only from the 🗑 button in the 🖼 panel.
+
+## v1.3.6
+- Update reliability: the app now fetches its code from the network first (cache only offline), refreshes itself when a new version is installed, and shows the version number at the top of Settings.

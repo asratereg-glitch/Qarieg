@@ -4504,6 +4504,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const s = getState().settings;
     view.innerHTML = `
     <div class="view-head"><h1>${t("settings")}</h1></div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.3.6</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t("language")}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === "ar" ? "active" : ""}">\u0627\u0644\u0639\u0631\u0628\u064A\u0629</button><button data-lang="en" class="${s.lang === "en" ? "active" : ""}">English</button></div></div>
@@ -4916,7 +4917,20 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     });
     route();
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
-      navigator.serviceWorker.register("sw.js").catch(() => {
+      const hadSW = !!navigator.serviceWorker.controller;
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (hadSW && !reloaded) {
+          reloaded = true;
+          location.reload();
+        }
+      });
+      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => {
+        r.update().catch(() => {
+        });
+        setInterval(() => r.update().catch(() => {
+        }), 6e5);
+      }).catch(() => {
       });
     }
     setTimeout(() => {

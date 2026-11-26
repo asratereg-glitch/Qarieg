@@ -273,6 +273,7 @@ function renderSettings(view) {
   const s = store.getState().settings;
   view.innerHTML = `
     <div class="view-head"><h1>${t('settings')}</h1></div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.3.6</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t('language')}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === 'ar' ? 'active' : ''}">العربية</button><button data-lang="en" class="${s.lang === 'en' ? 'active' : ''}">English</button></div></div>
@@ -522,7 +523,10 @@ async function boot() {
   $('#onlineQuery').addEventListener('keydown', e => { if (e.key === 'Enter') runOnlineSearch(); });
   route();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    const hadSW = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadSW && !reloaded) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { r.update().catch(() => {}); setInterval(() => r.update().catch(() => {}), 600000); }).catch(() => {});
   }
   setTimeout(() => { const sp = $('#splash'); sp.style.opacity = '0'; setTimeout(() => sp.remove(), 450); }, 500);
 }
