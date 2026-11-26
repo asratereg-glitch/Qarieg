@@ -587,7 +587,7 @@
       tabFile: "\u0645\u0646 \u062C\u0647\u0627\u0632\u0643",
       tabOnline: "\u0628\u062D\u062B \u0623\u0648\u0646\u0644\u0627\u064A\u0646",
       dropHint: "\u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 EPUB \u0623\u0648 PDF \u0623\u0648 TXT",
-      localNote: "\u0627\u0644\u0643\u062A\u0627\u0628 \u0628\u064A\u062A\u062D\u0641\u0638 \u0639\u0644\u0649 \u062C\u0647\u0627\u0632\u0643 \u0628\u0633\u060C \u0645\u0634 \u0628\u064A\u062A\u0631\u0641\u0639 \u0644\u0623\u064A \u0633\u064A\u0631\u0641\u0631.",
+      localNote: "\u0627\u0644\u0643\u062A\u0627\u0628 \u0628\u064A\u062A\u062D\u0641\u0638 \u0639\u0644\u0649 \u062C\u0647\u0627\u0632\u0643. \u0645\u0641\u064A\u0634 \u062D\u0627\u062C\u0629 \u0628\u062A\u062A\u0631\u0641\u0639 \u0625\u0644\u0627 \u0644\u0648 \u0634\u063A\u0651\u0644\u062A \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629 (\u0627\u062E\u062A\u064A\u0627\u0631\u064A\u0629) \u0645\u0646 \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A.",
       searchPh: "\u0639\u0646\u0648\u0627\u0646 \u0627\u0644\u0643\u062A\u0627\u0628 \u0623\u0648 ISBN\u2026",
       search: "\u0628\u062D\u062B",
       emptyLib: "\u0645\u0643\u062A\u0628\u062A\u0643 \u0641\u0627\u0636\u064A\u0629 \u0644\u0633\u0647",
@@ -730,7 +730,7 @@
       tabFile: "From device",
       tabOnline: "Search online",
       dropHint: "Pick an EPUB, PDF or TXT file",
-      localNote: "Books stay on your device; nothing is uploaded.",
+      localNote: "Books are stored on your device. Nothing is uploaded unless you turn on the optional sync in Settings.",
       searchPh: "Book title or ISBN\u2026",
       search: "Search",
       emptyLib: "Your library is empty",
@@ -4399,7 +4399,12 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       <div class="book-title">${esc(b.title)}</div>
       <div class="book-author">${authorHTML(b.author)}</div>
       <div class="prog-track"><div class="prog-fill" style="width:${Math.round(b.progress || 0)}%"></div></div>
+      <button class="read-link" title="${tr("\u0627\u0642\u0631\u0627 \u0627\u0644\u0622\u0646", "Read now")}">\u{1F4D6} ${tr("\u0627\u0642\u0631\u0627", "Read")}</button>
     </div>`;
+    el.querySelector(".read-link").onclick = (ev) => {
+      ev.stopPropagation();
+      startReadingBook(b);
+    };
     el.onclick = () => {
       location.hash = "#/book/" + b.id;
     };
@@ -4687,7 +4692,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     if (!box) return;
     const ar = getLang() === "ar", i = info2(), d = savedDefaults();
     box.innerHTML = `<h3 style="margin-bottom:.5rem">\u2601 ${ar ? "\u0645\u0632\u0627\u0645\u0646\u0629 \u0628\u064A\u0646 \u0627\u0644\u0623\u062C\u0647\u0632\u0629 (GitHub)" : "Sync across devices (GitHub)"}</h3>
-    <p class="muted" style="margin-bottom:.6rem">${ar ? "\u0628\u064A\u062D\u0641\u0638 \u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0648\u0627\u0644\u062A\u0642\u062F\u0645 \u0648\u0627\u0644\u062A\u0639\u0644\u064A\u0642\u0627\u062A \u0648\u0627\u0644\u0647\u0627\u064A\u0644\u0627\u064A\u062A\u0633 \u0648\u0627\u0644\u0642\u0648\u0627\u0626\u0645 \u0648\u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A (\u0648\u0645\u0644\u0641\u0627\u062A \u0627\u0644\u0643\u062A\u0628) \u0641\u064A \u0631\u064A\u0628\u0648 \u062E\u0627\u0635 (Private) \u0639\u0644\u0649 \u062D\u0633\u0627\u0628\u0643\u060C \u0648\u0628\u064A\u062D\u062F\u0651\u062B\u0647\u0627 \u062A\u0644\u0642\u0627\u0626\u064A\u064B\u0627. \u0644\u0648 \u0627\u062A\u0639\u062F\u0651\u0644 \u0645\u0646 \u062C\u0647\u0627\u0632\u064A\u0646 \u0641\u064A \u0646\u0641\u0633 \u0627\u0644\u0648\u0642\u062A \u0627\u0644\u0646\u0633\u062E\u0629 \u0627\u0644\u0623\u062D\u062F\u062B \u0628\u062A\u0643\u0633\u0628 \u0648\u0628\u062A\u0638\u0647\u0631\u0644\u0643 \u0631\u0633\u0627\u0644\u0629. \u0627\u0644\u062A\u0648\u0643\u0646 \u0628\u064A\u062A\u062E\u0632\u0646 \u0639\u0644\u0649 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647 \u0628\u0633." : "Saves library, progress, notes, highlights, lists, settings (and book files) to a private repo on your account and keeps it updated. If two devices edit at once the newer version wins and you get a warning. The token is stored on this device only."}</p>
+    <p class="muted" style="margin-bottom:.6rem">${ar ? "\u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629 \u0627\u062E\u062A\u064A\u0627\u0631\u064A\u0629. \u0644\u0645\u0627 \u062A\u0634\u063A\u0651\u0644\u0647\u0627 \u0628\u064A\u062A\u0631\u0641\u0639 \u0644\u0644\u0631\u064A\u0628\u0648 \u0627\u0644\u062E\u0627\u0635 (Private) \u0627\u0644\u0644\u064A \u0627\u0646\u062A \u0627\u062E\u062A\u0631\u062A\u0647 \u0639\u0644\u0649 GitHub: \u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0648\u0627\u0644\u062A\u0642\u062F\u0645 \u0648\u0627\u0644\u062A\u0639\u0644\u064A\u0642\u0627\u062A \u0648\u0627\u0644\u0647\u0627\u064A\u0644\u0627\u064A\u062A\u0633 \u0648\u0627\u0644\u0645\u0644\u0627\u062D\u0638\u0627\u062A \u0648\u0627\u0644\u0642\u0648\u0627\u0626\u0645 \u0648\u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A \u0648\u0645\u0644\u0641\u0627\u062A \u0627\u0644\u0643\u062A\u0628 \u0648\u0627\u0644\u0635\u0648\u0631 \u0627\u0644\u0644\u064A \u0636\u0641\u062A\u0647\u0627\u060C \u0648\u0628\u064A\u062D\u062F\u0651\u062B\u0647\u0627 \u062A\u0644\u0642\u0627\u0626\u064A\u064B\u0627. \u0645\u0633\u062D \u062D\u0627\u062C\u0629 \u0641\u064A \u0642\u0627\u0631\u0626 \u0645\u0634 \u0628\u064A\u0645\u0633\u062D \u0627\u0644\u0646\u0633\u062E \u0627\u0644\u0642\u062F\u064A\u0645\u0629 \u0627\u0644\u0644\u064A \u0627\u062A\u0631\u0641\u0639\u062A \u0642\u0628\u0644 \u0643\u062F\u0647: \u0647\u062A\u0641\u0636\u0644 \u0641\u064A \u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0631\u064A\u0628\u0648 (commits) \u0644\u062D\u062F \u0645\u0627 \u062A\u0645\u0633\u062D\u0647\u0627 \u0627\u0646\u062A \u0645\u0646 GitHub. \u0644\u0648 \u0627\u062A\u0639\u062F\u0651\u0644 \u0645\u0646 \u062C\u0647\u0627\u0632\u064A\u0646 \u0641\u064A \u0646\u0641\u0633 \u0627\u0644\u0648\u0642\u062A \u0627\u0644\u0646\u0633\u062E\u0629 \u0627\u0644\u0623\u062D\u062F\u062B \u0628\u062A\u0643\u0633\u0628 \u0648\u0628\u062A\u0638\u0647\u0631\u0644\u0643 \u0631\u0633\u0627\u0644\u0629. \u0627\u0644\u062A\u0648\u0643\u0646 \u0628\u064A\u062A\u062E\u0632\u0646 \u0639\u0644\u0649 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647 \u0628\u0633." : "Sync is optional. When you turn it on, it uploads to the private GitHub repo you chose: library, progress, comments, highlights, notes, lists, settings, book files and images you added, and keeps them updated. Deleting something in Qari does not erase copies uploaded earlier: they stay in the repo history (commits) until you delete them on GitHub. If two devices edit at once the newer version wins and you get a warning. The token is stored on this device only."}</p>
     <div id="syncStatus" style="margin-bottom:.4rem;font-weight:600">${esc(syncText())}</div>
     <div id="syncNote" class="muted" style="margin-bottom:.6rem"></div>
     ${i.connected ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap"><button id="syncNow" class="btn btn-primary">${ar ? "\u0632\u0627\u0645\u0646 \u0627\u0644\u0622\u0646" : "Sync now"}</button><button id="syncOff" class="btn btn-danger">${ar ? "\u0641\u0635\u0644 \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629" : "Disconnect"}</button></div>` : `<div style="display:grid;gap:.5rem;max-width:420px">

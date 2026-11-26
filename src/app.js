@@ -199,7 +199,9 @@ function bookCard(b, onDelete = null) {
       <div class="book-title">${esc(b.title)}</div>
       <div class="book-author">${authorHTML(b.author)}</div>
       <div class="prog-track"><div class="prog-fill" style="width:${Math.round(b.progress || 0)}%"></div></div>
+      <button class="read-link" title="${tr('اقرا الآن', 'Read now')}">📖 ${tr('اقرا', 'Read')}</button>
     </div>`;
+  el.querySelector('.read-link').onclick = ev => { ev.stopPropagation(); startReadingBook(b); };
   el.onclick = () => { location.hash = '#/book/' + b.id; };
   if (onDelete) {
     el.querySelector('.del-btn').onclick = ev => {
@@ -394,7 +396,7 @@ function drawSyncBox(view) {
   const box = $('#syncBox', view); if (!box) return;
   const ar = getLang() === 'ar', i = sync.info(), d = sync.savedDefaults();
   box.innerHTML = `<h3 style="margin-bottom:.5rem">☁ ${ar ? 'مزامنة بين الأجهزة (GitHub)' : 'Sync across devices (GitHub)'}</h3>
-    <p class="muted" style="margin-bottom:.6rem">${ar ? 'بيحفظ المكتبة والتقدم والتعليقات والهايلايتس والقوائم والإعدادات (وملفات الكتب) في ريبو خاص (Private) على حسابك، وبيحدّثها تلقائيًا. لو اتعدّل من جهازين في نفس الوقت النسخة الأحدث بتكسب وبتظهرلك رسالة. التوكن بيتخزن على الجهاز ده بس.' : 'Saves library, progress, notes, highlights, lists, settings (and book files) to a private repo on your account and keeps it updated. If two devices edit at once the newer version wins and you get a warning. The token is stored on this device only.'}</p>
+    <p class="muted" style="margin-bottom:.6rem">${ar ? 'المزامنة اختيارية. لما تشغّلها بيترفع للريبو الخاص (Private) اللي انت اخترته على GitHub: المكتبة والتقدم والتعليقات والهايلايتس والملاحظات والقوائم والإعدادات وملفات الكتب والصور اللي ضفتها، وبيحدّثها تلقائيًا. مسح حاجة في قارئ مش بيمسح النسخ القديمة اللي اترفعت قبل كده: هتفضل في تاريخ الريبو (commits) لحد ما تمسحها انت من GitHub. لو اتعدّل من جهازين في نفس الوقت النسخة الأحدث بتكسب وبتظهرلك رسالة. التوكن بيتخزن على الجهاز ده بس.' : 'Sync is optional. When you turn it on, it uploads to the private GitHub repo you chose: library, progress, comments, highlights, notes, lists, settings, book files and images you added, and keeps them updated. Deleting something in Qari does not erase copies uploaded earlier: they stay in the repo history (commits) until you delete them on GitHub. If two devices edit at once the newer version wins and you get a warning. The token is stored on this device only.'}</p>
     <div id="syncStatus" style="margin-bottom:.4rem;font-weight:600">${esc(syncText())}</div>
     <div id="syncNote" class="muted" style="margin-bottom:.6rem"></div>
     ${i.connected ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap"><button id="syncNow" class="btn btn-primary">${ar ? 'زامن الآن' : 'Sync now'}</button><button id="syncOff" class="btn btn-danger">${ar ? 'فصل المزامنة' : 'Disconnect'}</button></div>`

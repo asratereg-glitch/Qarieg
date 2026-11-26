@@ -300,3 +300,6 @@ h1,h2,h3{font-weight:700}
 .txt-page figure.qari-img{margin:1rem auto;text-align:center;white-space:normal}
 .txt-page figure.qari-img img{max-width:100%;max-height:70vh;border-radius:6px;cursor:pointer}
 .txt-page figure.qari-img figcaption{font-size:.85em;opacity:.7;margin-top:.3em}
+
+.read-link{display:block;width:100%;margin-top:.45rem;padding:.3rem;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;font-size:.85rem;cursor:pointer}
+.read-link:hover{background:var(--accent);color:#fff}

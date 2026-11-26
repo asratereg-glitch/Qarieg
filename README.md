@@ -1,6 +1,6 @@
 # قارئ — Qari 📖
 
-تطبيق ويب لقراءة الكتب: عربي أولًا، يشتغل من المتصفح، بدون سيرفر، وكل بياناتك على جهازك.
+تطبيق ويب لقراءة الكتب: عربي أولًا، يشتغل من المتصفح، بدون سيرفر، وبياناتك على جهازك. المزامنة اختيارية: لو شغّلتها بيترفع كل شيء (الكتب والملاحظات والصور) لريبو GitHub خاص باختيارك، ومسح حاجة من قارئ مش بيمسح النسخ القديمة من تاريخ الريبو.
 
 ## التشغيل
 أي واحدة من دول:
@@ -83,3 +83,7 @@
 
 ## v1.3.1
 - 🖼 in the reader top bar: add your own image into an EPUB or TXT book. It goes after the selected text, or after the first paragraph on the current page. Optional caption, list with jump/delete, tap an image in the book to remove it. Images are shrunk to max 1600px, stored on the device, included in .qari backups and GitHub sync. Not supported for PDF.
+
+## v1.3.2
+- Library cards: 📖 Read button under each book opens the reader directly (asks for the file first if the book has none).
+- Privacy wording: sync is optional and the text says what it uploads and that deleting in Qari does not erase earlier remote copies.
