@@ -336,3 +336,6 @@ html[data-device=desktop] .grid{grid-template-columns:repeat(auto-fill,minmax(16
 .series-list li a:hover{background:var(--hover,#8882)}
 .series-list li.cur a{font-weight:700;background:var(--hover,#8883)}
 .series-list .sn{min-width:1.6rem;text-align:center;opacity:.7;font-variant-numeric:tabular-nums}
+
+/* v1.5.0 find this book */
+.find-links{display:flex;flex-wrap:wrap;gap:.4rem}.find-btn{text-decoration:none}

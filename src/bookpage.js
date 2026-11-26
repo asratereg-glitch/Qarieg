@@ -3,6 +3,7 @@ import * as store from './store.js';
 import * as db from './db.js';
 import { t, tr, getLang } from './i18n.js';
 import { authorHTML, openAuthor, findCover, esc, stars, coverHTML, fmtDate, toast, pickBookFile, startReadingBook } from './app.js';
+import { findBookHTML } from './findbook.js';
 import { loadMeta, moreByAuthor, similarBooks, relatedBooks, worksByAuthor, cleanSubjects, coverUrl } from './meta.js';
 import { openReader } from './reader.js';
 import { seriesForBook } from './series.js';
@@ -117,6 +118,8 @@ function draw(view, lib, meta, tok, loading = false) {
       </div>
 
       <div id="seriesBox"></div>
+
+      ${findBookHTML(title, author)}
 
       <div class="chart-box"><h3>💬 ${tr('تعليقاتي', 'My comments')} (${comments.length})</h3>
         <div class="bp-composer">

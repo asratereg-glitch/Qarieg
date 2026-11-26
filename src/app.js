@@ -1,4 +1,5 @@
 // app.js — shell, router, library, shelves, book details, settings
+import { renderFindSitesSettings } from './findbook.js';
 import * as db from './db.js';
 import * as store from './store.js';
 import { t, tr, setLang, getLang, applyI18n } from './i18n.js';
@@ -273,7 +274,7 @@ function renderSettings(view) {
   const s = store.getState().settings;
   view.innerHTML = `
     <div class="view-head"><h1>${t('settings')}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.4.0</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.0</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t('language')}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === 'ar' ? 'active' : ''}">العربية</button><button data-lang="en" class="${s.lang === 'en' ? 'active' : ''}">English</button></div></div>
@@ -287,7 +288,8 @@ function renderSettings(view) {
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div class="set-row" style="flex-wrap:wrap"><span>Google Books API key <span class="muted">(${getLang() === 'ar' ? 'اختياري، لو تقييمات جوجل مش ظاهرة' : 'optional, if Google ratings do not show'})</span></span><input id="gbKey" style="flex:1;min-width:200px" value="${esc(s.gbKey || '')}" placeholder="AIza…"></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
-      <div id="dbBox" class="stat-card"></div>
+      <div id="findSitesBox" class="stat-card"></div>
+      <div id="dbBox" class="stat-card" style="margin-top:1rem"></div>
       <div id="syncBox" class="stat-card" style="margin-top:1rem"></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div class="set-row"><span>${t('exportData')}</span><button id="exportBtn" class="btn">⬇ JSON</button></div>
@@ -302,6 +304,7 @@ function renderSettings(view) {
   $('#fsRange', view).oninput = e => { $('#fsVal', view).textContent = e.target.value; upd({ fontSize: +e.target.value }); };
   $('#lhRange', view).oninput = e => { const v = (+e.target.value / 10).toFixed(1); $('#lhVal', view).textContent = v; upd({ lineHeight: +v }); };
   $('#fontHost', view).appendChild(fontPicker(s.fontFamily, id => upd({ fontFamily: id })));
+  { const fh = $('#findSitesBox', view); const rf = () => renderFindSitesSettings(fh, rf); rf(); }
   $('#gbKey', view).oninput = e => upd({ gbKey: e.target.value.trim() });
   drawDbBox(view);
   drawSyncBox(view);

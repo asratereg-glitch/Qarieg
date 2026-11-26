@@ -104,3 +104,7 @@
 - Tapping an author name now opens an author page (bio, every book, and that author's series in order). Replaces the old Discover search jump that sometimes appeared to do nothing.
 - Book pages show the series name, the book's position ("Book 2 of 5") and the other books in order; tapping one opens it.
 - Source: Wikidata (free, works from a static site). Coverage is partial: popular series are good, Arabic and lesser-known books often have no series data, and some series have no book numbers (then ordered by year). Results are cached on the device for 7 days.
+
+## v1.5.0
+- Book pages have a "Search for this book" box with search links to Open Library, Project Gutenberg, Google Books, Internet Archive, Kobo and Amazon.
+- Settings > Book search sites: add, edit or delete your own sites with a name and a URL format using {title}, {author} or {query}. Saved with your other settings and synced.

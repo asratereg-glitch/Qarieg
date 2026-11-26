@@ -5,124 +5,6 @@
       __defProp(target, name, { get: all[name], enumerable: true });
   };
 
-  // src/db.js
-  var db_exports = {};
-  __export(db_exports, {
-    allFileKeys: () => allFileKeys,
-    clearFiles: () => clearFiles,
-    deleteFile: () => deleteFile,
-    getFile: () => getFile,
-    metaDel: () => metaDel,
-    metaGet: () => metaGet,
-    metaPut: () => metaPut,
-    onFilesChange: () => onFilesChange,
-    putFile: () => putFile
-  });
-  var DB_NAME = "qari-files";
-  var STORE = "files";
-  var _db = null;
-  var fileListeners = /* @__PURE__ */ new Set();
-  function onFilesChange(fn) {
-    fileListeners.add(fn);
-  }
-  var fire = () => fileListeners.forEach((fn) => {
-    try {
-      fn();
-    } catch {
-    }
-  });
-  function open() {
-    if (_db) return Promise.resolve(_db);
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 2);
-      req.onupgradeneeded = () => {
-        const d = req.result;
-        if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE);
-        if (!d.objectStoreNames.contains("meta")) d.createObjectStore("meta");
-      };
-      req.onsuccess = () => {
-        _db = req.result;
-        resolve(_db);
-      };
-      req.onerror = () => reject(req.error);
-    });
-  }
-  async function putFile(key, blob) {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put(blob, key);
-      tx.oncomplete = () => {
-        fire();
-        resolve();
-      };
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-  async function getFile(key) {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const req = db.transaction(STORE).objectStore(STORE).get(key);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => reject(req.error);
-    });
-  }
-  async function deleteFile(key) {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).delete(key);
-      tx.oncomplete = () => {
-        fire();
-        resolve();
-      };
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-  async function allFileKeys() {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const r = db.transaction(STORE).objectStore(STORE).getAllKeys();
-      r.onsuccess = () => resolve(r.result);
-      r.onerror = () => reject(r.error);
-    });
-  }
-  async function clearFiles() {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).clear();
-      tx.oncomplete = resolve;
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-  async function metaGet(k) {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const r = db.transaction("meta").objectStore("meta").get(k);
-      r.onsuccess = () => resolve(r.result || null);
-      r.onerror = () => reject(r.error);
-    });
-  }
-  async function metaPut(k, v) {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("meta", "readwrite");
-      tx.objectStore("meta").put(v, k);
-      tx.oncomplete = resolve;
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-  async function metaDel(k) {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("meta", "readwrite");
-      tx.objectStore("meta").delete(k);
-      tx.oncomplete = resolve;
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-
   // src/store.js
   var store_exports = {};
   __export(store_exports, {
@@ -191,7 +73,8 @@
       goalMonth: 2,
       uiLangToggled: false,
       gbKey: "",
-      layout: "auto"
+      layout: "auto",
+      findSites: []
     },
     books: [],
     // {id,title,author,format,cover,fileKey,source,addedAt,shelf,customShelves:[],progress,location,totalPages,currentPage,rating,review,subjects,isbn,finishedAt}
@@ -877,6 +760,231 @@
     });
     root.querySelectorAll("[data-i18n-ph]").forEach((el) => {
       el.placeholder = t(el.dataset.i18nPh);
+    });
+  }
+
+  // src/findbook.js
+  var BUILTIN_SITES = [
+    { id: "ol", name: "Open Library", url: "https://openlibrary.org/search?q={query}" },
+    { id: "gut", name: "Project Gutenberg", url: "https://www.gutenberg.org/ebooks/search/?query={query}" },
+    { id: "gb", name: "Google Books", url: "https://www.google.com/search?tbm=bks&q={query}" },
+    { id: "ia", name: "Internet Archive", url: "https://archive.org/search?query={query}" },
+    { id: "kobo", name: "Kobo", url: "https://www.kobo.com/search?query={query}" },
+    { id: "amz", name: "Amazon", url: "https://www.amazon.com/s?k={query}" }
+  ];
+  function customSites() {
+    const a = getState().settings.findSites;
+    return Array.isArray(a) ? a.filter((x) => x && x.name && x.url) : [];
+  }
+  function buildUrl(tpl, title, author) {
+    const enc2 = (s) => encodeURIComponent(String(s || "").trim());
+    const q = [title, author].filter(Boolean).join(" ");
+    const out = String(tpl).replace(/\{title\}/gi, enc2(title)).replace(/\{author\}/gi, enc2(author)).replace(/\{query\}/gi, enc2(q));
+    try {
+      const u = new URL(out);
+      return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+    } catch {
+      return null;
+    }
+  }
+  function validTemplate(tpl) {
+    const s = String(tpl || "").trim();
+    if (!/^https?:\/\//i.test(s)) return "scheme";
+    if (!/\{(title|author|query)\}/i.test(s)) return "placeholder";
+    try {
+      new URL(s.replace(/\{(title|author|query)\}/gi, "x"));
+    } catch {
+      return "scheme";
+    }
+    return "";
+  }
+  function findBookHTML(title, author) {
+    const sites = BUILTIN_SITES.concat(customSites().map((c, i) => ({ id: "c" + i, name: c.name, url: c.url, custom: true })));
+    const links = sites.map((s) => {
+      const u = buildUrl(s.url, title, author);
+      return u ? `<a class="btn find-btn" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(s.name)} \u2197</a>` : "";
+    }).join("");
+    return `<div class="chart-box"><h3>\u{1F50E} ${tr("\u0627\u0628\u062D\u062B \u0639\u0646 \u0627\u0644\u0643\u062A\u0627\u0628", "Search for this book")}</h3>
+    <p class="muted" style="margin-bottom:.5rem">${tr("\u0628\u064A\u0641\u062A\u062D \u0646\u062A\u0627\u064A\u062C \u0627\u0644\u0628\u062D\u062B \u0639\u0646 \u0627\u0644\u0643\u062A\u0627\u0628 \u0641\u064A \u0645\u0648\u0642\u0639 \u062E\u0627\u0631\u062C\u064A. \u062A\u0642\u062F\u0631 \u062A\u0636\u064A\u0641 \u0645\u0648\u0627\u0642\u0639\u0643 \u0645\u0646 \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A.", "Opens a search for this book on an outside site. You can add your own sites in Settings.")}</p>
+    <div class="find-links">${links}</div></div>`;
+  }
+  function renderFindSitesSettings(host, rerender) {
+    const list = customSites();
+    host.innerHTML = `<h3 style="margin-bottom:.4rem">\u{1F50E} ${tr("\u0645\u0648\u0627\u0642\u0639 \u0627\u0644\u0628\u062D\u062B \u0639\u0646 \u0627\u0644\u0643\u062A\u0628", "Book search sites")}</h3>
+    <p class="muted" style="margin-bottom:.6rem">${tr("\u0636\u064A\u0641 \u0645\u0648\u0642\u0639 \u0628\u0627\u0644\u0627\u0633\u0645 \u0648\u0635\u064A\u063A\u0629 \u0627\u0644\u0631\u0627\u0628\u0637. \u0627\u0643\u062A\u0628 {title} \u0645\u0643\u0627\u0646 \u0639\u0646\u0648\u0627\u0646 \u0627\u0644\u0643\u062A\u0627\u0628 \u0648{author} \u0645\u0643\u0627\u0646 \u0627\u0644\u0645\u0624\u0644\u0641\u060C \u0623\u0648 {query} \u0644\u0644\u0627\u062A\u0646\u064A\u0646 \u0645\u0639 \u0628\u0639\u0636. \u0645\u062B\u0627\u0644:", "Add a site by name and URL format. Use {title} for the book title, {author} for the author, or {query} for both together. Example:")} <code dir="ltr">https://example.com/search?q={query}</code></p>
+    <div id="fsList"></div>
+    <div style="display:grid;gap:.5rem;max-width:480px;margin-top:.6rem">
+      <input id="fsName" placeholder="${tr("\u0627\u0633\u0645 \u0627\u0644\u0645\u0648\u0642\u0639", "Site name")}" autocomplete="off">
+      <input id="fsUrl" dir="ltr" placeholder="https://\u2026{query}" autocomplete="off">
+      <div style="display:flex;gap:.5rem"><button id="fsAdd" class="btn btn-primary">${tr("\u0625\u0636\u0627\u0641\u0629", "Add")}</button><button id="fsCancel" class="btn" hidden>${tr("\u0625\u0644\u063A\u0627\u0621 \u0627\u0644\u062A\u0639\u062F\u064A\u0644", "Cancel edit")}</button></div>
+    </div>`;
+    const lh = host.querySelector("#fsList");
+    if (!list.length) lh.innerHTML = `<p class="muted">${tr("\u0645\u0641\u064A\u0634 \u0645\u0648\u0627\u0642\u0639 \u0645\u0636\u0627\u0641\u0629.", "No custom sites yet.")}</p>`;
+    let editing = -1;
+    const name = host.querySelector("#fsName"), url = host.querySelector("#fsUrl"), add = host.querySelector("#fsAdd"), cancel = host.querySelector("#fsCancel");
+    const save2 = (arr) => {
+      getState().settings.findSites = arr;
+      save();
+    };
+    list.forEach((c, i) => {
+      const row = document.createElement("div");
+      row.className = "set-row";
+      row.style.flexWrap = "wrap";
+      row.innerHTML = `<span><b>${esc(c.name)}</b><br><span class="muted" dir="ltr" style="font-size:.75rem;word-break:break-all">${esc(c.url)}</span></span><span><button class="btn" data-e>${tr("\u062A\u0639\u062F\u064A\u0644", "Edit")}</button> <button class="btn" data-d>${tr("\u062D\u0630\u0641", "Delete")}</button></span>`;
+      row.querySelector("[data-e]").onclick = () => {
+        editing = i;
+        name.value = c.name;
+        url.value = c.url;
+        add.textContent = tr("\u062D\u0641\u0638", "Save");
+        cancel.hidden = false;
+        name.focus();
+      };
+      row.querySelector("[data-d]").onclick = () => {
+        if (!confirm(tr("\u062D\u0630\u0641 \u0627\u0644\u0645\u0648\u0642\u0639 \u062F\u0647\u061F", "Delete this site?"))) return;
+        save2(list.filter((_, j) => j !== i));
+        rerender();
+      };
+      lh.appendChild(row);
+    });
+    cancel.onclick = () => rerender();
+    add.onclick = () => {
+      const n = name.value.trim(), u = url.value.trim();
+      if (!n) {
+        toast(tr("\u0627\u0643\u062A\u0628 \u0627\u0633\u0645 \u0627\u0644\u0645\u0648\u0642\u0639", "Enter a site name"));
+        return;
+      }
+      const bad = validTemplate(u);
+      if (bad === "scheme") {
+        toast(tr("\u0627\u0644\u0631\u0627\u0628\u0637 \u0644\u0627\u0632\u0645 \u064A\u0628\u062F\u0623 \u0628\u0640 http:// \u0623\u0648 https://", "The URL must start with http:// or https://"), 4e3);
+        return;
+      }
+      if (bad === "placeholder") {
+        toast(tr("\u0644\u0627\u0632\u0645 \u0627\u0644\u0631\u0627\u0628\u0637 \u064A\u062D\u062A\u0648\u064A {title} \u0623\u0648 {author} \u0623\u0648 {query}", "The URL must contain {title}, {author} or {query}"), 4e3);
+        return;
+      }
+      const arr = list.slice();
+      if (editing >= 0) arr[editing] = { name: n, url: u };
+      else arr.push({ name: n, url: u });
+      save2(arr);
+      rerender();
+    };
+  }
+
+  // src/db.js
+  var db_exports = {};
+  __export(db_exports, {
+    allFileKeys: () => allFileKeys,
+    clearFiles: () => clearFiles,
+    deleteFile: () => deleteFile,
+    getFile: () => getFile,
+    metaDel: () => metaDel,
+    metaGet: () => metaGet,
+    metaPut: () => metaPut,
+    onFilesChange: () => onFilesChange,
+    putFile: () => putFile
+  });
+  var DB_NAME = "qari-files";
+  var STORE = "files";
+  var _db = null;
+  var fileListeners = /* @__PURE__ */ new Set();
+  function onFilesChange(fn) {
+    fileListeners.add(fn);
+  }
+  var fire = () => fileListeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+    }
+  });
+  function open() {
+    if (_db) return Promise.resolve(_db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 2);
+      req.onupgradeneeded = () => {
+        const d = req.result;
+        if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE);
+        if (!d.objectStoreNames.contains("meta")) d.createObjectStore("meta");
+      };
+      req.onsuccess = () => {
+        _db = req.result;
+        resolve(_db);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function putFile(key, blob) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).put(blob, key);
+      tx.oncomplete = () => {
+        fire();
+        resolve();
+      };
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function getFile(key) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(STORE).objectStore(STORE).get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function deleteFile(key) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = () => {
+        fire();
+        resolve();
+      };
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function allFileKeys() {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const r = db.transaction(STORE).objectStore(STORE).getAllKeys();
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+  }
+  async function clearFiles() {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).clear();
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function metaGet(k) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const r = db.transaction("meta").objectStore("meta").get(k);
+      r.onsuccess = () => resolve(r.result || null);
+      r.onerror = () => reject(r.error);
+    });
+  }
+  async function metaPut(k, v) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("meta", "readwrite");
+      tx.objectStore("meta").put(v, k);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function metaDel(k) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("meta", "readwrite");
+      tx.objectStore("meta").delete(k);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
     });
   }
 
@@ -3409,6 +3517,8 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
 
       <div id="seriesBox"></div>
 
+      ${findBookHTML(title, author)}
+
       <div class="chart-box"><h3>\u{1F4AC} ${tr("\u062A\u0639\u0644\u064A\u0642\u0627\u062A\u064A", "My comments")} (${comments.length})</h3>
         <div class="bp-composer">
           <textarea id="cmText" rows="2" placeholder="${tr("\u0627\u0643\u062A\u0628 \u062A\u0639\u0644\u064A\u0642\u0643 \u0639\u0644\u0649 \u0627\u0644\u0643\u062A\u0627\u0628 \u0623\u0648 \u0641\u0635\u0644\u2026", "Write a comment on the book or a chapter\u2026")}"></textarea>
@@ -4744,7 +4854,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const s = getState().settings;
     view.innerHTML = `
     <div class="view-head"><h1>${t("settings")}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.4.0</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.0</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t("language")}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === "ar" ? "active" : ""}">\u0627\u0644\u0639\u0631\u0628\u064A\u0629</button><button data-lang="en" class="${s.lang === "en" ? "active" : ""}">English</button></div></div>
@@ -4758,7 +4868,8 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div class="set-row" style="flex-wrap:wrap"><span>Google Books API key <span class="muted">(${getLang() === "ar" ? "\u0627\u062E\u062A\u064A\u0627\u0631\u064A\u060C \u0644\u0648 \u062A\u0642\u064A\u064A\u0645\u0627\u062A \u062C\u0648\u062C\u0644 \u0645\u0634 \u0638\u0627\u0647\u0631\u0629" : "optional, if Google ratings do not show"})</span></span><input id="gbKey" style="flex:1;min-width:200px" value="${esc(s.gbKey || "")}" placeholder="AIza\u2026"></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
-      <div id="dbBox" class="stat-card"></div>
+      <div id="findSitesBox" class="stat-card"></div>
+      <div id="dbBox" class="stat-card" style="margin-top:1rem"></div>
       <div id="syncBox" class="stat-card" style="margin-top:1rem"></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div class="set-row"><span>${t("exportData")}</span><button id="exportBtn" class="btn">\u2B07 JSON</button></div>
@@ -4793,6 +4904,11 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       upd({ lineHeight: +v });
     };
     $8("#fontHost", view).appendChild(fontPicker(s.fontFamily, (id) => upd({ fontFamily: id })));
+    {
+      const fh = $8("#findSitesBox", view);
+      const rf = () => renderFindSitesSettings(fh, rf);
+      rf();
+    }
     $8("#gbKey", view).oninput = (e) => upd({ gbKey: e.target.value.trim() });
     drawDbBox(view);
     drawSyncBox(view);
