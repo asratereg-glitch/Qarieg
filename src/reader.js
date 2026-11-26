@@ -13,8 +13,7 @@ const HL_COLORS = ['#ffd54a', '#8ee08e', '#7ec8ff', '#ff9db0'];
 
 /* ---- v1.3.0: layout presets, TOC, page bar ---- */
 export function layoutMode() {
-  const l = store.getState().settings.layout || 'auto';
-  if (l !== 'auto') return l;
+
   const w = window.innerWidth;
   return w < 700 ? 'phone' : w < 1100 ? 'tablet' : 'desktop';
 }
@@ -617,8 +616,6 @@ function bindChrome() {
   $('#ttsBtn').onclick = toggleTts;
   $('#tocBtn').onclick = () => { const p = $('#readerPanel'); if (!p.classList.contains('hidden') && p.dataset.kind === 'toc') { p.classList.add('hidden'); return; } showTocPanel(); };
   $('#imgBtn').onclick = () => { const p = $('#readerPanel'); if (!p.classList.contains('hidden') && p.dataset.kind === 'img') { p.classList.add('hidden'); return; } p._pos = null; showImagePanel(); };
-  $('#phoneBtn').onclick = () => setLayout('phone');
-  $('#tabletBtn').onclick = () => setLayout('tablet');
   window.addEventListener('resize', () => { if (R && !$('#readerOverlay').classList.contains('hidden')) applyLayout(true); });
   $('#readerSettingsBtn').onclick = () => { const p = $('#readerPanel'); if (!p.classList.contains('hidden') && p.dataset.kind === 'settings') { p.classList.add('hidden'); return; } showSettingsPanel(); p.dataset.kind = 'settings'; };
   $('#hlListBtn').onclick = () => { const p = $('#readerPanel'); if (!p.classList.contains('hidden') && p.dataset.kind === 'hl') { p.classList.add('hidden'); return; } showHighlightsPanel(); p.dataset.kind = 'hl'; };

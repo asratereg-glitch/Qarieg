@@ -2039,8 +2039,6 @@
   var R = null;
   var HL_COLORS = ["#ffd54a", "#8ee08e", "#7ec8ff", "#ff9db0"];
   function layoutMode() {
-    const l = getState().settings.layout || "auto";
-    if (l !== "auto") return l;
     const w = window.innerWidth;
     return w < 700 ? "phone" : w < 1100 ? "tablet" : "desktop";
   }
@@ -2064,18 +2062,6 @@
       }
     } else if (R.pdf) renderPdfPage();
     else if (R.txtPages) renderTxtPage();
-  }
-  function setLayout(mode) {
-    const s = getState().settings;
-    const cur = s.layout || "auto";
-    const next2 = cur === mode ? "auto" : mode;
-    const patch = { layout: next2 };
-    if (next2 === "phone") Object.assign(patch, { fontSize: 18, lineHeight: 1.8 });
-    if (next2 === "tablet") Object.assign(patch, { fontSize: 21, lineHeight: 1.9 });
-    Object.assign(s, patch);
-    save();
-    applyLayout();
-    toast(next2 === "auto" ? t("layoutAuto") : next2 === "phone" ? t("layoutPhone") : t("layoutTablet"));
   }
   async function showTocPanel() {
     const panel = $4("#readerPanel");
@@ -2905,8 +2891,6 @@
       p._pos = null;
       showImagePanel();
     };
-    $4("#phoneBtn").onclick = () => setLayout("phone");
-    $4("#tabletBtn").onclick = () => setLayout("tablet");
     window.addEventListener("resize", () => {
       if (R && !$4("#readerOverlay").classList.contains("hidden")) applyLayout(true);
     });
@@ -4844,6 +4828,17 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       host.innerHTML = `<p class="muted">\u26A0 ${esc(e.message)}</p>`;
     }
   }
+  function setDevice() {
+    const w = window.innerWidth, h = window.innerHeight;
+    const d = w < 700 ? "phone" : w < 1100 ? "tablet" : "desktop";
+    const de = document.documentElement;
+    de.dataset.device = d;
+    de.dataset.orient = w >= h ? "landscape" : "portrait";
+    document.body && (document.body.dataset.device = d);
+  }
+  setDevice();
+  window.addEventListener("resize", setDevice);
+  window.addEventListener("orientationchange", setDevice);
   async function boot() {
     load();
     applySettings();

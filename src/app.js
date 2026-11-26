@@ -492,6 +492,14 @@ async function runOnlineSearch() {
 }
 
 /* ---------- boot ---------- */
+function setDevice() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const d = w < 700 ? 'phone' : w < 1100 ? 'tablet' : 'desktop';
+  const de = document.documentElement;
+  de.dataset.device = d; de.dataset.orient = w >= h ? 'landscape' : 'portrait';
+  document.body && (document.body.dataset.device = d);
+}
+setDevice(); window.addEventListener('resize', setDevice); window.addEventListener('orientationchange', setDevice);
 async function boot() {
   store.load();
   applySettings();

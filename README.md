@@ -87,3 +87,6 @@
 ## v1.3.2
 - Library cards: 📖 Read button under each book opens the reader directly (asks for the file first if the book has none).
 - Privacy wording: sync is optional and the text says what it uploads and that deleting in Qari does not erase earlier remote copies.
+
+## v1.3.3
+- Whole app adapts automatically to phone / tablet / desktop and portrait / landscape (phone: bottom tab bar, 2-column grid, bottom-sheet dialogs; tablet: wider grid and dialogs; desktop unchanged). Reader layout follows the same automatic rule, so the manual phone/tablet icons were removed.
