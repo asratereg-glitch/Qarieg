@@ -1,10 +1,11 @@
-// findbook.js — "Find this book" links on the book page + custom sites in Settings (v1.5.0)
+// findbook.js — "Find this book" links on the book page + custom sites in Settings (v1.5.1)
 import * as store from './store.js';
 import { esc, toast } from './app.js';
 import { tr } from './i18n.js';
 
 export const BUILTIN_SITES = [
   { id: 'ol', name: 'Open Library', url: 'https://openlibrary.org/search?q={query}' },
+  { id: 'gr', name: 'Goodreads', url: 'https://www.goodreads.com/search?q={query}' },
   { id: 'gut', name: 'Project Gutenberg', url: 'https://www.gutenberg.org/ebooks/search/?query={query}' },
   { id: 'gb', name: 'Google Books', url: 'https://www.google.com/search?tbm=bks&q={query}' },
   { id: 'ia', name: 'Internet Archive', url: 'https://archive.org/search?query={query}' },

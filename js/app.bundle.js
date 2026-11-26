@@ -766,6 +766,7 @@
   // src/findbook.js
   var BUILTIN_SITES = [
     { id: "ol", name: "Open Library", url: "https://openlibrary.org/search?q={query}" },
+    { id: "gr", name: "Goodreads", url: "https://www.goodreads.com/search?q={query}" },
     { id: "gut", name: "Project Gutenberg", url: "https://www.gutenberg.org/ebooks/search/?query={query}" },
     { id: "gb", name: "Google Books", url: "https://www.google.com/search?tbm=bks&q={query}" },
     { id: "ia", name: "Internet Archive", url: "https://archive.org/search?query={query}" },
@@ -4854,7 +4855,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const s = getState().settings;
     view.innerHTML = `
     <div class="view-head"><h1>${t("settings")}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.0</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.1</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t("language")}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === "ar" ? "active" : ""}">\u0627\u0644\u0639\u0631\u0628\u064A\u0629</button><button data-lang="en" class="${s.lang === "en" ? "active" : ""}">English</button></div></div>

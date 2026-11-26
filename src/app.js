@@ -274,7 +274,7 @@ function renderSettings(view) {
   const s = store.getState().settings;
   view.innerHTML = `
     <div class="view-head"><h1>${t('settings')}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.0</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.1</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t('language')}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === 'ar' ? 'active' : ''}">العربية</button><button data-lang="en" class="${s.lang === 'en' ? 'active' : ''}">English</button></div></div>
