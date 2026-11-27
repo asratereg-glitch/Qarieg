@@ -116,3 +116,10 @@
 ## v1.5.4
 - Library no longer lists finished books (they stay on the "Read" shelf in Shelves).
 - Shelf titles are collapsible dropdowns; open/closed state is remembered.
+
+## v1.5.5
+- Read-aloud now has a voice picker in the reader's settings (gear icon): every voice the device offers, grouped by language, with natural/neural voices marked ★ and picked automatically.
+- One voice is remembered per language, so an Arabic book and an English book can use different voices. Speed setting still applies to both.
+- The book's language is worked out from the page text, so the right voice is chosen without asking.
+- "Test" previews the chosen voice without starting the page loop.
+- The voices themselves come from the device: Microsoft Edge on Windows has Microsoft's Natural voices (Salma/Shakir for Egyptian Arabic), Chrome usually exposes only the basic ones, and iPad Safari mostly has Majed for Arabic. The app says so when it finds no natural voice.

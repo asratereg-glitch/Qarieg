@@ -3323,6 +3323,10 @@
     };
     bindVoicePicker(panel);
   }
+  function shortVoiceName(v) {
+    if (!v) return "";
+    return String(v.name || v.voiceURI || "").replace(/\s+[-–]\s+[^-–]*\([^)]*\)\s*$/, "").replace(/^Microsoft\s+/i, "").trim();
+  }
   function bindVoicePicker(panel) {
     const sel = panel.querySelector("#rVoice"), hint = panel.querySelector("#rVoiceHint"), langEl = panel.querySelector("#rVoiceLang");
     if (!sel) return;
@@ -3350,15 +3354,15 @@
         groups.get(k).push(v);
       });
       const keys = [...groups.keys()].sort((a, b) => a === L ? -1 : b === L ? 1 : a.localeCompare(b));
-      let html = `<option value="">${esc(t("ttsAutoVoice"))}${auto ? " \u2014 " + esc(auto.name) : ""}</option>`;
+      let html = `<option value="">${esc(t("ttsAutoVoice"))}${auto ? " \u2014 " + esc(shortVoiceName(auto)) : ""}</option>`;
       keys.forEach((k) => {
         const arr = groups.get(k).slice().sort((a, b) => (isNatural(b) ? 1 : 0) - (isNatural(a) ? 1 : 0) || a.name.localeCompare(b.name));
-        html += `<optgroup label="${esc((k === L ? "\u2605 " : "") + langLabel(k) + " \u2014 " + k)}">` + arr.map((v) => `<option value="${esc(v.voiceURI)}"${saved === v.voiceURI ? " selected" : ""}>${esc(v.name)}${isNatural(v) ? " \u2605" : ""} \u2014 ${esc(v.lang)}</option>`).join("") + "</optgroup>";
+        html += `<optgroup label="${esc((k === L ? "\u2605 " : "") + langLabel(k))}">` + arr.map((v) => `<option value="${esc(v.voiceURI)}" title="${esc(v.name + " \u2014 " + v.lang)}"${saved === v.voiceURI ? " selected" : ""}>${esc(shortVoiceName(v))}${isNatural(v) ? " \u2605" : ""}</option>`).join("") + "</optgroup>";
       });
       sel.innerHTML = html;
       sel.value = saved && list.some((v) => v.voiceURI === saved) ? saved : "";
       const used = saved ? list.find((v) => v.voiceURI === saved) : auto;
-      if (hint) hint.textContent = !list.length ? t("ttsNoVoices") : isNatural(used) ? t("ttsNaturalOk") : t("ttsNaturalTip");
+      if (hint) hint.textContent = !list.length ? t("ttsNoVoices") : isNatural(used) ? `${t("ttsNaturalOk")} \u2014 ${shortVoiceName(used)}` : t("ttsNaturalTip");
     };
     sel.onchange = () => {
       const L = bookLangOf(), uri = sel.value, st = getState().settings;

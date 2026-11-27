@@ -729,6 +729,15 @@ function showSettingsPanel() {
 }
 
 /* ---- voice picker: every device voice, natural ones marked and preferred ---- */
+// Windows/iOS voice names are long ("Microsoft Shakir Online (Natural) - Arabic (Egypt)");
+// the language is already in the group label, so the row shows just the voice.
+function shortVoiceName(v) {
+  if (!v) return '';
+  return String(v.name || v.voiceURI || '')
+    .replace(/\s+[-–]\s+[^-–]*\([^)]*\)\s*$/, '')
+    .replace(/^Microsoft\s+/i, '')
+    .trim();
+}
 function bindVoicePicker(panel) {
   const sel = panel.querySelector('#rVoice'), hint = panel.querySelector('#rVoiceHint'), langEl = panel.querySelector('#rVoiceLang');
   if (!sel) return;
@@ -742,16 +751,18 @@ function bindVoicePicker(panel) {
     const groups = new Map();
     list.forEach(v => { const k = baseLang(v.lang) || '?'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(v); });
     const keys = [...groups.keys()].sort((a, b) => (a === L ? -1 : b === L ? 1 : a.localeCompare(b)));
-    let html = `<option value="">${esc(t('ttsAutoVoice'))}${auto ? ' — ' + esc(auto.name) : ''}</option>`;
+    let html = `<option value="">${esc(t('ttsAutoVoice'))}${auto ? ' — ' + esc(shortVoiceName(auto)) : ''}</option>`;
     keys.forEach(k => {
       const arr = groups.get(k).slice().sort((a, b) => (isNatural(b) ? 1 : 0) - (isNatural(a) ? 1 : 0) || a.name.localeCompare(b.name));
-      html += `<optgroup label="${esc((k === L ? '★ ' : '') + langLabel(k) + ' — ' + k)}">` + arr.map(v =>
-        `<option value="${esc(v.voiceURI)}"${saved === v.voiceURI ? ' selected' : ''}>${esc(v.name)}${isNatural(v) ? ' ★' : ''} — ${esc(v.lang)}</option>`).join('') + '</optgroup>';
+      html += `<optgroup label="${esc((k === L ? '★ ' : '') + langLabel(k))}">` + arr.map(v =>
+        `<option value="${esc(v.voiceURI)}" title="${esc(v.name + ' — ' + v.lang)}"${saved === v.voiceURI ? ' selected' : ''}>${esc(shortVoiceName(v))}${isNatural(v) ? ' ★' : ''}</option>`).join('') + '</optgroup>';
     });
     sel.innerHTML = html;
     sel.value = saved && list.some(v => v.voiceURI === saved) ? saved : '';
     const used = saved ? list.find(v => v.voiceURI === saved) : auto;
-    if (hint) hint.textContent = !list.length ? t('ttsNoVoices') : isNatural(used) ? t('ttsNaturalOk') : t('ttsNaturalTip');
+    if (hint) hint.textContent = !list.length ? t('ttsNoVoices')
+      : isNatural(used) ? `${t('ttsNaturalOk')} — ${shortVoiceName(used)}`
+      : t('ttsNaturalTip');
   };
   sel.onchange = () => {
     const L = bookLangOf(), uri = sel.value, st = store.getState().settings;
