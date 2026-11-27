@@ -13,6 +13,9 @@ import { renderLists } from './lists.js';
 import { fontPicker } from './fonts.js';
 import * as dbfile from './dbfile.js';
 import * as sync from './sync.js';
+import * as auth from './auth.js';
+import * as cloudsync from './cloudsync.js';
+import { renderAccount, refreshAccountView } from './account.js';
 
 export { db, store, t, getLang };
 
@@ -142,6 +145,7 @@ const routes = {
   '': renderLibrary, 'shelves': renderShelves, 'stats': renderStatsRoute,
   'discover': renderDiscoverRoute, 'community': renderCommunityRoute, 'settings': renderSettings,
   'author': (v, a) => renderAuthorPage(v, a), 'book': (v, a) => renderBookPage(v, a, 'book'), 'work': (v, a) => renderBookPage(v, a, 'work'), 'lists': renderLists,
+  'account': renderAccount,
 };
 function route() {
   const hash = location.hash.replace(/^#\/?/, '');
@@ -523,6 +527,11 @@ async function boot() {
   sync.configure({ lang: getLang, onApplied: () => { applySettings(); route(); } });
   sync.onStatus(updateSyncUi);
   sync.init(); updateSyncUi();
+  // Supabase Auth + cloud sync (optional: the app stays fully local when logged out)
+  await auth.initAuth();
+  cloudsync.configure({ lang: getLang, onApplied: () => { applySettings(); route(); } });
+  cloudsync.init();
+  auth.onAuthChange(() => { cloudsync.onAuthChange(); refreshAccountView(); });
   $('#addBookBtn').onclick = openAddModal;
   $$('#addModal .modal-close').forEach(b => b.onclick = closeAddModal);
   $('#addModal').addEventListener('click', e => { if (e.target.id === 'addModal') closeAddModal(); });
