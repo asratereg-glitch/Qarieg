@@ -112,3 +112,7 @@
 
 ## v1.5.1
 - Added Goodreads to the book-page search links. The search uses the book title and author, URL-encoded, and opens Goodreads results in a new tab.
+
+## v1.5.4
+- Library no longer lists finished books (they stay on the "Read" shelf in Shelves).
+- Shelf titles are collapsible dropdowns; open/closed state is remembered.

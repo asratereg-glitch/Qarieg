@@ -217,7 +217,7 @@ let libFilter = { q: '', fav: false, sort: 'default' };
 function renderLibrary(view) {
   const st = store.getState();
   view.innerHTML = `
-    <div class="view-head"><h1>${t('navLibrary')}</h1><span class="muted">${st.books.length} ${t('pages') === 'صفحة' ? 'كتاب' : 'books'}</span></div>
+    <div class="view-head"><h1>${t('navLibrary')}</h1><span class="muted">${st.books.filter(b => b.shelf !== 'finished').length} ${t('pages') === 'صفحة' ? 'كتاب' : 'books'}</span></div>
     ${st.books.length === 0 ? `<div class="empty-state"><div class="big">📚</div><h2>${t('emptyLib')}</h2><p>${t('emptyLibSub')}</p></div>` : `
     <div class="lib-filter"><input id="libQ" placeholder="${getLang() === 'ar' ? 'دوّر في مكتبتك…' : 'Search your library…'}" value="${esc(libFilter.q)}">
       <button class="chip ${libFilter.fav ? 'active' : ''}" id="favChip">❤ ${getLang() === 'ar' ? 'المفضلة' : 'Favorites'}</button>
@@ -228,7 +228,7 @@ function renderLibrary(view) {
     const q = libFilter.q.trim().toLowerCase();
     const match = b => (!libFilter.fav || b.favorite) && (!q || (b.title + ' ' + (b.author || '')).toLowerCase().includes(q));
     const reading = sortBooks(st.books.filter(b => b.shelf === 'reading' && match(b)), libFilter.sort);
-    const rest = sortBooks(st.books.filter(b => b.shelf !== 'reading' && match(b)), libFilter.sort);
+    const rest = sortBooks(st.books.filter(b => b.shelf !== 'reading' && b.shelf !== 'finished' && match(b)), libFilter.sort);
     const row = $('#readingRow', view); row.innerHTML = '';
     if (reading.length) {
       row.innerHTML = `<h2 style="margin-bottom:.7rem;font-size:1.1rem">▶ ${t('continueReading')}</h2>`;
@@ -256,10 +256,17 @@ function renderShelves(view) {
     if (v) { store.addCustomShelf(v); renderShelves(view); }
   };
   const host = $('#shelfBlocks', view);
+  let closed = []; try { closed = JSON.parse(localStorage.getItem('qari_shelves_closed') || '[]'); } catch {}
   const renderBlock = (title, books, removable = null) => {
-    const block = document.createElement('div'); block.className = 'shelf-block';
-    block.innerHTML = `<h2>${esc(title)} <span class="count">(${books.length})</span> ${removable ? `<button class="btn btn-danger" style="padding:.15rem .6rem;font-size:.75rem">${t('delete')}</button>` : ''}</h2>`;
-    if (removable) block.querySelector('button').onclick = () => { store.removeCustomShelf(removable); renderShelves(view); };
+    const block = document.createElement('details'); block.className = 'shelf-block';
+    const id = (removable ? 'c:' : 's:') + title;
+    block.open = !closed.includes(id);
+    block.innerHTML = `<summary><span class="caret">▾</span><h2>${esc(title)} <span class="count">(${books.length})</span></h2> ${removable ? `<button class="btn btn-danger" style="padding:.15rem .6rem;font-size:.75rem">${t('delete')}</button>` : ''}</summary>`;
+    block.addEventListener('toggle', () => {
+      closed = closed.filter(x => x !== id); if (!block.open) closed.push(id);
+      try { localStorage.setItem('qari_shelves_closed', JSON.stringify(closed)); } catch {}
+    });
+    if (removable) block.querySelector('button').onclick = (e) => { e.preventDefault(); e.stopPropagation(); store.removeCustomShelf(removable); renderShelves(view); };
     const grid = document.createElement('div'); grid.className = 'grid';
     books.forEach(b => grid.appendChild(bookCard(b, () => renderShelves(view))));
     if (!books.length) grid.innerHTML = `<p class="muted">—</p>`;
@@ -274,7 +281,7 @@ function renderSettings(view) {
   const s = store.getState().settings;
   view.innerHTML = `
     <div class="view-head"><h1>${t('settings')}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.3</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.4</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t('language')}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === 'ar' ? 'active' : ''}">العربية</button><button data-lang="en" class="${s.lang === 'en' ? 'active' : ''}">English</button></div></div>

@@ -4830,7 +4830,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
   function renderLibrary(view) {
     const st = getState();
     view.innerHTML = `
-    <div class="view-head"><h1>${t("navLibrary")}</h1><span class="muted">${st.books.length} ${t("pages") === "\u0635\u0641\u062D\u0629" ? "\u0643\u062A\u0627\u0628" : "books"}</span></div>
+    <div class="view-head"><h1>${t("navLibrary")}</h1><span class="muted">${st.books.filter((b) => b.shelf !== "finished").length} ${t("pages") === "\u0635\u0641\u062D\u0629" ? "\u0643\u062A\u0627\u0628" : "books"}</span></div>
     ${st.books.length === 0 ? `<div class="empty-state"><div class="big">\u{1F4DA}</div><h2>${t("emptyLib")}</h2><p>${t("emptyLibSub")}</p></div>` : `
     <div class="lib-filter"><input id="libQ" placeholder="${getLang() === "ar" ? "\u062F\u0648\u0651\u0631 \u0641\u064A \u0645\u0643\u062A\u0628\u062A\u0643\u2026" : "Search your library\u2026"}" value="${esc(libFilter.q)}">
       <button class="chip ${libFilter.fav ? "active" : ""}" id="favChip">\u2764 ${getLang() === "ar" ? "\u0627\u0644\u0645\u0641\u0636\u0644\u0629" : "Favorites"}</button>
@@ -4841,7 +4841,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       const q = libFilter.q.trim().toLowerCase();
       const match = (b) => (!libFilter.fav || b.favorite) && (!q || (b.title + " " + (b.author || "")).toLowerCase().includes(q));
       const reading = sortBooks(st.books.filter((b) => b.shelf === "reading" && match(b)), libFilter.sort);
-      const rest = sortBooks(st.books.filter((b) => b.shelf !== "reading" && match(b)), libFilter.sort);
+      const rest = sortBooks(st.books.filter((b) => b.shelf !== "reading" && b.shelf !== "finished" && match(b)), libFilter.sort);
       const row = $8("#readingRow", view);
       row.innerHTML = "";
       if (reading.length) {
@@ -4888,11 +4888,28 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       }
     };
     const host = $8("#shelfBlocks", view);
+    let closed = [];
+    try {
+      closed = JSON.parse(localStorage.getItem("qari_shelves_closed") || "[]");
+    } catch {
+    }
     const renderBlock = (title, books, removable = null) => {
-      const block = document.createElement("div");
+      const block = document.createElement("details");
       block.className = "shelf-block";
-      block.innerHTML = `<h2>${esc(title)} <span class="count">(${books.length})</span> ${removable ? `<button class="btn btn-danger" style="padding:.15rem .6rem;font-size:.75rem">${t("delete")}</button>` : ""}</h2>`;
-      if (removable) block.querySelector("button").onclick = () => {
+      const id = (removable ? "c:" : "s:") + title;
+      block.open = !closed.includes(id);
+      block.innerHTML = `<summary><span class="caret">\u25BE</span><h2>${esc(title)} <span class="count">(${books.length})</span></h2> ${removable ? `<button class="btn btn-danger" style="padding:.15rem .6rem;font-size:.75rem">${t("delete")}</button>` : ""}</summary>`;
+      block.addEventListener("toggle", () => {
+        closed = closed.filter((x) => x !== id);
+        if (!block.open) closed.push(id);
+        try {
+          localStorage.setItem("qari_shelves_closed", JSON.stringify(closed));
+        } catch {
+        }
+      });
+      if (removable) block.querySelector("button").onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         removeCustomShelf(removable);
         renderShelves(view);
       };
@@ -4910,7 +4927,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const s = getState().settings;
     view.innerHTML = `
     <div class="view-head"><h1>${t("settings")}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.3</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.4</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t("language")}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === "ar" ? "active" : ""}">\u0627\u0644\u0639\u0631\u0628\u064A\u0629</button><button data-lang="en" class="${s.lang === "en" ? "active" : ""}">English</button></div></div>
