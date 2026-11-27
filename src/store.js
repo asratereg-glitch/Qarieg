@@ -5,7 +5,7 @@ const DEFAULTS = () => ({
   version: 1,
   settings: {
     lang: 'ar', theme: 'sepia', fontSize: 19, lineHeight: 1.9,
-    fontFamily: 'auto', flow: 'paginated', ttsVoice: '', ttsRate: 1,
+    fontFamily: 'auto', flow: 'paginated', ttsVoice: '', ttsVoices: {}, ttsRate: 1,
     goalYear: 24, goalMonth: 2, uiLangToggled: false, gbKey: '', layout: 'auto', findSites: [],
   },
   books: [],            // {id,title,author,format,cover,fileKey,source,addedAt,shelf,customShelves:[],progress,location,totalPages,currentPage,rating,review,subjects,isbn,finishedAt}

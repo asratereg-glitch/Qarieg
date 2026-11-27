@@ -4,6 +4,7 @@ import * as store from './store.js';
 import { t, getLang } from './i18n.js';
 import { toast, esc, coverHTML } from './app.js';
 import { fontStack, fontFaceCSS, fontPicker } from './fonts.js';
+import { voices, onVoices, waitVoices, detectLang, pickVoice, preview, isNatural, langLabel, baseLang } from './tts.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 let R = null; // active reader session
@@ -596,6 +597,21 @@ function currentText() {
   if (R.txtPages) return R.txtPages[R.txtIdx].slice(0, 2200);
   return ''; // pdf handled async in speakCurrent
 }
+// which language are we reading right now: the page text wins, then epub metadata,
+// then title/author, then the UI language
+function bookLangOf() {
+  const fromPage = detectLang((currentText() || '').slice(0, 1200));
+  if (fromPage) return fromPage;
+  const meta = R && R.epub && R.epub.packaging && R.epub.packaging.metadata && String(R.epub.packaging.metadata.language || '').toLowerCase();
+  if (meta) { if (/^ar\b/.test(meta)) return 'ar'; if (/^en\b/.test(meta)) return 'en'; }
+  const fromTitle = detectLang(`${(R && R.book && R.book.title) || ''} ${(R && R.book && R.book.author) || ''}`);
+  if (fromTitle) return fromTitle;
+  return store.getState().settings.lang === 'en' ? 'en' : 'ar';
+}
+function savedVoiceFor(lang) {
+  const s = store.getState().settings;
+  return (s.ttsVoices || {})[lang] || s.ttsVoice || '';
+}
 async function speakCurrent() {
   if (!R || !R.ttsActive) return;
   let text = currentText();
@@ -607,16 +623,19 @@ async function speakCurrent() {
     } catch {}
   }
   text = (text || '').trim();
-  if (!text) { R.ttsActive = false; $('#ttsBtn').style.color = ''; return; }
+  if (!text) { R.ttsActive = false; const b = $('#ttsBtn'); if (b) b.style.color = ''; return; }
+  if (!R || !R.ttsActive) return;
   const s = store.getState().settings;
+  const lang = bookLangOf();
+  if (!voices().length) await waitVoices(1200);
+  const v = pickVoice(lang, savedVoiceFor(lang));
   const u = new SpeechSynthesisUtterance(text);
   u.rate = s.ttsRate || 1;
-  const voices = speechSynthesis.getVoices();
-  if (s.ttsVoice) { const v = voices.find(v => v.voiceURI === s.ttsVoice || v.name === s.ttsVoice); if (v) u.voice = v; }
-  else if (getLang() === 'ar') { const v = voices.find(v => v.lang && v.lang.startsWith('ar')); if (v) u.voice = v; }
+  if (v) u.voice = v;
+  u.lang = (v && v.lang) || (lang === 'ar' ? 'ar-EG' : 'en-US');
   u.onend = () => { if (R && R.ttsActive) next(); };
-  u.onerror = () => { R && (R.ttsActive = false); const b = $('#ttsBtn'); if (b) b.style.color = ''; };
-  speechSynthesis.speak(u);
+  u.onerror = () => { if (R) R.ttsActive = false; const b = $('#ttsBtn'); if (b) b.style.color = ''; };
+  try { speechSynthesis.speak(u); } catch (e) { console.warn('tts failed', e); if (R) R.ttsActive = false; }
 }
 function toggleTts() {
   if (!R) return;
@@ -670,6 +689,7 @@ function toggleReaderChrome() {
 function showSettingsPanel() {
   const s = store.getState().settings;
   const panel = $('#readerPanel'); panel.classList.remove('hidden');
+  if (panel._voiceOff) { panel._voiceOff(); panel._voiceOff = null; }   // stop listening to voiceschanged from the last render
   panel.innerHTML = `<h3>⚙ ${t('settings')}</h3>
     <div class="set-row"><span>${t('theme')}</span><div class="seg">
       <button data-th="light" class="${s.theme === 'light' ? 'active' : ''}">${t('themeLight')}</button>
@@ -682,6 +702,12 @@ function showSettingsPanel() {
     <div class="set-row"><span>${t('readingMode')}</span><div class="seg">
       <button data-flow="paginated" class="${s.flow === 'paginated' ? 'active' : ''}">${t('paginated')}</button>
       <button data-flow="scrolled" class="${s.flow === 'scrolled' ? 'active' : ''}">${t('scrolled')}</button></div></div>
+    <div class="set-row" style="align-items:flex-start;flex-direction:column;gap:.25rem"><span>${t('ttsVoice')} <span class="muted" id="rVoiceLang"></span></span>
+      <div style="display:flex;gap:.4rem;align-items:center;width:100%">
+        <select id="rVoice" style="flex:1;min-width:0"></select>
+        <button class="btn" id="rVoiceTest">▶ ${t('ttsTest')}</button>
+      </div>
+      <div class="muted" id="rVoiceHint" style="font-size:.78rem"></div></div>
     <div class="set-row"><span>${t('ttsSpeed')}</span><input type="range" id="rRate" min="5" max="20" value="${Math.round((s.ttsRate || 1) * 10)}"><span id="rRateV">${s.ttsRate || 1}x</span></div>`;
   const upd = (patch) => { Object.assign(store.getState().settings, patch); store.save(); };
   panel.querySelector('#rFontHost').appendChild(fontPicker(s.fontFamily, id => { upd({ fontFamily: id }); if (R && R.rendition) applyEpubTheme(); if (R && R.txtPages) renderTxtPage(); }));
@@ -698,6 +724,50 @@ function showSettingsPanel() {
   panel.querySelector('#rFs').oninput = e => { upd({ fontSize: +e.target.value }); panel.querySelector('#rFsV').textContent = e.target.value; if (R && R.rendition) applyEpubTheme(); if (R && R.txtPages) renderTxtPage(); };
   panel.querySelector('#rLh').oninput = e => { upd({ lineHeight: +e.target.value / 10 }); if (R && R.rendition) applyEpubTheme(); if (R && R.txtPages) renderTxtPage(); };
   panel.querySelector('#rRate').oninput = e => { upd({ ttsRate: +e.target.value / 10 }); panel.querySelector('#rRateV').textContent = (+e.target.value / 10) + 'x'; };
+  bindVoicePicker(panel);
+}
+
+/* ---- voice picker: every device voice, natural ones marked and preferred ---- */
+function bindVoicePicker(panel) {
+  const sel = panel.querySelector('#rVoice'), hint = panel.querySelector('#rVoiceHint'), langEl = panel.querySelector('#rVoiceLang');
+  if (!sel) return;
+  const stopSpeaking = () => { if (R && R.ttsActive) { R.ttsActive = false; try { speechSynthesis.cancel(); } catch {} const b = $('#ttsBtn'); if (b) b.style.color = ''; } };
+  const fill = () => {
+    const L = bookLangOf();
+    const list = voices();
+    const saved = (store.getState().settings.ttsVoices || {})[L] || '';
+    const auto = pickVoice(L, saved);
+    if (langEl) langEl.textContent = '· ' + (L === 'ar' ? t('ttsLangAr') : t('ttsLangEn'));
+    const groups = new Map();
+    list.forEach(v => { const k = baseLang(v.lang) || '?'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(v); });
+    const keys = [...groups.keys()].sort((a, b) => (a === L ? -1 : b === L ? 1 : a.localeCompare(b)));
+    let html = `<option value="">${esc(t('ttsAutoVoice'))}${auto ? ' — ' + esc(auto.name) : ''}</option>`;
+    keys.forEach(k => {
+      const arr = groups.get(k).slice().sort((a, b) => (isNatural(b) ? 1 : 0) - (isNatural(a) ? 1 : 0) || a.name.localeCompare(b.name));
+      html += `<optgroup label="${esc((k === L ? '★ ' : '') + langLabel(k) + ' — ' + k)}">` + arr.map(v =>
+        `<option value="${esc(v.voiceURI)}"${saved === v.voiceURI ? ' selected' : ''}>${esc(v.name)}${isNatural(v) ? ' ★' : ''} — ${esc(v.lang)}</option>`).join('') + '</optgroup>';
+    });
+    sel.innerHTML = html;
+    sel.value = saved && list.some(v => v.voiceURI === saved) ? saved : '';
+    const used = saved ? list.find(v => v.voiceURI === saved) : auto;
+    if (hint) hint.textContent = !list.length ? t('ttsNoVoices') : isNatural(used) ? t('ttsNaturalOk') : t('ttsNaturalTip');
+  };
+  sel.onchange = () => {
+    const L = bookLangOf(), uri = sel.value, st = store.getState().settings;
+    st.ttsVoices = Object.assign({}, st.ttsVoices || {});
+    if (uri) st.ttsVoices[L] = uri; else delete st.ttsVoices[L];
+    store.save();
+    fill();
+    stopSpeaking();
+    preview(uri ? voices().find(v => v.voiceURI === uri) : pickVoice(L, ''), L, store.getState().settings.ttsRate || 1);
+  };
+  panel.querySelector('#rVoiceTest').onclick = () => {
+    const L = bookLangOf(), uri = sel.value;
+    stopSpeaking();
+    preview(uri ? voices().find(v => v.voiceURI === uri) : pickVoice(L, ''), L, store.getState().settings.ttsRate || 1);
+  };
+  fill();
+  panel._voiceOff = onVoices(fill);   // devices hand the list over late; refresh when it arrives
 }
 
 function showHighlightsPanel() {
@@ -731,6 +801,8 @@ function showHighlightsPanel() {
 export function closeReader(log = true) {
   if (!R) return;
   if (R.ttsActive) { R.ttsActive = false; speechSynthesis.cancel(); }
+  const pn = $('#readerPanel');
+  if (pn && pn._voiceOff) { pn._voiceOff(); pn._voiceOff = null; }
   clearInterval(R.timer);
   const mins = (Date.now() - R.startedAt) / 60000;
   if (log) store.logSession(R.book.id, mins, R.pagesTurned);

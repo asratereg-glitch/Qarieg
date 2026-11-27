@@ -68,6 +68,7 @@
       fontFamily: "auto",
       flow: "paginated",
       ttsVoice: "",
+      ttsVoices: {},
       ttsRate: 1,
       goalYear: 24,
       goalMonth: 2,
@@ -550,6 +551,13 @@
       scrolled: "\u062A\u0645\u0631\u064A\u0631",
       ttsVoice: "\u0635\u0648\u062A \u0627\u0644\u0642\u0631\u0627\u0621\u0629",
       ttsSpeed: "\u0627\u0644\u0633\u0631\u0639\u0629",
+      ttsAutoVoice: "\u062A\u0644\u0642\u0627\u0626\u064A (\u0623\u0641\u0636\u0644 \u0635\u0648\u062A)",
+      ttsTest: "\u062A\u062C\u0631\u0628\u0629",
+      ttsLangAr: "\u0639\u0631\u0628\u064A",
+      ttsLangEn: "\u0625\u0646\u062C\u0644\u064A\u0632\u064A",
+      ttsNoVoices: "\u0623\u0635\u0648\u0627\u062A \u0627\u0644\u0642\u0631\u0627\u0621\u0629 \u0644\u0633\u0647 \u0628\u062A\u062D\u0645\u0651\u0644 \u2014 \u0627\u0642\u0641\u0644 \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A \u0648\u0627\u0641\u062A\u062D\u0647\u0627 \u062A\u0627\u0646\u064A",
+      ttsNaturalOk: "\u2605 \u0635\u0648\u062A \u0637\u0628\u064A\u0639\u064A",
+      ttsNaturalTip: "\u0645\u0641\u064A\u0634 \u0635\u0648\u062A \u0637\u0628\u064A\u0639\u064A \u0644\u0644\u063A\u0629 \u0627\u0644\u0643\u062A\u0627\u0628 \u0639\u0644\u0649 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647. \u0639\u0644\u0649 \u0648\u064A\u0646\u062F\u0648\u0632 \u0627\u0641\u062A\u062D \u0642\u0627\u0631\u0626 \u0641\u064A Microsoft Edge \u0648\u062C\u0631\u0628 \u062A\u0627\u0646\u064A \u2014 Edge \u0628\u064A\u0648\u0641\u0631 \u0623\u0635\u0648\u0627\u062A \u0645\u0627\u064A\u0643\u0631\u0648\u0633\u0648\u0641\u062A \u0627\u0644\u0637\u0628\u064A\u0639\u064A\u0629 (\u0633\u0644\u0645\u0649 \u0648\u0634\u0627\u0643\u0631 \u0644\u0644\u0639\u0631\u0628\u064A).",
       highlights: "\u0627\u0644\u0647\u0627\u064A\u0644\u0627\u064A\u062A\u0633",
       addNote: "\u0636\u064A\u0641 \u0645\u0644\u0627\u062D\u0638\u0629\u2026",
       noHighlights: "\u0644\u0633\u0647 \u0645\u0641\u064A\u0634 \u0647\u0627\u064A\u0644\u0627\u064A\u062A\u0633 \u0641\u064A \u0627\u0644\u0643\u062A\u0627\u0628 \u062F\u0647",
@@ -695,6 +703,13 @@
       scrolled: "Scroll",
       ttsVoice: "Reading voice",
       ttsSpeed: "Speed",
+      ttsAutoVoice: "Automatic (best voice)",
+      ttsTest: "Test",
+      ttsLangAr: "Arabic",
+      ttsLangEn: "English",
+      ttsNoVoices: "Voices are still loading \u2014 close and reopen settings",
+      ttsNaturalOk: "\u2605 Natural voice",
+      ttsNaturalTip: "This device has no natural voice for the book language. On Windows, open Qari in Microsoft Edge and try again \u2014 Edge exposes Microsoft Natural voices.",
       highlights: "Highlights",
       addNote: "Add a note\u2026",
       noHighlights: "No highlights in this book yet",
@@ -2156,6 +2171,122 @@
     return wrap;
   }
 
+  // src/tts.js
+  var NATURAL_RE = /natural|neural|online|premium|enhanced|siri/i;
+  var ROBOTIC_RE = /hoda|naayf|compact|espeak|festival|pico/i;
+  function voices() {
+    try {
+      return window.speechSynthesis && window.speechSynthesis.getVoices() || [];
+    } catch {
+      return [];
+    }
+  }
+  function onVoices(cb) {
+    if (!window.speechSynthesis) return () => {
+    };
+    const fire2 = () => cb(voices());
+    window.speechSynthesis.addEventListener("voiceschanged", fire2);
+    if (!voices().length) setTimeout(fire2, 400);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", fire2);
+  }
+  function waitVoices(ms = 1500) {
+    return new Promise((res) => {
+      if (voices().length) return res(voices());
+      let done = false;
+      let stop = () => {
+      };
+      const finish = (v) => {
+        if (done) return;
+        done = true;
+        stop();
+        res(v);
+      };
+      stop = onVoices((v) => {
+        if (v.length) finish(v);
+      });
+      setTimeout(() => finish(voices()), ms);
+    });
+  }
+  var baseLang = (l) => String(l || "").toLowerCase().replace("_", "-").split("-")[0];
+  function quality(v) {
+    if (!v) return -1e9;
+    const name = (v.name || "") + " " + (v.voiceURI || "");
+    let s = 0;
+    if (NATURAL_RE.test(name)) s += 100;
+    if (ROBOTIC_RE.test(name)) s -= 40;
+    if (/google/i.test(name)) s += 30;
+    if (v.localService === false) s += 15;
+    if (v.default) s += 5;
+    return s;
+  }
+  var isNatural = (v) => !!v && NATURAL_RE.test((v.name || "") + " " + (v.voiceURI || ""));
+  function detectLang(text) {
+    const t2 = String(text || "");
+    const ar = (t2.match(/[\u0600-\u06FF\u0750-\u077F]/g) || []).length;
+    const lat = (t2.match(/[A-Za-z]/g) || []).length;
+    if (!ar && !lat) return "";
+    if (!ar) return "en";
+    if (!lat) return "ar";
+    return ar >= lat * 0.5 ? "ar" : "en";
+  }
+  function langScore(v, lang2) {
+    const L = baseLang(lang2);
+    let s = quality(v);
+    if (!L) return s;
+    const vl = String(v.lang || "").toLowerCase().replace("_", "-");
+    if (vl === L) s += 12;
+    else if (vl.startsWith(L + "-")) s += 10;
+    else if (baseLang(vl) === L) s += 8;
+    if (L === "ar" && /^ar-eg/.test(vl)) s += 25;
+    return s;
+  }
+  function voicesFor(lang2) {
+    const L = baseLang(lang2);
+    return voices().filter((v) => !L || baseLang(v.lang) === L).slice().sort((a, b) => langScore(b, lang2) - langScore(a, lang2));
+  }
+  function pickVoice(lang2, preferURI) {
+    const all = voices();
+    if (!all.length) return null;
+    const L = baseLang(lang2);
+    if (preferURI) {
+      const p = all.find((v) => v.voiceURI === preferURI || v.name === preferURI);
+      if (p && (!L || baseLang(p.lang) === L)) return p;
+    }
+    const pool = voicesFor(lang2);
+    if (pool.length) return pool[0];
+    return all.slice().sort((a, b) => quality(b) - quality(a))[0] || null;
+  }
+  function sampleFor(lang2) {
+    return baseLang(lang2) === "ar" ? "\u062F\u0647 \u0634\u0643\u0644 \u0627\u0644\u0635\u0648\u062A \u0627\u0644\u062C\u062F\u064A\u062F \u0641\u064A \u0642\u0627\u0631\u0626. \u062C\u0631\u0651\u0628 \u0627\u0644\u0633\u0631\u0639\u0629 \u0644\u0648 \u0639\u0627\u064A\u0632\u0647\u0627 \u0623\u0633\u0631\u0639 \u0623\u0648 \u0623\u0628\u0637\u0623." : "This is how your book will sound in Qari. Try another speed if you like it faster or slower.";
+  }
+  function preview(voice, lang2, rate = 1) {
+    if (!window.speechSynthesis) return null;
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+    }
+    const u = new SpeechSynthesisUtterance(sampleFor(lang2));
+    if (voice) u.voice = voice;
+    u.lang = voice && voice.lang || (baseLang(lang2) === "ar" ? "ar-EG" : "en-US");
+    u.rate = rate || 1;
+    try {
+      window.speechSynthesis.speak(u);
+    } catch {
+    }
+    return u;
+  }
+  function langLabel(lang2) {
+    const L = baseLang(lang2);
+    if (!L) return "";
+    try {
+      const uiLang = document.documentElement.lang || "ar";
+      const dn = new Intl.DisplayNames([uiLang], { type: "language" });
+      return dn.of(L) || L;
+    } catch {
+      return L;
+    }
+  }
+
   // src/reader.js
   var $4 = (s, r = document) => r.querySelector(s);
   var R = null;
@@ -2964,6 +3095,22 @@
     if (R.txtPages) return R.txtPages[R.txtIdx].slice(0, 2200);
     return "";
   }
+  function bookLangOf() {
+    const fromPage = detectLang((currentText() || "").slice(0, 1200));
+    if (fromPage) return fromPage;
+    const meta2 = R && R.epub && R.epub.packaging && R.epub.packaging.metadata && String(R.epub.packaging.metadata.language || "").toLowerCase();
+    if (meta2) {
+      if (/^ar\b/.test(meta2)) return "ar";
+      if (/^en\b/.test(meta2)) return "en";
+    }
+    const fromTitle = detectLang(`${R && R.book && R.book.title || ""} ${R && R.book && R.book.author || ""}`);
+    if (fromTitle) return fromTitle;
+    return getState().settings.lang === "en" ? "en" : "ar";
+  }
+  function savedVoiceFor(lang2) {
+    const s = getState().settings;
+    return (s.ttsVoices || {})[lang2] || s.ttsVoice || "";
+  }
   async function speakCurrent() {
     if (!R || !R.ttsActive) return;
     let text = currentText();
@@ -2978,29 +3125,33 @@
     text = (text || "").trim();
     if (!text) {
       R.ttsActive = false;
-      $4("#ttsBtn").style.color = "";
+      const b = $4("#ttsBtn");
+      if (b) b.style.color = "";
       return;
     }
+    if (!R || !R.ttsActive) return;
     const s = getState().settings;
+    const lang2 = bookLangOf();
+    if (!voices().length) await waitVoices(1200);
+    const v = pickVoice(lang2, savedVoiceFor(lang2));
     const u = new SpeechSynthesisUtterance(text);
     u.rate = s.ttsRate || 1;
-    const voices = speechSynthesis.getVoices();
-    if (s.ttsVoice) {
-      const v = voices.find((v2) => v2.voiceURI === s.ttsVoice || v2.name === s.ttsVoice);
-      if (v) u.voice = v;
-    } else if (getLang() === "ar") {
-      const v = voices.find((v2) => v2.lang && v2.lang.startsWith("ar"));
-      if (v) u.voice = v;
-    }
+    if (v) u.voice = v;
+    u.lang = v && v.lang || (lang2 === "ar" ? "ar-EG" : "en-US");
     u.onend = () => {
       if (R && R.ttsActive) next();
     };
     u.onerror = () => {
-      R && (R.ttsActive = false);
+      if (R) R.ttsActive = false;
       const b = $4("#ttsBtn");
       if (b) b.style.color = "";
     };
-    speechSynthesis.speak(u);
+    try {
+      speechSynthesis.speak(u);
+    } catch (e) {
+      console.warn("tts failed", e);
+      if (R) R.ttsActive = false;
+    }
   }
   function toggleTts() {
     if (!R) return;
@@ -3100,6 +3251,10 @@
     const s = getState().settings;
     const panel = $4("#readerPanel");
     panel.classList.remove("hidden");
+    if (panel._voiceOff) {
+      panel._voiceOff();
+      panel._voiceOff = null;
+    }
     panel.innerHTML = `<h3>\u2699 ${t("settings")}</h3>
     <div class="set-row"><span>${t("theme")}</span><div class="seg">
       <button data-th="light" class="${s.theme === "light" ? "active" : ""}">${t("themeLight")}</button>
@@ -3112,6 +3267,12 @@
     <div class="set-row"><span>${t("readingMode")}</span><div class="seg">
       <button data-flow="paginated" class="${s.flow === "paginated" ? "active" : ""}">${t("paginated")}</button>
       <button data-flow="scrolled" class="${s.flow === "scrolled" ? "active" : ""}">${t("scrolled")}</button></div></div>
+    <div class="set-row" style="align-items:flex-start;flex-direction:column;gap:.25rem"><span>${t("ttsVoice")} <span class="muted" id="rVoiceLang"></span></span>
+      <div style="display:flex;gap:.4rem;align-items:center;width:100%">
+        <select id="rVoice" style="flex:1;min-width:0"></select>
+        <button class="btn" id="rVoiceTest">\u25B6 ${t("ttsTest")}</button>
+      </div>
+      <div class="muted" id="rVoiceHint" style="font-size:.78rem"></div></div>
     <div class="set-row"><span>${t("ttsSpeed")}</span><input type="range" id="rRate" min="5" max="20" value="${Math.round((s.ttsRate || 1) * 10)}"><span id="rRateV">${s.ttsRate || 1}x</span></div>`;
     const upd = (patch) => {
       Object.assign(getState().settings, patch);
@@ -3152,6 +3313,62 @@
       upd({ ttsRate: +e.target.value / 10 });
       panel.querySelector("#rRateV").textContent = +e.target.value / 10 + "x";
     };
+    bindVoicePicker(panel);
+  }
+  function bindVoicePicker(panel) {
+    const sel = panel.querySelector("#rVoice"), hint = panel.querySelector("#rVoiceHint"), langEl = panel.querySelector("#rVoiceLang");
+    if (!sel) return;
+    const stopSpeaking = () => {
+      if (R && R.ttsActive) {
+        R.ttsActive = false;
+        try {
+          speechSynthesis.cancel();
+        } catch {
+        }
+        const b = $4("#ttsBtn");
+        if (b) b.style.color = "";
+      }
+    };
+    const fill = () => {
+      const L = bookLangOf();
+      const list = voices();
+      const saved = (getState().settings.ttsVoices || {})[L] || "";
+      const auto = pickVoice(L, saved);
+      if (langEl) langEl.textContent = "\xB7 " + (L === "ar" ? t("ttsLangAr") : t("ttsLangEn"));
+      const groups = /* @__PURE__ */ new Map();
+      list.forEach((v) => {
+        const k = baseLang(v.lang) || "?";
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(v);
+      });
+      const keys = [...groups.keys()].sort((a, b) => a === L ? -1 : b === L ? 1 : a.localeCompare(b));
+      let html = `<option value="">${esc(t("ttsAutoVoice"))}${auto ? " \u2014 " + esc(auto.name) : ""}</option>`;
+      keys.forEach((k) => {
+        const arr = groups.get(k).slice().sort((a, b) => (isNatural(b) ? 1 : 0) - (isNatural(a) ? 1 : 0) || a.name.localeCompare(b.name));
+        html += `<optgroup label="${esc((k === L ? "\u2605 " : "") + langLabel(k) + " \u2014 " + k)}">` + arr.map((v) => `<option value="${esc(v.voiceURI)}"${saved === v.voiceURI ? " selected" : ""}>${esc(v.name)}${isNatural(v) ? " \u2605" : ""} \u2014 ${esc(v.lang)}</option>`).join("") + "</optgroup>";
+      });
+      sel.innerHTML = html;
+      sel.value = saved && list.some((v) => v.voiceURI === saved) ? saved : "";
+      const used = saved ? list.find((v) => v.voiceURI === saved) : auto;
+      if (hint) hint.textContent = !list.length ? t("ttsNoVoices") : isNatural(used) ? t("ttsNaturalOk") : t("ttsNaturalTip");
+    };
+    sel.onchange = () => {
+      const L = bookLangOf(), uri = sel.value, st = getState().settings;
+      st.ttsVoices = Object.assign({}, st.ttsVoices || {});
+      if (uri) st.ttsVoices[L] = uri;
+      else delete st.ttsVoices[L];
+      save();
+      fill();
+      stopSpeaking();
+      preview(uri ? voices().find((v) => v.voiceURI === uri) : pickVoice(L, ""), L, getState().settings.ttsRate || 1);
+    };
+    panel.querySelector("#rVoiceTest").onclick = () => {
+      const L = bookLangOf(), uri = sel.value;
+      stopSpeaking();
+      preview(uri ? voices().find((v) => v.voiceURI === uri) : pickVoice(L, ""), L, getState().settings.ttsRate || 1);
+    };
+    fill();
+    panel._voiceOff = onVoices(fill);
   }
   function showHighlightsPanel() {
     const panel = $4("#readerPanel");
@@ -3203,6 +3420,11 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     if (R.ttsActive) {
       R.ttsActive = false;
       speechSynthesis.cancel();
+    }
+    const pn = $4("#readerPanel");
+    if (pn && pn._voiceOff) {
+      pn._voiceOff();
+      pn._voiceOff = null;
     }
     clearInterval(R.timer);
     const mins = (Date.now() - R.startedAt) / 6e4;
@@ -4927,7 +5149,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const s = getState().settings;
     view.innerHTML = `
     <div class="view-head"><h1>${t("settings")}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.4</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.5</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t("language")}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === "ar" ? "active" : ""}">\u0627\u0644\u0639\u0631\u0628\u064A\u0629</button><button data-lang="en" class="${s.lang === "en" ? "active" : ""}">English</button></div></div>
