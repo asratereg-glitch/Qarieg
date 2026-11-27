@@ -102,7 +102,7 @@ export function preview(voice, lang, rate = 1) {
   if (!window.speechSynthesis) return null;
   try { window.speechSynthesis.cancel(); } catch {}
   const u = new SpeechSynthesisUtterance(sampleFor(lang));
-  if (voice) u.voice = voice;
+  try { if (voice) u.voice = voice; } catch (e) { console.warn('tts voice rejected, using language default', e); }
   u.lang = (voice && voice.lang) || (baseLang(lang) === 'ar' ? 'ar-EG' : 'en-US');
   u.rate = rate || 1;
   try { window.speechSynthesis.speak(u); } catch {}

@@ -631,7 +631,8 @@ async function speakCurrent() {
   const v = pickVoice(lang, savedVoiceFor(lang));
   const u = new SpeechSynthesisUtterance(text);
   u.rate = s.ttsRate || 1;
-  if (v) u.voice = v;
+  // a voice object from an older voice list can be rejected by Chrome; the language still carries the read
+  try { if (v) u.voice = v; } catch (e) { console.warn('tts voice rejected, using language default', e); }
   u.lang = (v && v.lang) || (lang === 'ar' ? 'ar-EG' : 'en-US');
   u.onend = () => { if (R && R.ttsActive) next(); };
   u.onerror = () => { if (R) R.ttsActive = false; const b = $('#ttsBtn'); if (b) b.style.color = ''; };

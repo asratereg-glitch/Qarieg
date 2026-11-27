@@ -2266,7 +2266,11 @@
     } catch {
     }
     const u = new SpeechSynthesisUtterance(sampleFor(lang2));
-    if (voice) u.voice = voice;
+    try {
+      if (voice) u.voice = voice;
+    } catch (e) {
+      console.warn("tts voice rejected, using language default", e);
+    }
     u.lang = voice && voice.lang || (baseLang(lang2) === "ar" ? "ar-EG" : "en-US");
     u.rate = rate || 1;
     try {
@@ -3136,7 +3140,11 @@
     const v = pickVoice(lang2, savedVoiceFor(lang2));
     const u = new SpeechSynthesisUtterance(text);
     u.rate = s.ttsRate || 1;
-    if (v) u.voice = v;
+    try {
+      if (v) u.voice = v;
+    } catch (e) {
+      console.warn("tts voice rejected, using language default", e);
+    }
     u.lang = v && v.lang || (lang2 === "ar" ? "ar-EG" : "en-US");
     u.onend = () => {
       if (R && R.ttsActive) next();
