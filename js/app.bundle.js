@@ -557,7 +557,7 @@
       ttsLangEn: "\u0625\u0646\u062C\u0644\u064A\u0632\u064A",
       ttsNoVoices: "\u0623\u0635\u0648\u0627\u062A \u0627\u0644\u0642\u0631\u0627\u0621\u0629 \u0644\u0633\u0647 \u0628\u062A\u062D\u0645\u0651\u0644 \u2014 \u0627\u0642\u0641\u0644 \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A \u0648\u0627\u0641\u062A\u062D\u0647\u0627 \u062A\u0627\u0646\u064A",
       ttsNaturalOk: "\u2605 \u0635\u0648\u062A \u0637\u0628\u064A\u0639\u064A",
-      ttsNaturalTip: "\u0645\u0641\u064A\u0634 \u0635\u0648\u062A \u0637\u0628\u064A\u0639\u064A \u0644\u0644\u063A\u0629 \u0627\u0644\u0643\u062A\u0627\u0628 \u0639\u0644\u0649 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647. \u0639\u0644\u0649 \u0648\u064A\u0646\u062F\u0648\u0632 \u0627\u0641\u062A\u062D \u0642\u0627\u0631\u0626 \u0641\u064A Microsoft Edge \u0648\u062C\u0631\u0628 \u062A\u0627\u0646\u064A \u2014 Edge \u0628\u064A\u0648\u0641\u0631 \u0623\u0635\u0648\u0627\u062A \u0645\u0627\u064A\u0643\u0631\u0648\u0633\u0648\u0641\u062A \u0627\u0644\u0637\u0628\u064A\u0639\u064A\u0629 (\u0633\u0644\u0645\u0649 \u0648\u0634\u0627\u0643\u0631 \u0644\u0644\u0639\u0631\u0628\u064A).",
+      ttsNaturalTip: "\u0645\u0641\u064A\u0634 \u0635\u0648\u062A \u0637\u0628\u064A\u0639\u064A \u0644\u0644\u063A\u0629 \u0627\u0644\u0643\u062A\u0627\u0628 \u0639\u0644\u0649 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647. \u0639\u0644\u0649 \u0648\u064A\u0646\u062F\u0648\u0632 \u0627\u0641\u062A\u062D \u0642\u0627\u0631\u0626 \u0641\u064A Microsoft Edge \u0648\u062C\u0631\u0628 \u062A\u0627\u0646\u064A \u2014 \u0623\u0635\u0648\u0627\u062A \u0633\u0644\u0645\u0649 \u0648\u0634\u0627\u0643\u0631 \u0627\u0644\u0637\u0628\u064A\u0639\u064A\u0629 \u0644\u0644\u0639\u0631\u0628\u064A \u0628\u062A\u0638\u0647\u0631 \u0641\u064A Edge \u0639\u0644\u0649 \u0648\u064A\u0646\u062F\u0648\u0632\u060C \u0645\u0634 Chrome\u061B \u0639\u0634\u0627\u0646 \u0643\u062F\u0647 \u0645\u0645\u0643\u0646 \u062A\u0644\u0627\u0642\u064A \u0647\u062F\u0649 \u0628\u0633.",
       highlights: "\u0627\u0644\u0647\u0627\u064A\u0644\u0627\u064A\u062A\u0633",
       addNote: "\u0636\u064A\u0641 \u0645\u0644\u0627\u062D\u0638\u0629\u2026",
       noHighlights: "\u0644\u0633\u0647 \u0645\u0641\u064A\u0634 \u0647\u0627\u064A\u0644\u0627\u064A\u062A\u0633 \u0641\u064A \u0627\u0644\u0643\u062A\u0627\u0628 \u062F\u0647",
@@ -709,7 +709,7 @@
       ttsLangEn: "English",
       ttsNoVoices: "Voices are still loading \u2014 close and reopen settings",
       ttsNaturalOk: "\u2605 Natural voice",
-      ttsNaturalTip: "This device has no natural voice for the book language. On Windows, open Qari in Microsoft Edge and try again \u2014 Edge exposes Microsoft Natural voices.",
+      ttsNaturalTip: "This device has no natural voice for the book language. Salma and Shakir, the natural Egyptian Arabic voices, are available in Edge on Windows, not Chrome, which may be why you only see Hoda.",
       highlights: "Highlights",
       addNote: "Add a note\u2026",
       noHighlights: "No highlights in this book yet",
@@ -3343,7 +3343,7 @@
     };
     const fill = () => {
       const L = bookLangOf();
-      const list = voices();
+      const list = voices().filter((v) => ["ar", "en"].includes(baseLang(v.lang)));
       const saved = (getState().settings.ttsVoices || {})[L] || "";
       const auto = pickVoice(L, saved);
       if (langEl) langEl.textContent = "\xB7 " + (L === "ar" ? t("ttsLangAr") : t("ttsLangEn"));
@@ -5161,7 +5161,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const s = getState().settings;
     view.innerHTML = `
     <div class="view-head"><h1>${t("settings")}</h1></div>
-    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.5</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:.5rem">Qari v1.5.6</div>
     <div class="stat-card" style="max-width:520px">
       <div class="set-row"><span>${t("language")}</span>
         <div class="seg"><button data-lang="ar" class="${s.lang === "ar" ? "active" : ""}">\u0627\u0644\u0639\u0631\u0628\u064A\u0629</button><button data-lang="en" class="${s.lang === "en" ? "active" : ""}">English</button></div></div>

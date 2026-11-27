@@ -123,3 +123,7 @@
 - The book's language is worked out from the page text, so the right voice is chosen without asking.
 - "Test" previews the chosen voice without starting the page loop.
 - The voices themselves come from the device: Microsoft Edge on Windows has Microsoft's Natural voices (Salma/Shakir for Egyptian Arabic), Chrome usually exposes only the basic ones, and iPad Safari mostly has Majed for Arabic. The app says so when it finds no natural voice.
+
+## v1.5.6
+- The read-aloud voice picker now shows Arabic and English voices only (plus Automatic), hiding other languages.
+- Clarified that Salma and Shakir natural Egyptian Arabic voices appear in Microsoft Edge on Windows, not Chrome; Chrome may show only Hoda.

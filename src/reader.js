@@ -744,7 +744,8 @@ function bindVoicePicker(panel) {
   const stopSpeaking = () => { if (R && R.ttsActive) { R.ttsActive = false; try { speechSynthesis.cancel(); } catch {} const b = $('#ttsBtn'); if (b) b.style.color = ''; } };
   const fill = () => {
     const L = bookLangOf();
-    const list = voices();
+    // Keep the picker focused on the languages Qari reads aloud: Arabic and English.
+    const list = voices().filter(v => ['ar', 'en'].includes(baseLang(v.lang)));
     const saved = (store.getState().settings.ttsVoices || {})[L] || '';
     const auto = pickVoice(L, saved);
     if (langEl) langEl.textContent = '· ' + (L === 'ar' ? t('ttsLangAr') : t('ttsLangEn'));
