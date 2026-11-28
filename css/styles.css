@@ -51,6 +51,9 @@ h1,h2,h3{font-weight:700}
 #mainnav a{color:var(--text);text-decoration:none;padding:.45rem .8rem;border-radius:8px;font-size:.95rem;transition:background .15s}
 #mainnav a:hover{background:var(--surface2)}
 #mainnav a.active{background:var(--accent);color:var(--surface)}
+/* Login/Logout link sits at the far left of the top bar (left-aligned) */
+#mainnav a[data-route="account"]{margin-inline-start:auto}
+html[data-device=phone] #mainnav a[data-route="account"]{margin-inline-start:0}
 
 .btn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:10px;padding:.5rem 1rem;font-size:.92rem;transition:transform .1s,background .15s}
 .btn:hover{background:var(--surface2)}
