@@ -103,6 +103,7 @@ export function listToggleBook(id, bookId){ const l = getList(id); if (!l) retur
 export function listMove(id, bookId, dir){ const l = getList(id); if (!l) return; const i = l.bookIds.indexOf(bookId), j = i + dir; if (i < 0 || j < 0 || j >= l.bookIds.length) return; [l.bookIds[i], l.bookIds[j]] = [l.bookIds[j], l.bookIds[i]]; save(); }
 export function listsOfBook(bookId){ return state.lists.filter(l => l.bookIds.includes(bookId)); }
 export function findBookByOl(olKey){ return state.books.find(b => b.olKey === olKey); }
+export function findBookByPublicId(id){ return state.books.find(b => b.public_book_id === id); }
 export function getMeta(olKey, maxAgeMs = 30 * 864e5){ const m = state.metaCache[olKey]; return m && (Date.now() - m.ts < maxAgeMs) ? m.meta : null; }
 export function getMetaStale(olKey){ const m = state.metaCache[olKey]; return m ? m.meta : null; }
 export function setMeta(olKey, meta){
