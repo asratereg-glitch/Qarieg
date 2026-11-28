@@ -477,6 +477,7 @@
       navLibrary: "\u0627\u0644\u0631\u0626\u064A\u0633\u064A\u0629",
       navShelves: "\u0645\u0643\u062A\u0628\u062A\u0649",
       navStats: "\u0625\u062D\u0635\u0627\u0626\u064A\u0627\u062A\u064A",
+      helloUser: "\u0623\u0647\u0644\u0627\u064B\u060C {name} \u{1F44B}",
       navDiscover: "\u0627\u0643\u062A\u0634\u0641",
       navCommunity: "\u0627\u0644\u0645\u062C\u062A\u0645\u0639",
       navSettings: "\u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A",
@@ -654,6 +655,7 @@
       navLibrary: "Home",
       navShelves: "My Library",
       navStats: "My Stats",
+      helloUser: "Hello, {name} \u{1F44B}",
       navDiscover: "Discover",
       navCommunity: "Community",
       navSettings: "Settings",
@@ -1058,2734 +1060,6 @@
       tx.oncomplete = resolve;
       tx.onerror = () => reject(tx.error);
     });
-  }
-
-  // src/stats.js
-  var $ = (s, r = document) => r.querySelector(s);
-  function renderStats(view) {
-    const st = getState();
-    const s = st.settings;
-    const year = (/* @__PURE__ */ new Date()).getFullYear();
-    const doneYear = finishedThisYear(year);
-    const doneMonth = finishedThisMonth();
-    const sessionsY = sessionsThisYear(year);
-    const totalMin = sessionsY.reduce((a, x) => a + x.minutes, 0);
-    const totalPages = sessionsY.reduce((a, x) => a + (x.pages || 0), 0);
-    const todayMin = st.readingDays[(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)] || 0;
-    const streak = currentStreak();
-    const pph = totalMin > 0 ? Math.round(totalPages / (totalMin / 60)) : 0;
-    view.innerHTML = `
-    <div class="view-head"><h1>${t("navStats")}</h1><button id="editGoals" class="btn">\u270F ${t("setGoals")}</button></div>
-    <div class="stat-cards">
-      <div class="stat-card"><div class="lbl">${t("yearlyGoal")} (${year})</div><div class="num">${doneYear.length} / ${s.goalYear}</div>
-        <div class="goal-track"><div class="goal-fill" style="width:${Math.min(100, doneYear.length / Math.max(1, s.goalYear) * 100)}%"></div></div></div>
-      <div class="stat-card"><div class="lbl">${t("monthlyGoal")}</div><div class="num">${doneMonth.length} / ${s.goalMonth}</div>
-        <div class="goal-track"><div class="goal-fill" style="width:${Math.min(100, doneMonth.length / Math.max(1, s.goalMonth) * 100)}%"></div></div></div>
-      <div class="stat-card"><div class="lbl">${t("streakDays")}</div><div class="num">\u{1F525} ${streak}</div></div>
-      <div class="stat-card"><div class="lbl">${t("todayMin")}</div><div class="num">${todayMin}</div></div>
-      <div class="stat-card"><div class="lbl">${t("totalMin")} (${year})</div><div class="num">${totalMin}</div></div>
-      <div class="stat-card"><div class="lbl">${t("pagesPerHour")}</div><div class="num">${pph}</div></div>
-    </div>
-    <h2 style="margin-bottom:.5rem">${t("badges")}</h2>
-    <div class="badges" id="badgeRow"></div>
-    <div class="chart-box"><h3 style="margin-bottom:.6rem">${t("weeklyChart")}</h3><canvas id="daysChart" width="1000" height="220"></canvas></div>
-    <div class="chart-box"><h3 style="margin-bottom:.6rem">${t("yearlySummary")} ${year}</h3><div id="yearSummary"></div></div>
-    <div class="chart-box"><h3 style="margin-bottom:.6rem">${t("topBooks")}</h3><div id="topBooks"></div></div>`;
-    $("#editGoals", view).onclick = () => {
-      const y = prompt(t("yearlyGoal"), s.goalYear);
-      if (y === null) return;
-      const m = prompt(t("monthlyGoal"), s.goalMonth);
-      if (m === null) return;
-      getState().settings.goalYear = Math.max(1, parseInt(y) || s.goalYear);
-      getState().settings.goalMonth = Math.max(1, parseInt(m) || s.goalMonth);
-      recheckAchievements();
-      renderStats(view);
-      if (doneYear.length >= getState().settings.goalYear) toast(t("goalDone"), 4e3);
-    };
-    const badgeRow = $("#badgeRow", view);
-    badgeList().forEach((b) => {
-      const d = document.createElement("div");
-      d.className = "badge" + (b.unlocked ? "" : " locked");
-      d.innerHTML = `<div class="b-icon">${b.icon}</div><div class="b-name">${esc(b.name[getLang()] || b.name.ar)}</div>`;
-      badgeRow.appendChild(d);
-    });
-    drawDaysChart($("#daysChart", view), st.readingDays);
-    renderYearSummary($("#yearSummary", view), year, sessionsY, doneYear);
-    renderTopBooks($("#topBooks", view), st.books);
-  }
-  function drawDaysChart(canvas, readingDays) {
-    const ctx = canvas.getContext("2d");
-    const cs = getComputedStyle(document.body);
-    const accent = cs.getPropertyValue("--accent").trim() || "#8b5e34";
-    const muted = cs.getPropertyValue("--muted").trim() || "#999";
-    const W = canvas.width, H = canvas.height, N2 = 14, pad = 34;
-    const days = [];
-    for (let i = N2 - 1; i >= 0; i--) {
-      const d = /* @__PURE__ */ new Date();
-      d.setDate(d.getDate() - i);
-      days.push(d);
-    }
-    const vals = days.map((d) => readingDays[d.toISOString().slice(0, 10)] || 0);
-    const max = Math.max(10, ...vals);
-    ctx.clearRect(0, 0, W, H);
-    ctx.strokeStyle = muted;
-    ctx.globalAlpha = 0.3;
-    ctx.beginPath();
-    ctx.moveTo(pad, 10);
-    ctx.lineTo(pad, H - 24);
-    ctx.lineTo(W, H - 24);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    const bw = (W - pad - 10) / N2;
-    days.forEach((d, i) => {
-      const v = vals[i];
-      const h = (H - 44) * (v / max);
-      ctx.fillStyle = v > 0 ? accent : "rgba(120,120,120,.18)";
-      ctx.beginPath();
-      ctx.roundRect(pad + 6 + i * bw, H - 24 - h, bw - 10, Math.max(2, h), 4);
-      ctx.fill();
-      ctx.fillStyle = muted;
-      ctx.font = "11px Cairo, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(d.getDate(), pad + 6 + i * bw + (bw - 10) / 2, H - 8);
-      if (v > 0) ctx.fillText(v, pad + 6 + i * bw + (bw - 10) / 2, H - 30 - h);
-    });
-  }
-  function renderYearSummary(host, year, sessions, doneYear) {
-    const totalMin = sessions.reduce((a, x) => a + x.minutes, 0);
-    const totalPages = sessions.reduce((a, x) => a + (x.pages || 0), 0);
-    const hours = Math.floor(totalMin / 60), mins = totalMin % 60;
-    const months = new Array(12).fill(0);
-    sessions.forEach((s) => {
-      months[new Date(s.end).getMonth()] += s.minutes;
-    });
-    const bestMonth = months.indexOf(Math.max(...months));
-    const monthNames = getLang() === "ar" ? ["\u064A\u0646\u0627\u064A\u0631", "\u0641\u0628\u0631\u0627\u064A\u0631", "\u0645\u0627\u0631\u0633", "\u0623\u0628\u0631\u064A\u0644", "\u0645\u0627\u064A\u0648", "\u064A\u0648\u0646\u064A\u0648", "\u064A\u0648\u0644\u064A\u0648", "\u0623\u063A\u0633\u0637\u0633", "\u0633\u0628\u062A\u0645\u0628\u0631", "\u0623\u0643\u062A\u0648\u0628\u0631", "\u0646\u0648\u0641\u0645\u0628\u0631", "\u062F\u064A\u0633\u0645\u0628\u0631"] : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    host.innerHTML = `
-    <div class="stat-cards" style="margin-bottom:0">
-      <div class="stat-card"><div class="num">${doneYear.length}</div><div class="lbl">${t("booksFinished")}</div></div>
-      <div class="stat-card"><div class="num">${hours}h ${mins}m</div><div class="lbl">${t("totalMin")}</div></div>
-      <div class="stat-card"><div class="num">${totalPages}</div><div class="lbl">${t("pages")}</div></div>
-      <div class="stat-card"><div class="num">${sessions.length}</div><div class="lbl">${t("sessions")}</div></div>
-      ${Math.max(...months) > 0 ? `<div class="stat-card"><div class="num">${monthNames[bestMonth]}</div><div class="lbl">\u2B50</div></div>` : ""}
-    </div>
-    <canvas id="monthsChart" width="1000" height="180" style="width:100%;margin-top:1rem"></canvas>`;
-    const canvas = host.querySelector("#monthsChart");
-    const ctx = canvas.getContext("2d");
-    const cs = getComputedStyle(document.body);
-    const accent = cs.getPropertyValue("--accent").trim() || "#8b5e34";
-    const muted = cs.getPropertyValue("--muted").trim() || "#999";
-    const W = canvas.width, H = canvas.height, pad = 34;
-    const max = Math.max(10, ...months);
-    const bw = (W - pad - 10) / 12;
-    ctx.clearRect(0, 0, W, H);
-    months.forEach((v, i) => {
-      const h = (H - 40) * (v / max);
-      ctx.fillStyle = v > 0 ? accent : "rgba(120,120,120,.15)";
-      ctx.beginPath();
-      ctx.roundRect(pad + 6 + i * bw, H - 24 - h, bw - 12, Math.max(2, h), 4);
-      ctx.fill();
-      ctx.fillStyle = muted;
-      ctx.font = "11px Cairo, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(monthNames[i], pad + 6 + i * bw + (bw - 12) / 2, H - 8);
-    });
-  }
-  function renderTopBooks(host, books) {
-    const rated = books.filter((b) => b.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 5);
-    host.innerHTML = rated.length ? "" : '<p class="muted">\u2014</p>';
-    rated.forEach((b) => {
-      const row = document.createElement("div");
-      row.className = "result-row";
-      row.style.marginBottom = ".4rem";
-      row.innerHTML = `<div style="width:42px;height:62px" class="cover">${coverHTML(b)}</div>
-      <div class="r-info"><div class="r-title">${esc(b.title)}</div><div class="r-author">${esc(b.author)}</div></div>`;
-      row.appendChild(stars(b.rating));
-      host.appendChild(row);
-    });
-  }
-
-  // src/public.js
-  var OWNER = "asratereg-glitch";
-  var REPO = "qari-public";
-  var BRANCH = "main";
-  var CATALOG_PATH = "public-books.json";
-  var API = "https://api.github.com";
-  var RAW = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}`;
-  var MAX_FILE = 40 * 1024 * 1024;
-  var CATALOG_TTL_MS = 60 * 1e3;
-  var TRANSLATIONS = { id: "cat-translations", name: "\u062A\u0631\u062C\u0645\u0627\u062A", sort_order: 0 };
-  var emptyCatalog = () => ({ format: "qari-public", version: 1, categories: [{ ...TRANSLATIONS }], books: [] });
-  var b64 = (str) => {
-    const bytes = new TextEncoder().encode(str);
-    let bin = "";
-    for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
-    return btoa(bin);
-  };
-  var unb64 = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, "")), (c) => c.charCodeAt(0)));
-  var blobToB64 = (blob) => new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(String(r.result).split(",")[1]);
-    r.onerror = () => rej(r.error);
-    r.readAsDataURL(blob);
-  });
-  var enc = (p) => p.split("/").map(encodeURIComponent).join("/");
-  function getSyncCreds() {
-    try {
-      const raw = JSON.parse(localStorage.getItem("qari.sync") || "{}");
-      return { token: raw.token || "", owner: raw.owner || "" };
-    } catch {
-      return { token: "", owner: "" };
-    }
-  }
-  function requireToken() {
-    const { token } = getSyncCreds();
-    if (!token) throw new Error(t("publishNeedsSync"));
-    return token;
-  }
-  async function errOf(r) {
-    let m = "";
-    try {
-      m = (await r.json()).message || "";
-    } catch {
-    }
-    return `GitHub ${r.status}${m ? ": " + m : ""}`;
-  }
-  function ghHeaders(token, extra) {
-    const h = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
-    if (token) h.Authorization = "Bearer " + token;
-    return Object.assign(h, extra || {});
-  }
-  async function ghGet(path, token) {
-    const r = await fetch(`${API}/repos/${OWNER}/${REPO}/contents/${enc(path)}`, { headers: ghHeaders(token) });
-    if (r.status === 404) return { sha: null, doc: null };
-    if (!r.ok) throw new Error(await errOf(r));
-    const j = await r.json();
-    if (j.type === "file" && j.encoding === "base64" && j.content) {
-      let doc = null;
-      try {
-        doc = JSON.parse(unb64(j.content));
-      } catch {
-      }
-      return { sha: j.sha, doc };
-    }
-    return { sha: j.sha || null, doc: null };
-  }
-  async function ghPut(path, body, token) {
-    return fetch(`${API}/repos/${OWNER}/${REPO}/contents/${enc(path)}`, {
-      method: "PUT",
-      headers: ghHeaders(token, { "Content-Type": "application/json" }),
-      body: JSON.stringify(body)
-    });
-  }
-  async function ghDelete(path, sha, token) {
-    return fetch(`${API}/repos/${OWNER}/${REPO}/contents/${enc(path)}`, {
-      method: "DELETE",
-      headers: ghHeaders(token, { "Content-Type": "application/json" }),
-      body: JSON.stringify({ message: "Qari public library: delete " + path, sha })
-    });
-  }
-  var cache = null;
-  var cacheAt = 0;
-  async function readCatalog() {
-    const r = await fetch(`${RAW}/${CATALOG_PATH}`, { cache: "no-store" });
-    if (r.status === 404) return emptyCatalog();
-    if (!r.ok) throw new Error("GitHub " + r.status);
-    const doc = await r.json();
-    if (!doc || doc.format !== "qari-public") throw new Error("bad public catalog");
-    if (!Array.isArray(doc.categories) || !doc.categories.length) doc.categories = [{ ...TRANSLATIONS }];
-    if (!Array.isArray(doc.books)) doc.books = [];
-    return doc;
-  }
-  async function getCatalog(force = false) {
-    if (cache && !force && Date.now() - cacheAt < CATALOG_TTL_MS) return cache;
-    cache = await readCatalog();
-    cacheAt = Date.now();
-    return cache;
-  }
-  async function listCategories() {
-    const c = await getCatalog();
-    return (c.categories || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-  }
-  async function getPublicBook(id) {
-    const c = await getCatalog();
-    return c.books.find((b) => b.id === id) || null;
-  }
-  function getCachedCategoryName(categoryId) {
-    if (!categoryId || !cache) return "";
-    const cat = (cache.categories || []).find((c) => c.id === categoryId);
-    return cat ? cat.name : "";
-  }
-  var publicFileUrl = (filePath) => `${RAW}/${filePath}`;
-  async function writeCatalog(mutator) {
-    const token = requireToken();
-    const apply = async () => {
-      const cur = await ghGet(CATALOG_PATH, token);
-      const doc = cur.doc && cur.doc.format === "qari-public" ? cur.doc : emptyCatalog();
-      if (!Array.isArray(doc.categories)) doc.categories = [{ ...TRANSLATIONS }];
-      if (!Array.isArray(doc.books)) doc.books = [];
-      const next2 = mutator(JSON.parse(JSON.stringify(doc)));
-      const body = { message: "Qari public library update", content: b64(JSON.stringify(next2)) };
-      if (cur.sha) body.sha = cur.sha;
-      const r = await ghPut(CATALOG_PATH, body, token);
-      if (r.status === 409 || r.status === 422) return "conflict";
-      if (!r.ok) throw new Error(await errOf(r));
-      cache = next2;
-      cacheAt = Date.now();
-      return "ok";
-    };
-    let res = await apply();
-    if (res === "conflict") res = await apply();
-    if (res === "conflict") throw new Error(t("publishConflict"));
-  }
-  async function addCategory(name) {
-    requireToken();
-    const n = (name || "").trim();
-    if (!n) throw new Error(t("categoryNamePh"));
-    let created = null;
-    await writeCatalog((doc) => {
-      const ex = doc.categories.find((c) => c.name === n);
-      if (ex) {
-        created = ex;
-        return doc;
-      }
-      created = { id: "cat-" + uid(), name: n, sort_order: Math.max(0, ...doc.categories.map((c) => c.sort_order || 0)) + 1 };
-      doc.categories.push(created);
-      return doc;
-    });
-    return created;
-  }
-  async function publishBook({ file, fileName = "", meta: meta3, format, categoryId }) {
-    const token = requireToken();
-    if (file && file.size > MAX_FILE) throw new Error(t("fileTooBig"));
-    const id = crypto.randomUUID();
-    let file_path = null, file_size = 0, file_name = "";
-    if (file) {
-      const fileKey = "file-" + uid();
-      const r = await ghPut(`files/${fileKey}`, { message: "Qari public book file " + fileKey, content: await blobToB64(file) }, token);
-      if (!r.ok && r.status !== 422) throw new Error(await errOf(r));
-      file_path = `files/${fileKey}`;
-      file_size = file.size;
-      file_name = fileName || file.name || "";
-    }
-    const row = {
-      id,
-      title: meta3.title || "?",
-      author: meta3.author || "",
-      cover: meta3.cover || "",
-      description: meta3.description || "",
-      format: format || "web",
-      category_id: categoryId || null,
-      file_path,
-      file_size,
-      file_name,
-      ol_key: meta3.olKey || "",
-      isbn: meta3.isbn || "",
-      year: meta3.year || "",
-      subjects: meta3.subjects || [],
-      created_by: "",
-      created_at: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    await writeCatalog((doc) => {
-      doc.books.unshift(row);
-      return doc;
-    });
-    return row;
-  }
-  async function publishExistingBook(localBook) {
-    requireToken();
-    const cats = await listCategories();
-    const catId = localBook.shelf === "translations" ? (cats.find((c) => c.name === "\u062A\u0631\u062C\u0645\u0627\u062A") || cats[0] || {}).id || null : null;
-    let fileBlob = null;
-    if (localBook.fileKey && localBook.format !== "web") fileBlob = await getFile(localBook.fileKey);
-    const row = await publishBook({
-      file: fileBlob,
-      fileName: localBook.fileName || "",
-      meta: { title: localBook.title, author: localBook.author, cover: localBook.cover, description: "", olKey: localBook.olKey, isbn: localBook.isbn, year: localBook.year, subjects: localBook.subjects },
-      format: fileBlob ? localBook.format : "web",
-      categoryId: catId
-    });
-    updateBook(localBook.id, { public_book_id: row.id, public_file_path: row.file_path || "" });
-    return row;
-  }
-  async function deletePublicBook(id) {
-    requireToken();
-    const token = getSyncCreds().token;
-    const cat = await getCatalog(true);
-    const row = cat.books.find((b) => b.id === id);
-    if (!row) return false;
-    await writeCatalog((doc) => {
-      doc.books = doc.books.filter((b) => b.id !== id);
-      return doc;
-    });
-    if (row.file_path) {
-      try {
-        const cur = await ghGet(row.file_path, token);
-        if (cur.sha) await ghDelete(row.file_path, cur.sha, token);
-      } catch {
-      }
-    }
-    return true;
-  }
-  function findSavedBook(input) {
-    const st = getState();
-    if (input.public_book_id) {
-      const b = st.books.find((x) => x.public_book_id === input.public_book_id);
-      if (b) return b;
-    }
-    if (input.olKey) {
-      const b = findBookByOl(input.olKey);
-      if (b) return b;
-    }
-    return st.books.find((x) => x.title === input.title && (x.author || "") === (input.author || "")) || null;
-  }
-  async function downloadPublicFile(book) {
-    try {
-      const r = await fetch(publicFileUrl(book.public_file_path), { cache: "no-store" });
-      if (!r.ok) return;
-      await putFile(book.fileKey, await r.blob());
-    } catch {
-    }
-  }
-  function saveToMyLibrary(input, fileBlob) {
-    const found = findSavedBook(input);
-    if (found) return found;
-    const catName = input.categoryName || getCachedCategoryName(input.category_id);
-    const shelf = catName === "\u062A\u0631\u062C\u0645\u0627\u062A" ? "translations" : "want";
-    const fileKey = input.public_file_path ? "file-" + uid() : "";
-    const b = addBook({
-      title: input.title,
-      author: input.author || "",
-      format: input.format || "web",
-      cover: input.cover || "",
-      source: input.public_book_id ? "public" : "openlibrary",
-      subjects: input.subjects || [],
-      isbn: input.isbn || "",
-      olKey: input.olKey || "",
-      year: input.year || "",
-      shelf,
-      fileKey,
-      public_book_id: input.public_book_id || "",
-      public_file_path: input.public_file_path || ""
-    });
-    if (fileBlob) putFile(fileKey, fileBlob).catch(() => {
-    });
-    else if (input.public_file_path) downloadPublicFile(b);
-    return b;
-  }
-
-  // src/meta.js
-  var OL = "https://openlibrary.org";
-  var FIELDS = "key,title,author_name,author_key,cover_i,first_publish_year,edition_count,number_of_pages_median,ratings_average,ratings_count,want_to_read_count,already_read_count,currently_reading_count,subject,publisher,language,isbn,first_sentence";
-  async function getJSON(url, ms = 12e3) {
-    const ctl = new AbortController();
-    const timer2 = setTimeout(() => ctl.abort(), ms);
-    try {
-      const res = await fetch(url, { signal: ctl.signal });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return await res.json();
-    } finally {
-      clearTimeout(timer2);
-    }
-  }
-  var cleanKey = (k) => (k || "").replace("/works/", "");
-  var coverUrl = (id, size = "L") => id ? `https://covers.openlibrary.org/b/id/${id}-${size}.jpg?default=false` : "";
-  function textOf(v) {
-    return !v ? "" : typeof v === "string" ? v : v.value || "";
-  }
-  function cleanSubjects(list = []) {
-    const seen = /* @__PURE__ */ new Set(), out = [];
-    for (const s of list) {
-      const k = s.toLowerCase();
-      if (/[:=]|^nyt|award|bestseller|reviewed|large type|accessible|open library|protected daisy|in library|^fiction,/.test(k) || s.length > 32 || /\d{3}/.test(s)) continue;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      out.push(s);
-      if (out.length >= 10) break;
-    }
-    return out;
-  }
-  function fromSearchDoc(d) {
-    return {
-      olKey: cleanKey(d.key),
-      title: d.title || "",
-      author: (d.author_name || [])[0] || "",
-      authors: d.author_name || [],
-      authorKey: (d.author_key || [])[0] || "",
-      cover: coverUrl(d.cover_i),
-      coverId: d.cover_i || 0,
-      year: d.first_publish_year || "",
-      pages: d.number_of_pages_median || 0,
-      editions: d.edition_count || 0,
-      rating: d.ratings_average || 0,
-      ratingCount: d.ratings_count || 0,
-      wantToRead: d.want_to_read_count || 0,
-      alreadyRead: d.already_read_count || 0,
-      currentlyReading: d.currently_reading_count || 0,
-      subjects: d.subject || [],
-      publisher: (d.publisher || [])[0] || "",
-      languages: (d.language || []).slice(0, 8),
-      isbn: (d.isbn || []).find((x) => x.length === 13) || (d.isbn || [])[0] || "",
-      firstSentence: (d.first_sentence || [])[0] || ""
-    };
-  }
-  async function olSearchDoc(q) {
-    const data = await getJSON(`${OL}/search.json?${q}&limit=1&fields=${FIELDS}`);
-    return data.docs && data.docs[0] ? fromSearchDoc(data.docs[0]) : null;
-  }
-  async function googleBooks(m) {
-    const key = (getState().settings.gbKey || "").trim();
-    const q = m.isbn ? `isbn:${m.isbn}` : `intitle:${m.title}${m.author ? "+inauthor:" + m.author : ""}`;
-    const data = await getJSON(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q).replace(/%2B/g, "+")}&maxResults=1${key ? "&key=" + encodeURIComponent(key) : ""}`, 9e3);
-    const v = data.items && data.items[0] && data.items[0].volumeInfo;
-    if (!v) return null;
-    return {
-      rating: v.averageRating || 0,
-      count: v.ratingsCount || 0,
-      pages: v.pageCount || 0,
-      categories: v.categories || [],
-      description: v.description || "",
-      publisher: v.publisher || "",
-      date: v.publishedDate || "",
-      link: v.infoLink || "",
-      cover: v.imageLinks ? (v.imageLinks.thumbnail || "").replace("http://", "https://") : ""
-    };
-  }
-  async function loadMeta(ref, { force = false } = {}) {
-    let olKey = ref.olKey || "";
-    if (olKey && !force) {
-      const c = getMeta(olKey);
-      if (c) return { ...c, fromCache: true };
-    }
-    let m = null, errors = [];
-    try {
-      if (olKey) m = await olSearchDoc(`q=key:/works/${olKey}`);
-      else if (ref.isbn) m = await olSearchDoc(`isbn=${encodeURIComponent(ref.isbn)}`);
-      if (!m && ref.title) m = await olSearchDoc(`title=${encodeURIComponent(ref.title)}${ref.author ? "&author=" + encodeURIComponent(ref.author) : ""}`);
-    } catch (e) {
-      errors.push("ol:" + e.message);
-    }
-    if (!m) {
-      const stale = olKey && getMetaStale(olKey);
-      if (stale) return { ...stale, fromCache: true, stale: true };
-      return { olKey: "", title: ref.title || "", author: ref.author || "", cover: ref.cover || "", subjects: [], notFound: true, errors };
-    }
-    olKey = m.olKey;
-    try {
-      const w = await getJSON(`${OL}/works/${olKey}.json`);
-      m.description = textOf(w.description).replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").replace(/\(\[source\][^)]*\)/g, "").split("\n\n----------")[0].trim();
-      if (w.first_publish_date && !m.year) m.year = (w.first_publish_date.match(/\d{4}/) || [""])[0];
-      if (!m.subjects.length && w.subjects) m.subjects = w.subjects;
-      if (!m.authorKey && w.authors && w.authors[0]) m.authorKey = cleanKey(((w.authors[0].author || {}).key || "").replace("/authors/", ""));
-    } catch (e) {
-      errors.push("work:" + e.message);
-    }
-    if (m.authorKey) {
-      try {
-        const a = await getJSON(`${OL}/authors/${m.authorKey}.json`);
-        m.authorBio = textOf(a.bio).split("\n")[0].slice(0, 600);
-        m.authorBorn = a.birth_date || "";
-        m.authorDied = a.death_date || "";
-        m.authorPhoto = a.photos && a.photos[0] > 0 ? `https://covers.openlibrary.org/a/id/${a.photos[0]}-M.jpg` : "";
-      } catch (e) {
-      }
-    }
-    try {
-      m.gb = await googleBooks(m);
-    } catch (e) {
-      m.gb = null;
-      m.gbError = e.message;
-    }
-    if (m.gb && !m.description) m.description = m.gb.description.replace(/<[^>]+>/g, "");
-    if (m.gb && !m.pages) m.pages = m.gb.pages;
-    m.errors = errors;
-    m.fetchedAt = (/* @__PURE__ */ new Date()).toISOString();
-    setMeta(olKey, m);
-    return m;
-  }
-  async function moreByAuthor(authorKey, exceptKey) {
-    if (!authorKey) return [];
-    const data = await getJSON(`${OL}/search.json?q=author_key:${authorKey}&sort=editions&limit=14&fields=key,title,author_name,cover_i,first_publish_year,ratings_average`);
-    return (data.docs || []).filter((d) => cleanKey(d.key) !== exceptKey).slice(0, 12).map(fromSearchDoc);
-  }
-  async function similarBooks(subjects, exceptKey, exceptAuthorKey) {
-    let subj = cleanSubjects(subjects).filter((s) => !/^(fiction|american|english|literature)/i.test(s)).slice(0, 2);
-    if (!subj.length) subj = (subjects || []).filter((x) => x && x.length <= 40 && !/^(fiction|literature)/i.test(x)).slice(0, 2);
-    if (!subj.length) return [];
-    const run = async (q) => {
-      const data = await getJSON(`${OL}/search.json?q=${encodeURIComponent(q)}&sort=rating&limit=20&fields=key,title,author_name,author_key,cover_i,first_publish_year,ratings_average,ratings_count`);
-      return (data.docs || []).filter((d) => cleanKey(d.key) !== exceptKey && (d.author_key || [])[0] !== exceptAuthorKey && d.cover_i);
-    };
-    let docs = await run(subj.map((x) => `subject:"${x}"`).join(" AND "));
-    if (docs.length < 6 && subj.length > 1) {
-      try {
-        const more = await run(`subject:"${subj[0]}"`);
-        const seen = new Set(docs.map((d) => d.key));
-        more.forEach((d) => {
-          if (!seen.has(d.key)) docs.push(d);
-        });
-      } catch {
-      }
-    }
-    return docs.slice(0, 12).map(fromSearchDoc);
-  }
-  var SDOC = "key,title,author_name,author_key,cover_i,first_publish_year,ratings_average,ratings_count,subject";
-  function firstAuthorName(name) {
-    return String(name || "").split(/\s*(?:,|&|;| and | و )\s*/i)[0].trim() || String(name || "").trim();
-  }
-  async function resolveAuthorKey(name) {
-    const n = firstAuthorName(name);
-    if (!n) return "";
-    try {
-      const d = await getJSON(`${OL}/search/authors.json?q=${encodeURIComponent(n)}&limit=5`);
-      const docs = d.docs || [];
-      const norm = (x) => String(x || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-      const exact = docs.find((a) => norm(a.name) === norm(n));
-      const best = exact || docs.slice().sort((a, b) => (b.work_count || 0) - (a.work_count || 0))[0];
-      return best ? best.key : "";
-    } catch {
-      return "";
-    }
-  }
-  async function worksByAuthor(name, page = 0, limit = 24, authorKey = "") {
-    const n = firstAuthorName(name);
-    const key = authorKey || await resolveAuthorKey(n);
-    const off = page * limit;
-    let data = null;
-    if (key) {
-      try {
-        data = await getJSON(`${OL}/search.json?q=${encodeURIComponent("author_key:" + key)}&sort=editions&limit=${limit}&offset=${off}&fields=${SDOC},isbn`);
-      } catch {
-      }
-    }
-    if (!data || !(data.docs || []).length) data = await getJSON(`${OL}/search.json?author=${encodeURIComponent(n)}&limit=${limit}&offset=${off}&fields=${SDOC},isbn`);
-    const docs = (data.docs || []).filter((d) => d.title);
-    return { items: docs.map((d) => ({ ...fromSearchDoc(d), year: d.first_publish_year || "", subjects: (d.subject || []).slice(0, 8), isbn: (d.isbn || [])[0] || "" })), more: off + limit < (data.numFound || 0) };
-  }
-  async function googleRelated(q, exceptTitle) {
-    const d = await getJSON(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=20&orderBy=relevance&printType=books`);
-    const seen = /* @__PURE__ */ new Set();
-    return (d.items || []).map((v) => {
-      const i = v.volumeInfo || {};
-      return {
-        olKey: "",
-        title: i.title || "",
-        author: (i.authors || [])[0] || "",
-        rating: i.averageRating || 0,
-        cover: ((i.imageLinks || {}).thumbnail || "").replace("http://", "https://"),
-        subjects: i.categories || [],
-        year: (i.publishedDate || "").slice(0, 4)
-      };
-    }).filter((x) => x.title && x.title.toLowerCase() !== String(exceptTitle || "").toLowerCase() && !seen.has(x.title.toLowerCase()) && seen.add(x.title.toLowerCase()));
-  }
-  async function relatedBooks({ subjects, olKey, authorKey, title, author }) {
-    const out = [], seen = /* @__PURE__ */ new Set();
-    const add = (items) => {
-      for (const it of items || []) {
-        const k = (it.title || "").toLowerCase();
-        if (!k || k === String(title || "").toLowerCase() || it.olKey && it.olKey === olKey || seen.has(k)) continue;
-        seen.add(k);
-        out.push(it);
-      }
-    };
-    const step = async (fn) => {
-      if (out.length >= 8) return;
-      try {
-        add(await fn());
-      } catch {
-      }
-    };
-    await step(() => similarBooks(subjects, olKey, authorKey));
-    await step(async () => (await worksByAuthor(author, 0, 14, authorKey)).items);
-    const subj = cleanSubjects(subjects).slice(0, 2);
-    await step(() => googleRelated(subj.length ? subj.map((s) => "subject:" + s).join(" ") : author ? "inauthor:" + firstAuthorName(author) : title, title));
-    await step(async () => (await getJSON(`${OL}/search.json?q=${encodeURIComponent(String(title || "").replace(/[^\p{L}\p{N} ]/gu, " "))}&limit=15&fields=${SDOC}`)).docs.map(fromSearchDoc));
-    await step(async () => (await getJSON(`${OL}/search.json?q=${encodeURIComponent('subject:"' + (subj[0] || "fiction") + '"')}&sort=rating&limit=15&fields=${SDOC}`)).docs.map(fromSearchDoc));
-    return out.slice(0, 14);
-  }
-
-  // src/discover.js
-  var $2 = (s, r = document) => r.querySelector(s);
-  async function searchOpenLibrary(q, { subject = null, limit = 12, offset = 0 } = {}) {
-    let url;
-    if (subject) url = `https://openlibrary.org/subjects/${encodeURIComponent(subject)}.json?limit=${limit}&offset=${offset}`;
-    else if (/^(97[89])?\d{9}[\dXx]$/.test(q.replace(/-/g, ""))) url = `https://openlibrary.org/search.json?isbn=${encodeURIComponent(q)}&limit=${limit}&fields=key,title,author_name,cover_i,first_publish_year,subject,isbn,ratings_average,ratings_count`;
-    else url = `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=${limit}&fields=key,title,author_name,cover_i,first_publish_year,subject,isbn,ratings_average,ratings_count`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("network " + res.status);
-    const data = await res.json();
-    const docs = subject ? data.works || [] : data.docs || [];
-    return docs.map((d) => ({
-      olKey: (d.key || "").replace("/works/", ""),
-      title: d.title || "?",
-      author: d.authors && d.authors[0] && d.authors[0].name || d.author_name && d.author_name[0] || "",
-      year: d.first_publish_year || "",
-      cover: d.cover_i || d.cover_id ? `https://covers.openlibrary.org/b/id/${d.cover_i || d.cover_id}-L.jpg` : "",
-      rating: d.ratings_average || 0,
-      ratingCount: d.ratings_count || 0,
-      subjects: (d.subject || []).slice(0, 8),
-      isbn: d.isbn && d.isbn[0] || ""
-    })).filter((x) => x.title);
-  }
-  var OL_FIELDS = "&fields=key,title,author_name,cover_i,first_publish_year,subject,isbn,ratings_average,ratings_count";
-  async function searchScoped(q, scope, page = 0, limit = 24) {
-    if (scope === "author") {
-      try {
-        const r = await worksByAuthor(q, page, limit);
-        if (r.items.length) return r;
-      } catch {
-      }
-    }
-    let url;
-    if (scope === "title") url = `https://openlibrary.org/search.json?title=${encodeURIComponent(q)}&limit=${limit}&offset=${page * limit}${OL_FIELDS}`;
-    else if (scope === "author") url = `https://openlibrary.org/search.json?author=${encodeURIComponent(q)}&limit=${limit}&offset=${page * limit}${OL_FIELDS}`;
-    else if (scope === "subject") url = `https://openlibrary.org/search.json?q=${encodeURIComponent('subject:"' + q + '"')}&limit=${limit}&offset=${page * limit}${OL_FIELDS}`;
-    else url = `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=${limit}&offset=${page * limit}${OL_FIELDS}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("network " + res.status);
-    const data = await res.json();
-    const items = (data.docs || []).map((d) => ({
-      olKey: (d.key || "").replace("/works/", ""),
-      title: d.title || "?",
-      author: d.author_name && d.author_name[0] || "",
-      year: d.first_publish_year || "",
-      cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : "",
-      rating: d.ratings_average || 0,
-      ratingCount: d.ratings_count || 0,
-      subjects: (d.subject || []).slice(0, 8),
-      isbn: d.isbn && d.isbn[0] || ""
-    })).filter((x) => x.title);
-    return { items, more: (page + 1) * limit < (data.numFound || 0) };
-  }
-  var AWARDS = {
-    hugo: [
-      ["A Desolation Called Peace", "Arkady Martine", 2022],
-      ["Network Effect", "Martha Wells", 2021],
-      ["A Memory Called Empire", "Arkady Martine", 2020],
-      ["The Calculating Stars", "Mary Robinette Kowal", 2019],
-      ["The Stone Sky", "N.K. Jemisin", 2018],
-      ["The Obelisk Gate", "N.K. Jemisin", 2017],
-      ["The Fifth Season", "N.K. Jemisin", 2016],
-      ["The Three-Body Problem", "Liu Cixin", 2015],
-      ["Ancillary Justice", "Ann Leckie", 2014],
-      ["Redshirts", "John Scalzi", 2013],
-      ["Among Others", "Jo Walton", 2012]
-    ],
-    nebula: [
-      ["Babel", "R.F. Kuang", 2022],
-      ["A Master of Djinn", "P. Dj\xE8l\xED Clark", 2021],
-      ["Network Effect", "Martha Wells", 2020],
-      ["A Song for a New Day", "Sarah Pinsker", 2019],
-      ["The Calculating Stars", "Mary Robinette Kowal", 2018],
-      ["All the Birds in the Sky", "Charlie Jane Anders", 2016],
-      ["Uprooted", "Naomi Novik", 2015],
-      ["Ancillary Justice", "Ann Leckie", 2013],
-      ["2312", "Kim Stanley Robinson", 2012],
-      ["Blackout / All Clear", "Connie Willis", 2010]
-    ],
-    booker: [
-      ["Orbital", "Samantha Harvey", 2024],
-      ["Prophet Song", "Paul Lynch", 2023],
-      ["The Seven Moons of Maali Almeida", "Shehan Karunatilaka", 2022],
-      ["The Promise", "Damon Galgut", 2021],
-      ["Shuggie Bain", "Douglas Stuart", 2020],
-      ["Girl, Woman, Other", "Bernardine Evaristo", 2019],
-      ["Milkman", "Anna Burns", 2018],
-      ["Lincoln in the Bardo", "George Saunders", 2017],
-      ["The Sellout", "Paul Beatty", 2016],
-      ["A Brief History of Seven Killings", "Marlon James", 2015]
-    ]
-  };
-  var MOODS = [
-    { id: "short_thrilling", icon: "\u26A1", subject: "thriller" },
-    { id: "cozy", icon: "\u{1F375}", subject: "cozy_fiction" },
-    { id: "cry", icon: "\u{1F622}", subject: "tearjerkers" },
-    { id: "think", icon: "\u{1F9E0}", subject: "philosophy" },
-    { id: "adventure", icon: "\u{1F5FA}", subject: "adventure_stories" },
-    { id: "funny", icon: "\u{1F604}", subject: "humorous_fiction" }
-  ];
-  var N = (id, ar2, en, q, sub) => ({ id, ar: ar2, en, q, sub: sub || [] });
-  var CATS = [
-    { id: "fiction", kind: "fiction", ar: "\u0631\u0648\u0627\u0626\u064A", en: "Fiction", sub: [
-      N("scifi", "\u062E\u064A\u0627\u0644 \u0639\u0644\u0645\u064A", "Science fiction", "science fiction", [N("dystopian", "\u062F\u064A\u0633\u062A\u0648\u0628\u064A\u0627", "Dystopian", "dystopian"), N("space", "\u0645\u0644\u0627\u062D\u0645 \u0641\u0636\u0627\u0626\u064A\u0629", "Space opera", "space opera"), N("cyber", "\u0633\u0627\u064A\u0628\u0631 \u0628\u0627\u0646\u0643", "Cyberpunk", "cyberpunk"), N("time", "\u0633\u0641\u0631 \u0639\u0628\u0631 \u0627\u0644\u0632\u0645\u0646", "Time travel", "time travel"), N("postapoc", "\u0645\u0627 \u0628\u0639\u062F \u0627\u0644\u0643\u0627\u0631\u062B\u0629", "Post-apocalyptic", "post-apocalyptic"), N("aliens", "\u0643\u0627\u0626\u0646\u0627\u062A \u0641\u0636\u0627\u0626\u064A\u0629", "Aliens / first contact", "extraterrestrial beings"), N("ai", "\u0630\u0643\u0627\u0621 \u0627\u0635\u0637\u0646\u0627\u0639\u064A \u0648\u0631\u0648\u0628\u0648\u062A\u0627\u062A", "AI & robots", "robots"), N("hardsf", "\u062E\u064A\u0627\u0644 \u0639\u0644\u0645\u064A \u0635\u0644\u0628", "Hard SF", "hard science fiction")]),
-      N("fantasy", "\u0641\u0627\u0646\u062A\u0627\u0632\u064A\u0627", "Fantasy", "fantasy", [N("epic", "\u0645\u0644\u062D\u0645\u064A\u0629", "Epic fantasy", "epic fantasy"), N("urban", "\u062D\u0636\u0631\u064A\u0629", "Urban fantasy", "urban fantasy"), N("darkf", "\u0645\u0638\u0644\u0645\u0629", "Dark fantasy", "dark fantasy"), N("dragons", "\u062A\u0646\u0627\u0646\u064A\u0646", "Dragons", "dragons"), N("fairy", "\u062D\u0643\u0627\u064A\u0627\u062A \u062E\u0631\u0627\u0641\u064A\u0629", "Fairy tales", "fairy tales")]),
-      N("mystery", "\u063A\u0645\u0648\u0636 \u0648\u062C\u0631\u064A\u0645\u0629", "Mystery & crime", "mystery", [N("detective", "\u062A\u062D\u0631\u064A", "Detective", "detective and mystery stories"), N("noir", "\u0646\u0648\u0627\u0631", "Noir", "noir"), N("cozy", "\u063A\u0645\u0648\u0636 \u0647\u0627\u062F\u0626", "Cozy mystery", "cozy mystery"), N("procedural", "\u0625\u062C\u0631\u0627\u0626\u064A \u0628\u0648\u0644\u064A\u0633\u064A", "Police procedural", "police procedural")]),
-      N("thriller", "\u0625\u062B\u0627\u0631\u0629 \u0648\u062A\u0634\u0648\u064A\u0642", "Thriller", "thriller", [N("spy", "\u062C\u0627\u0633\u0648\u0633\u064A\u0629", "Espionage", "spy stories"), N("psych", "\u0646\u0641\u0633\u064A", "Psychological", "psychological thriller"), N("legal", "\u0642\u0627\u0646\u0648\u0646\u064A", "Legal thriller", "legal thriller"), N("suspense", "\u062A\u0634\u0648\u064A\u0642", "Suspense", "suspense")]),
-      N("horror", "\u0631\u0639\u0628", "Horror", "horror", [N("ghost", "\u0642\u0635\u0635 \u0623\u0634\u0628\u0627\u062D", "Ghost stories", "ghost stories"), N("vampire", "\u0645\u0635\u0627\u0635\u0648 \u062F\u0645\u0627\u0621", "Vampires", "vampires"), N("gothic", "\u0642\u0648\u0637\u064A", "Gothic", "gothic fiction")]),
-      N("romance", "\u0631\u0648\u0645\u0627\u0646\u0633\u064A", "Romance", "romance", [N("histrom", "\u062A\u0627\u0631\u064A\u062E\u064A", "Historical romance", "historical romance"), N("controm", "\u0645\u0639\u0627\u0635\u0631", "Contemporary romance", "contemporary romance")]),
-      N("dystopia", "\u062F\u064A\u0633\u062A\u0648\u0628\u064A\u0627", "Dystopia", "dystopian"),
-      N("paranormal", "\u062E\u0648\u0627\u0631\u0642", "Paranormal", "paranormal fiction"),
-      N("contemp", "\u0645\u0639\u0627\u0635\u0631", "Contemporary", "contemporary fiction"),
-      N("magrealism", "\u0648\u0627\u0642\u0639\u064A\u0629 \u0633\u062D\u0631\u064A\u0629", "Magical realism", "magic realism"),
-      N("histfic", "\u0631\u0648\u0627\u064A\u0627\u062A \u062A\u0627\u0631\u064A\u062E\u064A\u0629", "Historical fiction", "historical fiction"),
-      N("literary", "\u0623\u062F\u0628 \u0623\u062F\u0628\u064A", "Literary fiction", "literary fiction"),
-      N("classics", "\u0643\u0644\u0627\u0633\u064A\u0643\u064A\u0627\u062A", "Classics", "classics", [N("russian", "\u0623\u062F\u0628 \u0631\u0648\u0633\u064A", "Russian literature", "russian fiction"), N("french", "\u0623\u062F\u0628 \u0641\u0631\u0646\u0633\u064A", "French literature", "french fiction"), N("english", "\u0623\u062F\u0628 \u0625\u0646\u062C\u0644\u064A\u0632\u064A", "English literature", "english fiction")]),
-      N("arabicfic", "\u0631\u0648\u0627\u064A\u0627\u062A \u0639\u0631\u0628\u064A\u0629", "Arabic novels", "arabic fiction"),
-      N("adventure", "\u0645\u063A\u0627\u0645\u0631\u0627\u062A", "Adventure", "adventure"),
-      N("humor", "\u0643\u0648\u0645\u064A\u062F\u064A\u0627", "Humor", "humorous fiction"),
-      N("war", "\u062D\u0631\u0628", "War fiction", "war stories"),
-      N("ya", "\u0646\u0627\u0634\u0626\u0629", "Young adult", "young adult fiction")
-    ] },
-    { id: "nonfiction", kind: "nonfiction", ar: "\u063A\u064A\u0631 \u0631\u0648\u0627\u0626\u064A", en: "Non-fiction", sub: [
-      N("history", "\u062A\u0627\u0631\u064A\u062E", "History", "history", [N("ancient", "\u0627\u0644\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0642\u062F\u064A\u0645", "Ancient history", "ancient history"), N("medieval", "\u0627\u0644\u0639\u0635\u0648\u0631 \u0627\u0644\u0648\u0633\u0637\u0649", "Medieval", "middle ages"), N("ww2", "\u0627\u0644\u062D\u0631\u0628 \u0627\u0644\u0639\u0627\u0644\u0645\u064A\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629", "World War II", "world war, 1939-1945"), N("islamhist", "\u0627\u0644\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0625\u0633\u0644\u0627\u0645\u064A", "Islamic history", "islamic history"), N("egypt", "\u0645\u0635\u0631", "Egypt", "egypt")]),
-      N("biography", "\u0633\u064A\u0631 \u0630\u0627\u062A\u064A\u0629", "Biography", "biography", [N("memoir", "\u0645\u0630\u0643\u0631\u0627\u062A", "Memoirs", "autobiography"), N("leaders", "\u0642\u0627\u062F\u0629 \u0648\u0633\u064A\u0627\u0633\u064A\u0648\u0646", "Leaders", "heads of state")]),
-      N("philosophy", "\u0641\u0644\u0633\u0641\u0629", "Philosophy", "philosophy", [N("ethics", "\u0623\u062E\u0644\u0627\u0642", "Ethics", "ethics"), N("stoic", "\u0631\u0648\u0627\u0642\u064A\u0629", "Stoicism", "stoics"), N("exist", "\u0648\u062C\u0648\u062F\u064A\u0629", "Existentialism", "existentialism")]),
-      N("psychology", "\u0639\u0644\u0645 \u0646\u0641\u0633", "Psychology", "psychology"),
-      N("selfhelp", "\u062A\u0637\u0648\u064A\u0631 \u0630\u0627\u062A", "Self-help", "self-help", [N("habits", "\u0639\u0627\u062F\u0627\u062A \u0648\u0625\u0646\u062A\u0627\u062C\u064A\u0629", "Habits & productivity", "habit"), N("success", "\u0646\u062C\u0627\u062D", "Success", "success")]),
-      N("business", "\u0623\u0639\u0645\u0627\u0644", "Business", "business", [N("entre", "\u0631\u064A\u0627\u062F\u0629 \u0623\u0639\u0645\u0627\u0644", "Entrepreneurship", "entrepreneurship"), N("leader", "\u0642\u064A\u0627\u062F\u0629", "Leadership", "leadership"), N("marketing", "\u062A\u0633\u0648\u064A\u0642", "Marketing", "marketing")]),
-      N("economics", "\u0627\u0642\u062A\u0635\u0627\u062F", "Economics", "economics", [N("finance", "\u0627\u0633\u062A\u062B\u0645\u0627\u0631 \u0648\u062A\u0645\u0648\u064A\u0644", "Investing & finance", "investments")]),
-      N("science", "\u0639\u0644\u0648\u0645", "Science", "science", [N("physics", "\u0641\u064A\u0632\u064A\u0627\u0621", "Physics", "physics"), N("astro", "\u0641\u0644\u0643", "Astronomy", "astronomy"), N("bio", "\u0623\u062D\u064A\u0627\u0621", "Biology", "biology"), N("math", "\u0631\u064A\u0627\u0636\u064A\u0627\u062A", "Mathematics", "mathematics"), N("computers", "\u062D\u0627\u0633\u0648\u0628 \u0648\u062A\u0642\u0646\u064A\u0629", "Computers & technology", "computers")]),
-      N("politics", "\u0633\u064A\u0627\u0633\u0629", "Politics", "political science"),
-      N("religion", "\u062F\u064A\u0646", "Religion", "religion", [N("islam", "\u0625\u0633\u0644\u0627\u0645", "Islam", "islam"), N("christ", "\u0645\u0633\u064A\u062D\u064A\u0629", "Christianity", "christianity"), N("buddhism", "\u0628\u0648\u0630\u064A\u0629", "Buddhism", "buddhism")]),
-      N("essays", "\u0645\u0642\u0627\u0644\u0627\u062A", "Essays", "essays"),
-      N("travel", "\u0631\u062D\u0644\u0627\u062A", "Travel", "travel"),
-      N("health", "\u0635\u062D\u0629", "Health", "health"),
-      N("art", "\u0641\u0646", "Art", "art"),
-      N("truecrime", "\u062C\u0631\u0627\u0626\u0645 \u062D\u0642\u064A\u0642\u064A\u0629", "True crime", "true crime"),
-      N("spirit", "\u0631\u0648\u062D\u0627\u0646\u064A\u0627\u062A", "Spirituality", "spirituality"),
-      N("sports", "\u0631\u064A\u0627\u0636\u0629", "Sports", "sports"),
-      N("music", "\u0645\u0648\u0633\u064A\u0642\u0649", "Music", "music"),
-      N("cook", "\u0637\u0628\u062E", "Cookbooks", "cooking"),
-      N("parenting", "\u062A\u0631\u0628\u064A\u0629", "Parenting", "parenting"),
-      N("education", "\u062A\u0639\u0644\u064A\u0645", "Education", "education"),
-      N("nature", "\u0637\u0628\u064A\u0639\u0629", "Nature", "nature")
-    ] },
-    { id: "other", kind: "other", ar: "\u0623\u062E\u0631\u0649", en: "Other", sub: [
-      N("poetry", "\u0634\u0639\u0631", "Poetry", "poetry"),
-      N("drama", "\u0645\u0633\u0631\u062D\u064A\u0627\u062A", "Plays / drama", "drama"),
-      N("shorts", "\u0642\u0635\u0635 \u0642\u0635\u064A\u0631\u0629", "Short stories", "short stories"),
-      N("comics", "\u0643\u0648\u0645\u064A\u0643\u0633 \u0648\u0631\u0633\u0648\u0645", "Comics & graphic novels", "comics & graphic novels"),
-      N("manga", "\u0645\u0627\u0646\u063A\u0627", "Manga", "manga"),
-      N("kids", "\u0623\u0637\u0641\u0627\u0644", "Children's", "children's literature"),
-      N("anthology", "\u0645\u062E\u062A\u0627\u0631\u0627\u062A", "Anthologies", "anthologies")
-    ] }
-  ];
-  var FIC_EX = ' AND -subject:"history and criticism" AND -subject:"criticism" AND -subject:"biography" AND -subject:"nonfiction" AND -subject:"non-fiction"';
-  var NONFIC_EX = ' AND -subject:"fiction" AND -subject:"juvenile fiction" AND -subject:"stories"';
-  function olQuery(kind2, q) {
-    const base = `subject:"${q}" AND ratings_count:[10 TO *]`;
-    if (kind2 === "fiction") return base + ' AND subject:"fiction"' + FIC_EX;
-    if (kind2 === "nonfiction") return base + NONFIC_EX;
-    return base;
-  }
-  function isFictionCats(cats) {
-    return (cats || []).some((c) => /fiction|novel|stories|fantasy/i.test(c) && !/nonfiction|non-fiction|criticism/i.test(c));
-  }
-  function isNonFictionCats(cats) {
-    return !(cats || []).length || (cats || []).every((c) => !/fiction|novel|stories/i.test(c) || /nonfiction|non-fiction|criticism/i.test(c));
-  }
-  var PAGE = 24;
-  var YEAR_RANGES = [["", "\u0643\u0644 \u0627\u0644\u0633\u0646\u0648\u0627\u062A", "All years"], ["2020-2029", "2020\u20132029", "2020\u20132029"], ["2010-2019", "2010\u20132019", "2010\u20132019"], ["2000-2009", "2000\u20132009", "2000\u20132009"], ["1990-1999", "1990\u20131999", "1990\u20131999"], ["1980-1989", "1980\u20131989", "1980\u20131989"], ["0-1979", "\u0642\u0628\u0644 1980", "Before 1980"]];
-  function yrClause(yr) {
-    if (!yr) return "";
-    const [a, b] = yr.split("-");
-    return ` AND first_publish_year:[${a || "*"} TO ${b || "*"}]`;
-  }
-  function inYear(it, yr) {
-    if (!yr) return true;
-    const [a, b] = yr.split("-").map(Number);
-    const y = parseInt(it.year, 10);
-    return !isNaN(y) && y >= a && y <= b;
-  }
-  async function topOL(node, page) {
-    const q = olQuery(node.kind, node.q) + yrClause(node.yr);
-    const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&sort=rating&limit=${PAGE}&offset=${page * PAGE}&fields=key,title,author_name,cover_i,first_publish_year,subject,isbn,ratings_average,ratings_count`);
-    if (!res.ok) throw new Error("Open Library " + res.status);
-    const d = await res.json();
-    return { items: (d.docs || []).map((x) => ({
-      olKey: (x.key || "").replace("/works/", ""),
-      title: x.title,
-      author: (x.author_name || [])[0] || "",
-      year: x.first_publish_year || "",
-      cover: x.cover_i ? `https://covers.openlibrary.org/b/id/${x.cover_i}-L.jpg` : "",
-      subjects: (x.subject || []).slice(0, 8),
-      isbn: (x.isbn || [])[0] || "",
-      rating: x.ratings_average || 0,
-      ratingCount: x.ratings_count || 0
-    })), more: (page + 1) * PAGE < (d.numFound || 0) };
-  }
-  async function topGB(node, page) {
-    const subject = node.q;
-    const key = (getState().settings.gbKey || "").trim();
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent("subject:" + (node.kind === "fiction" ? "fiction " : "") + subject)}&orderBy=relevance&printType=books&maxResults=${PAGE}&startIndex=${page * PAGE}${key ? "&key=" + encodeURIComponent(key) : ""}`);
-    if (res.status === 429) throw new Error(getLang() === "ar" ? "Google Books: \u0627\u0644\u062D\u062F \u0627\u0644\u0645\u062C\u0627\u0646\u064A \u062E\u0644\u0635. \u062D\u0637 \u0645\u0641\u062A\u0627\u062D API \u0641\u064A \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A." : "Google Books quota reached. Add an API key in Settings.");
-    if (!res.ok) throw new Error("Google Books " + res.status);
-    const d = await res.json();
-    const keep = (x) => {
-      const c = (x.volumeInfo || {}).categories || [];
-      return node.kind === "fiction" ? isFictionCats(c) : node.kind === "nonfiction" ? isNonFictionCats(c) : true;
-    };
-    return {
-      items: (d.items || []).filter(keep).map((x) => {
-        const v = x.volumeInfo || {};
-        const ids = v.industryIdentifiers || [];
-        return {
-          olKey: "",
-          title: v.title || "?",
-          author: (v.authors || [])[0] || "",
-          year: (v.publishedDate || "").slice(0, 4),
-          cover: (v.imageLinks && (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail) || "").replace("http://", "https://").replace("zoom=1", "zoom=2"),
-          subjects: (v.categories || []).slice(0, 6),
-          isbn: (ids.find((i) => i.type === "ISBN_13") || ids[0] || {}).identifier || "",
-          rating: v.averageRating || 0,
-          ratingCount: v.ratingsCount || 0
-        };
-      }).filter((x) => inYear(x, node.yr)),
-      more: (page + 1) * PAGE < (d.totalItems || 0) && (d.items || []).length > 0
-    };
-  }
-  var SOURCES = { ol: ["Open Library", topOL], gb: ["Google Books", topGB] };
-  async function wikidataAward(qid2, page) {
-    const sp = `SELECT ?wLabel ?aLabel ?year WHERE { ?w wdt:P166 wd:${qid2} . OPTIONAL{?w wdt:P50 ?a} OPTIONAL{?w wdt:P577 ?d . BIND(YEAR(?d) AS ?year)} SERVICE wikibase:label { bd:serviceParam wikibase:language "en,ar". } } ORDER BY DESC(?year) LIMIT ${PAGE} OFFSET ${page * PAGE}`;
-    const res = await fetch("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(sp));
-    if (!res.ok) throw new Error("Wikidata " + res.status);
-    const d = await res.json();
-    const seen = /* @__PURE__ */ new Set();
-    const items = d.results.bindings.map((b) => ({ olKey: "", title: b.wLabel.value, author: b.aLabel ? b.aLabel.value : "", year: b.year ? b.year.value : "", cover: "", subjects: [], isbn: "", rating: 0, ratingCount: 0 })).filter((x) => !/^Q\d+$/.test(x.title) && !seen.has(x.title + x.author) && seen.add(x.title + x.author));
-    return { items, more: d.results.bindings.length === PAGE };
-  }
-  var WD_AWARDS = [
-    ["pulitzer", "\u0628\u0648\u0644\u064A\u062A\u0632\u0631 (\u0631\u0648\u0627\u064A\u0629)", "Pulitzer (Fiction)", "Q833633"],
-    ["arabic", "\u0627\u0644\u062C\u0627\u0626\u0632\u0629 \u0627\u0644\u0639\u0627\u0644\u0645\u064A\u0629 \u0644\u0644\u0631\u0648\u0627\u064A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629", "Intl. Prize for Arabic Fiction", "Q4118790"],
-    ["nba", "\u0627\u0644\u062C\u0627\u0626\u0632\u0629 \u0627\u0644\u0648\u0637\u0646\u064A\u0629 \u0644\u0644\u0643\u062A\u0627\u0628", "National Book Award (Fiction)", "Q3873144"],
-    ["goncourt", "\u063A\u0648\u0646\u0643\u0648\u0631", "Prix Goncourt", "Q187300"],
-    ["hugoall", "\u0647\u0648\u063A\u0648 (\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629)", "Hugo (full list)", "Q255032"],
-    ["nebulaall", "\u0646\u064A\u0628\u0648\u0644\u0627 (\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629)", "Nebula (full list)", "Q266012"],
-    ["bookerall", "\u0628\u0648\u0643\u0631 (\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629)", "Booker (full list)", "Q160082"]
-  ];
-  var ar0 = (a, e) => getLang() === "ar" ? a : e;
-  function renderDiscover(view) {
-    view.innerHTML = `
-    <div class="view-head"><h1>${t("navDiscover")}</h1></div>
-    <div class="disc-section"><div class="search-row">
-      <select id="dScope"><option value="all">${ar0("\u0627\u0644\u0643\u0644", "All")}</option><option value="title">${ar0("\u0627\u0644\u0639\u0646\u0648\u0627\u0646", "Title")}</option><option value="author">${ar0("\u0627\u0644\u0645\u0624\u0644\u0641", "Author")}</option><option value="subject">${ar0("\u0627\u0644\u062A\u0635\u0646\u064A\u0641", "Subject")}</option></select>
-      <input id="dQ" placeholder="${ar0("\u062F\u0648\u0651\u0631 \u0641\u064A \u0645\u0644\u0627\u064A\u064A\u0646 \u0627\u0644\u0643\u062A\u0628\u2026", "Search millions of books\u2026")}">
-      <button id="dGo" class="btn btn-primary">\u{1F50D} ${ar0("\u0628\u062D\u062B", "Search")}</button></div></div>
-    <div class="disc-section"><div class="chip-row" id="moodGrid" style="margin-bottom:0"></div></div>
-    <div class="disc-section"><h2 style="margin-bottom:.7rem">${t("recommendations")}</h2>
-      <p class="muted" id="recHint" style="margin-bottom:.7rem"></p><div class="award-row" id="recGrid"></div></div>
-    <div class="disc-section"><h2 style="margin-bottom:.7rem">${t("awards")}</h2>
-      <div class="chip-row" id="awardChips"></div><div class="award-row" id="awardList"></div></div>
-    <div class="disc-section"><h2 style="margin-bottom:.7rem">${t("topRated")}</h2><div class="award-row" id="topRatedRow"></div></div>
-    <div class="disc-section"><h2 style="margin-bottom:.4rem">\u{1F3C5} ${getLang() === "ar" ? "\u0623\u0641\u0636\u0644 \u0627\u0644\u0642\u0648\u0627\u0626\u0645 (\u062D\u0633\u0628 \u062A\u0642\u064A\u064A\u0645\u0627\u062A Open Library)" : "Top lists (by Open Library ratings)"}</h2>
-      <p class="muted" style="margin-bottom:.6rem">${getLang() === "ar" ? "\u0623\u0639\u0644\u0649 \u0627\u0644\u0643\u062A\u0628 \u062A\u0642\u064A\u064A\u0645\u064B\u0627 \u0641\u064A \u0643\u0644 \u062A\u0635\u0646\u064A\u0641. \u062A\u0642\u062F\u0631 \u062A\u062D\u0641\u0638 \u0623\u064A \u0642\u0627\u0626\u0645\u0629 \u0643\u0642\u0627\u0626\u0645\u0629 \u0642\u0631\u0627\u0621\u0629 \u0639\u0646\u062F\u0643. \u0648\u0644\u0648 \u0639\u0646\u062F\u0643 \u0645\u0643\u062A\u0628\u0629 Goodreads\u060C \u0627\u0633\u062A\u0648\u0631\u062F\u0647\u0627 \u0645\u0646 \u062A\u0628\u0648\u064A\u0628 \u0627\u0644\u0642\u0648\u0627\u0626\u0645." : "Highest-rated books per subject. Save any list as your own reading list. Got a Goodreads library? Import its CSV from the Lists tab."}</p>
-      <div style="margin-bottom:.6rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center"><span><label class="muted">${getLang() === "ar" ? "\u0627\u0644\u0645\u0635\u062F\u0631" : "Source"}: </label><select id="topSrc">${Object.entries(SOURCES).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join("")}</select></span>
-      <span><label class="muted">${getLang() === "ar" ? "\u0633\u0646\u0648\u0627\u062A \u0627\u0644\u0625\u0635\u062F\u0627\u0631" : "Published"}: </label><select id="topYear">${YEAR_RANGES.map(([v, a, e]) => `<option value="${v}">${getLang() === "ar" ? a : e}</option>`).join("")}</select></span></div>
-      <div class="chip-row" id="topKinds"></div><div id="topCrumb" class="muted" style="margin:.4rem 0"></div><div class="chip-row" id="topChips"></div></div>
-    <div id="discResults" class="disc-section hidden"><div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;margin-bottom:.7rem"><h2 style="margin:0" id="discResultsTitle"></h2><select id="discSort" class="hidden" title="${getLang() === "ar" ? "\u0627\u0644\u062A\u0631\u062A\u064A\u0628" : "Sort"}">${sortOptionsHTML("default")}</select></div><div class="grid" id="discResultsGrid"></div></div>`;
-    const mg = $2("#moodGrid", view);
-    MOODS.forEach((m) => {
-      const c = document.createElement("button");
-      c.className = "chip";
-      c.textContent = m.icon + " " + t("mood_" + m.id);
-      c.onclick = () => showResults(view, t("mood_" + m.id), async (page) => {
-        const items = await searchOpenLibrary("", { subject: m.subject, limit: 24, offset: page * 24 });
-        return { items, more: items.length === 24 };
-      });
-      mg.appendChild(c);
-    });
-    const runSearch = () => {
-      const q = $2("#dQ", view).value.trim();
-      if (!q) return;
-      const scope = $2("#dScope", view).value;
-      const scopeName = $2("#dScope", view).selectedOptions[0].textContent;
-      showResults(view, "\u{1F50D} " + q + " \xB7 " + scopeName, (page) => searchScoped(q, scope, page));
-    };
-    $2("#dGo", view).onclick = runSearch;
-    $2("#dQ", view).addEventListener("keydown", (e) => {
-      if (e.key === "Enter") runSearch();
-    });
-    const takePending = () => {
-      try {
-        const ps = JSON.parse(sessionStorage.getItem("qari.pendingSearch") || "null");
-        if (ps && ps.q) {
-          sessionStorage.removeItem("qari.pendingSearch");
-          $2("#dScope", view).value = ps.scope || "all";
-          $2("#dQ", view).value = ps.q;
-          runSearch();
-        }
-      } catch {
-      }
-    };
-    takePending();
-    window.__qariDiscoverPending = takePending;
-    const chips = $2("#awardChips", view);
-    [["hugo", t("hugo")], ["nebula", t("nebula")], ["booker", t("booker")]].forEach(([k, label], i) => {
-      const chip2 = document.createElement("button");
-      chip2.className = "chip" + (i === 0 ? " active" : "");
-      chip2.textContent = label;
-      chip2.onclick = () => {
-        chips.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
-        chip2.classList.add("active");
-        renderAward(view, k);
-      };
-      chips.appendChild(chip2);
-    });
-    const ar2 = getLang() === "ar", nm = (n) => ar2 ? n.ar : n.en;
-    const kindsEl = $2("#topKinds", view), tc = $2("#topChips", view), crumb = $2("#topCrumb", view);
-    let lastRun = null;
-    const startList = (node, path) => {
-      const src = $2("#topSrc", view).value;
-      const yr = $2("#topYear", view).value;
-      const ttl = path.map(nm).join(" \u203A ");
-      showResults(view, "\u{1F3C5} " + ttl + (yr ? " \xB7 " + $2("#topYear", view).selectedOptions[0].textContent : "") + " \xB7 " + SOURCES[src][0], (page) => SOURCES[src][1]({ kind: path[0].kind, q: node.q, yr }, page), true);
-    };
-    const rerun3 = () => {
-      if (lastRun) lastRun();
-    };
-    $2("#topSrc", view).onchange = rerun3;
-    $2("#topYear", view).onchange = rerun3;
-    const showLevel = (nodes, path) => {
-      tc.innerHTML = "";
-      crumb.textContent = path.map(nm).join(" \u203A ");
-      nodes.forEach((n) => {
-        const chip2 = document.createElement("button");
-        chip2.className = "chip";
-        chip2.textContent = nm(n) + (n.sub && n.sub.length ? " \u25BE" : "");
-        chip2.onclick = () => {
-          const np = path.concat(n);
-          if (n.q) {
-            startList(n, np);
-            lastRun = () => startList(n, np);
-          }
-          if (n.sub && n.sub.length) {
-            const back = path.length ? [] : [];
-            showLevel(n.sub, np);
-            addBack(nodes, path);
-          } else {
-            tc.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
-          }
-        };
-        tc.appendChild(chip2);
-      });
-    };
-    const addBack = (parentNodes, parentPath) => {
-      const b = document.createElement("button");
-      b.className = "chip";
-      b.textContent = "\u2B05 " + (ar2 ? "\u0631\u062C\u0648\u0639" : "Back");
-      b.onclick = () => showLevel(parentNodes, parentPath);
-      tc.prepend(b);
-    };
-    CATS.forEach((c) => {
-      const chip2 = document.createElement("button");
-      chip2.className = "chip";
-      chip2.textContent = nm(c);
-      chip2.onclick = () => {
-        kindsEl.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
-        chip2.classList.add("active");
-        showLevel(c.sub, [c]);
-      };
-      kindsEl.appendChild(chip2);
-    });
-    kindsEl.firstChild.click();
-    WD_AWARDS.forEach(([k, ar3, en, qid2]) => {
-      const chip2 = document.createElement("button");
-      chip2.className = "chip";
-      chip2.textContent = (getLang() === "ar" ? ar3 : en) + " \u2197";
-      chip2.onclick = () => showResults(view, "\u{1F3C6} " + (getLang() === "ar" ? ar3 : en) + " \xB7 Wikidata", (page) => wikidataAward(qid2, page));
-      chips.appendChild(chip2);
-    });
-    renderAward(view, "hugo");
-    renderTopRatedRow(view);
-    renderRecommendations(view);
-  }
-  function awardCard(title, author, year, view) {
-    const c = document.createElement("div");
-    c.className = "book-card";
-    c.style.minWidth = "150px";
-    c.innerHTML = `<div class="cover">${placeholderHTML(title, "\u{1F3C6}")}</div>
-    <div class="book-meta"><div class="book-title">${esc(title)}</div><div class="book-author">${authorHTML(author)} \xB7 ${year}</div></div>`;
-    c.onclick = () => showResults(view, title, () => searchOpenLibrary(title + " " + author, { limit: 4 }));
-    const cv = c.querySelector(".cover");
-    const load2 = async () => {
-      const f = await findCover(title, author);
-      if (f && f.cover) {
-        cv.innerHTML = coverImgHTML({ cover: f.cover, title }, "\u{1F3C6}");
-        if (f.olKey) c.onclick = () => {
-          location.hash = "#/work/" + f.olKey;
-        };
-      }
-    };
-    if ("IntersectionObserver" in window) {
-      const io = new IntersectionObserver((es) => {
-        if (es[0].isIntersecting) {
-          io.disconnect();
-          load2();
-        }
-      }, { rootMargin: "300px" });
-      io.observe(c);
-    } else load2();
-    return c;
-  }
-  function renderAward(view, key) {
-    const host = $2("#awardList", view);
-    host.innerHTML = "";
-    AWARDS[key].forEach(([ti, au, yr]) => host.appendChild(awardCard(ti, au, yr, view)));
-  }
-  function renderTopRatedRow(view) {
-    const host = $2("#topRatedRow", view);
-    host.innerHTML = "";
-    const rated = getState().books.filter((b) => b.rating >= 4).sort((a, b) => b.rating - a.rating).slice(0, 8);
-    if (!rated.length) {
-      host.innerHTML = `<p class="muted">${t("needRatings")}</p>`;
-      return;
-    }
-    rated.forEach((b) => {
-      const c = document.createElement("div");
-      c.className = "book-card";
-      c.style.minWidth = "150px";
-      c.innerHTML = `<div class="cover">${coverImgHTML(b, "\u2B50")}</div>
-      <div class="book-meta"><div class="book-title">${esc(b.title)}</div><div class="book-author">${"\u2605".repeat(b.rating)}</div></div>`;
-      c.onclick = () => {
-        location.hash = "#/book/" + b.id;
-      };
-      host.appendChild(c);
-    });
-  }
-  async function renderRecommendations(view) {
-    const hint = $2("#recHint", view), grid = $2("#recGrid", view);
-    const loved = getState().books.filter((b) => b.rating >= 4 && (b.subjects || []).length);
-    if (!loved.length) {
-      hint.textContent = t("needRatings");
-      return;
-    }
-    hint.textContent = t("loading");
-    const freq = {};
-    loved.forEach((b) => b.subjects.forEach((s) => {
-      freq[s] = (freq[s] || 0) + 1;
-    }));
-    const topSubjects = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([s]) => s);
-    const owned = new Set(getState().books.map((b) => (b.title || "").toLowerCase()));
-    try {
-      const lists = await Promise.all(topSubjects.map((s) => searchOpenLibrary("", { subject: s.toLowerCase().replace(/\s+/g, "_"), limit: 8 }).catch(() => [])));
-      const items = lists.flat().filter((x) => !owned.has(x.title.toLowerCase())).slice(0, 8);
-      hint.textContent = topSubjects.length ? `(${topSubjects.join(" \xB7 ")})` : "";
-      grid.innerHTML = "";
-      items.forEach((it) => {
-        const c = recCard(it, view);
-        c.style.minWidth = "150px";
-        c.style.maxWidth = "150px";
-        grid.appendChild(c);
-      });
-    } catch {
-      hint.textContent = t("dictNone");
-    }
-  }
-  function recCard(it, view) {
-    const c = document.createElement("div");
-    c.className = "book-card";
-    c.innerHTML = `<div class="cover">${coverImgHTML(it)}</div>
-    <div class="book-meta"><div class="book-title">${esc(it.title)}</div><div class="book-author">${authorHTML(it.author)}</div>${it.rating ? `<div class="muted">\u2605 ${it.rating.toFixed(1)} (${it.ratingCount})</div>` : ""}
-    <button class="btn btn-primary" style="margin-top:.4rem;font-size:.75rem;padding:.25rem .7rem">${t("addToMyLibrary")}</button></div>`;
-    c.onclick = async () => {
-      if (it.olKey) {
-        location.hash = "#/work/" + it.olKey;
-        return;
-      }
-      toast(t("loading"));
-      const f = await findCover(it.title, it.author);
-      if (f && f.olKey) {
-        it.olKey = f.olKey;
-        location.hash = "#/work/" + f.olKey;
-      } else toast(getLang() === "ar" ? "\u0645\u0634 \u0644\u0627\u0642\u064A \u0635\u0641\u062D\u0629 \u0644\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 \u0641\u064A Open Library" : "No Open Library page found for this book", 3e3);
-    };
-    if (!it.cover && !it.isbn) {
-      const run = async () => {
-        const f = await findCover(it.title, it.author);
-        if (f) {
-          if (f.cover) {
-            it.cover = f.cover;
-            c.querySelector(".cover").innerHTML = coverImgHTML(it);
-          }
-          if (f.olKey) {
-            it.olKey = f.olKey;
-            c.onclick = () => {
-              location.hash = "#/work/" + f.olKey;
-            };
-          }
-        }
-      };
-      if ("IntersectionObserver" in window) {
-        const io = new IntersectionObserver((es) => {
-          if (es[0].isIntersecting) {
-            io.disconnect();
-            run();
-          }
-        }, { rootMargin: "300px" });
-        io.observe(c);
-      } else run();
-    }
-    c.querySelector("button").onclick = (e) => {
-      e.stopPropagation();
-      saveToMyLibrary({ title: it.title, author: it.author, format: "web", cover: it.cover, source: "openlibrary", subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || "", year: it.year || "" });
-      e.target.textContent = t("inMyLibrary");
-      e.target.disabled = true;
-      toast(t("added"));
-    };
-    if (findSavedBook({ title: it.title, author: it.author, olKey: it.olKey || "" })) {
-      const btn = c.querySelector("button");
-      btn.textContent = t("inMyLibrary");
-      btn.disabled = true;
-    }
-    return c;
-  }
-  async function showResults(view, title, fetcher, saveable = false) {
-    const sec = $2("#discResults", view), grid = $2("#discResultsGrid", view), ttl = $2("#discResultsTitle", view), sortSel = $2("#discSort", view);
-    sec.classList.remove("hidden");
-    ttl.textContent = title;
-    grid.innerHTML = `<p class="muted">${t("loading")}</p>`;
-    sec.scrollIntoView({ behavior: "smooth" });
-    const all = [];
-    let page = 0, more = true, busy3 = false, token = {};
-    grid.__token = token;
-    let sortMode = "default", saveBtn = null;
-    if (sortSel) {
-      sortSel.value = "default";
-      sortSel.classList.add("hidden");
-      sortSel.onchange = () => {
-        sortMode = sortSel.value;
-        paint();
-      };
-    }
-    const paint = () => {
-      grid.innerHTML = "";
-      if (!all.length) {
-        grid.innerHTML = `<p class="muted">${t("noResults")}</p>`;
-        return;
-      }
-      if (saveBtn) grid.appendChild(saveBtn);
-      (sortMode === "default" ? all : sortBooks(all, sortMode)).forEach((it) => grid.appendChild(recCard(it, view)));
-    };
-    const old = sec.querySelector(".more-box");
-    if (old) old.remove();
-    const box = document.createElement("div");
-    box.className = "more-box";
-    sec.appendChild(box);
-    const loadPage = async () => {
-      if (busy3 || !more || grid.__token !== token) return;
-      busy3 = true;
-      try {
-        const r = await fetcher(page);
-        const items = Array.isArray(r) ? r : r.items;
-        more = Array.isArray(r) ? false : r.more;
-        page++;
-        items.forEach((it) => all.push(it));
-        if (page === 1 && saveable && items.length && !saveBtn) {
-          saveBtn = document.createElement("button");
-          saveBtn.className = "btn btn-primary";
-          saveBtn.style.gridColumn = "1/-1";
-          saveBtn.textContent = "\u{1F4CB} " + (getLang() === "ar" ? "\u0627\u062D\u0641\u0638\u0647\u0627 \u0643\u0642\u0627\u0626\u0645\u0629 \u0642\u0631\u0627\u0621\u0629 (\u0643\u0644 \u0627\u0644\u0644\u064A \u0638\u0627\u0647\u0631)" : "Save as reading list (everything loaded)");
-          saveBtn.onclick = () => {
-            const l = createList(title.replace(/^[^ ]+ /, "").split(" \xB7 ")[0], "Open Library");
-            all.forEach((it) => {
-              const bk = saveToMyLibrary({ title: it.title, author: it.author, format: "web", cover: it.cover, source: "openlibrary", subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || "", year: it.year || "" });
-              listToggleBook(l.id, bk.id);
-            });
-            toast(t("added"));
-            location.hash = "#/lists/" + l.id;
-          };
-        }
-        paint();
-        if (sortSel) sortSel.classList.toggle("hidden", all.length < 2);
-      } catch (e) {
-        if (page === 0) grid.innerHTML = `<p class="muted">\u26A0 ${esc(e.message)}</p>`;
-        more = false;
-      }
-      busy3 = false;
-      box.innerHTML = more ? `<button class="btn" style="margin:1rem auto;display:block">${getLang() === "ar" ? "\u0639\u0631\u0636 \u0627\u0644\u0645\u0632\u064A\u062F" : "Load more"}</button>` : all.length ? `<p class="muted" style="text-align:center">${all.length} ${getLang() === "ar" ? "\u0643\u062A\u0627\u0628" : "books"}</p>` : "";
-      const btn = box.querySelector("button");
-      if (btn) {
-        btn.onclick = loadPage;
-        if ("IntersectionObserver" in window) {
-          const io = new IntersectionObserver((es) => {
-            if (es[0].isIntersecting) {
-              io.disconnect();
-              loadPage();
-            }
-          }, { rootMargin: "600px" });
-          io.observe(btn);
-        }
-      }
-    };
-    loadPage();
-  }
-  function bindDiscover() {
-  }
-
-  // src/community.js
-  var $3 = (s, r = document) => r.querySelector(s);
-  function renderCommunity(view) {
-    const st = getState();
-    view.innerHTML = `
-    <div class="view-head"><h1>${t("navCommunity")}</h1></div>
-    <div class="stat-card" style="margin-bottom:1.4rem">
-      <h3 style="margin-bottom:.6rem">\u{1F465} ${t("buddyRead")}</h3>
-      <div class="search-row" style="max-width:360px"><input id="buddyName" placeholder="${t("buddyName")}" value="${esc(st.buddy.name || "")}"><button id="saveBuddy" class="btn">${t("save")}</button></div>
-      <p class="muted" style="margin-bottom:.6rem">${getLang() === "ar" ? "\u0633\u062C\u0651\u0644 \u062A\u0639\u0644\u064A\u0642\u0627\u062A\u0643 \u0639\u0644\u0649 \u0641\u0635\u0648\u0644 \u0643\u062A\u0627\u0628 \u0628\u062A\u0642\u0631\u0627\u0647 \u0645\u0639 \u0635\u0627\u062D\u0628\u0643\u060C \u0648\u0628\u0627\u062F\u0644\u0648\u0627 \u0627\u0644\u0645\u0644\u0641\u0627\u062A: \u0635\u062F\u0651\u0631 \u062A\u0639\u0644\u064A\u0642\u0627\u062A\u0643 \u0648\u0627\u0628\u0639\u062A\u0647\u0627\u060C \u0648\u0627\u0633\u062A\u0648\u0631\u062F \u062A\u0639\u0644\u064A\u0642\u0627\u062A\u0647 \u2014 \u0628\u062A\u062A\u062F\u0645\u062C \u062A\u0644\u0642\u0627\u0626\u064A." : "Comment on chapters of a book you read with a friend, then swap files: export your comments and import theirs \u2014 they merge automatically."}</p>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-        <select id="buddyBook">${st.books.map((b) => `<option value="${b.id}">${esc(b.title)}</option>`).join("")}</select>
-        <input id="chapterName" placeholder="${t("chapters")}\u2026" style="max-width:160px">
-      </div>
-      <div style="display:flex;gap:.5rem;margin-top:.5rem;align-items:flex-start">
-        <textarea id="commentText" rows="2" style="flex:1" placeholder="${t("addComment")}"></textarea>
-      </div>
-      <div style="display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
-        <button id="sendMe" class="btn btn-primary">${t("send")} (${t("asMe")})</button>
-        <button id="sendBuddy" class="btn">${t("send")} (${t("asBuddy")})</button>
-        <button id="expComments" class="btn">\u2B07 ${t("exportBuddy")}</button>
-        <button id="impComments" class="btn">\u2B06 ${t("importBuddy")}</button>
-        <input type="file" id="impFile" accept=".json" hidden>
-      </div>
-      <div id="commentsList" style="margin-top:1rem"></div>
-    </div>
-    <h2 style="margin-bottom:.7rem">${t("myActivity")}</h2>
-    <div id="activityFeed"></div>`;
-  }
-  function bindCommunity(view) {
-    const st = getState();
-    $3("#saveBuddy", view).onclick = () => {
-      st.buddy.name = $3("#buddyName", view).value.trim();
-      save();
-      toast(t("added"));
-    };
-    const refreshComments = () => renderComments(view);
-    $3("#buddyBook", view).onchange = refreshComments;
-    $3("#sendMe", view).onclick = () => postComment(view, getLang() === "ar" ? "\u0623\u0646\u0627" : "Me", "me");
-    $3("#sendBuddy", view).onclick = () => {
-      const name = (st.buddy.name || "").trim();
-      if (!name) {
-        toast(t("buddyName"));
-        return;
-      }
-      postComment(view, name, "buddy");
-    };
-    $3("#expComments", view).onclick = () => {
-      const mine = st.comments.filter((c) => c.origin === "me");
-      const blob = new Blob([JSON.stringify({ app: "qari-comments", from: "me", comments: mine }, null, 2)], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "qari-comments.json";
-      a.click();
-      toast(t("exported"));
-    };
-    $3("#impComments", view).onclick = () => $3("#impFile", view).click();
-    $3("#impFile", view).onchange = async (e) => {
-      const f = e.target.files[0];
-      if (!f) return;
-      try {
-        const data = JSON.parse(await f.text());
-        const arr = data.comments || data.data && data.data.comments || [];
-        let added = 0;
-        const have = new Set(st.comments.map((c) => c.id));
-        arr.forEach((c) => {
-          if (c && c.id && !have.has(c.id)) {
-            st.comments.push(c);
-            added++;
-          }
-        });
-        save();
-        toast(t("imported") + ` (${added})`);
-        refreshComments();
-        e.target.value = "";
-      } catch (err) {
-        toast("\u26A0 " + err.message, 3500);
-      }
-    };
-    renderComments(view);
-    renderActivity(view);
-  }
-  function postComment(view, author, origin) {
-    const bookId = $3("#buddyBook", view).value;
-    const chapter = $3("#chapterName", view).value.trim();
-    const text = $3("#commentText", view).value.trim();
-    if (!bookId || !text) return;
-    addComment({ bookId, chapter, author, text, origin });
-    $3("#commentText", view).value = "";
-    renderComments(view);
-  }
-  function renderComments(view) {
-    const bookId = $3("#buddyBook", view).value;
-    const list = $3("#commentsList", view);
-    const cms = bookComments(bookId);
-    list.innerHTML = cms.length ? "" : '<p class="muted">\u2014</p>';
-    cms.forEach((c) => {
-      const d = document.createElement("div");
-      d.className = "comment";
-      d.innerHTML = `<div class="c-meta">${c.origin === "buddy" ? "\u{1F464}" : "\u{1F642}"} ${esc(c.author)} ${c.chapter ? "\xB7 " + esc(c.chapter) : ""} \xB7 ${fmtDate(c.createdAt)}</div><div>${esc(c.text)}</div>`;
-      list.appendChild(d);
-    });
-  }
-  function renderActivity(view) {
-    const st = getState();
-    const host = $3("#activityFeed", view);
-    const feed = st.activity.slice(0, 30);
-    host.innerHTML = feed.length ? "" : '<p class="muted">\u2014</p>';
-    feed.forEach((a) => {
-      const b = getBook(a.bookId);
-      const d = document.createElement("div");
-      d.className = "review-card";
-      const icon = { rating: "\u2B50", review: "\u270D\uFE0F", comment: "\u{1F4AC}", finished: "\u2705" }[a.type] || "\u2022";
-      d.innerHTML = `<div class="rc-head"><strong>${icon} ${esc(b ? b.title : a.text || "")}</strong><span class="muted">${fmtDate(a.createdAt)}</span></div>
-      ${b && b.rating ? `<div style="margin-top:.25rem"></div>` : ""}
-      ${b && a.type === "review" && b.review ? `<p style="margin-top:.3rem">${esc(b.review)}</p>` : ""}`;
-      if (b && b.rating) d.querySelector(".rc-head").appendChild(stars(b.rating));
-      host.appendChild(d);
-    });
-  }
-
-  // src/fonts.js
-  var DEFS = [
-    ["auto", "'Amiri', Georgia, serif", "\u062A\u0644\u0642\u0627\u0626\u064A (\u0623\u0645\u064A\u0631\u064A)", "Auto (Amiri)", null, null, "ar"],
-    ["amiri", "'Amiri', Georgia, serif", "\u0623\u0645\u064A\u0631\u064A (\u0646\u0633\u062E \u0643\u0644\u0627\u0633\u064A\u0643\u064A)", "Amiri (classic naskh)", null, null, "ar"],
-    ["naskh", "'Noto Naskh Arabic', Georgia, serif", "\u0646\u0648\u062A\u0648 \u0646\u0633\u062E", "Noto Naskh", "noto-naskh-arabic", "Noto Naskh Arabic", "ar"],
-    ["schehe", "'Scheherazade New', Georgia, serif", "\u0634\u0647\u0631\u0632\u0627\u062F", "Scheherazade New", "scheherazade-new", "Scheherazade New", "ar"],
-    ["lateef", "'Lateef', Georgia, serif", "\u0644\u0637\u064A\u0641 (\u0646\u0633\u062A\u0639\u0644\u064A\u0642 \u062E\u0641\u064A\u0641)", "Lateef", "lateef", "Lateef", "ar"],
-    ["markazi", "'Markazi Text', Georgia, serif", "\u0645\u0631\u0643\u0632\u064A", "Markazi Text", "markazi-text", "Markazi Text", "ar"],
-    ["messiri", "'El Messiri', Georgia, serif", "\u0627\u0644\u0645\u0633\u064A\u0631\u064A", "El Messiri", "el-messiri", "El Messiri", "ar"],
-    ["cairo", "'Cairo', system-ui, sans-serif", "\u0627\u0644\u0642\u0627\u0647\u0631\u0629 (\u0633\u0627\u0646 \u0633\u064A\u0631\u064A\u0641)", "Cairo (sans)", null, null, "ar"],
-    ["tajawal", "'Tajawal', system-ui, sans-serif", "\u062A\u062C\u0648\u0627\u0644", "Tajawal (sans)", "tajawal", "Tajawal", "ar"],
-    ["almarai", "'Almarai', system-ui, sans-serif", "\u0627\u0644\u0645\u0631\u0639\u064A", "Almarai (sans)", "almarai", "Almarai", "ar"],
-    ["kufi", "'Noto Kufi Arabic', system-ui, sans-serif", "\u0646\u0648\u062A\u0648 \u0643\u0648\u0641\u064A", "Noto Kufi", "noto-kufi-arabic", "Noto Kufi Arabic", "ar"],
-    ["lora", "'Lora', Georgia, serif", "Lora (\u0625\u0646\u062C\u0644\u064A\u0632\u064A \u0633\u064A\u0631\u064A\u0641)", "Lora (serif)", "lora", "Lora", "en"],
-    ["georgia", "Georgia, 'Times New Roman', serif", "\u062C\u0648\u0631\u062C\u064A\u0627", "Georgia", null, null, "en"],
-    ["system", "system-ui, 'Segoe UI', sans-serif", "\u062E\u0637 \u0627\u0644\u0646\u0638\u0627\u0645", "System sans", null, null, "en"]
-  ];
-  var FONTS = DEFS.map((d) => ({ id: d[0], stack: d[1], ar: d[2], en: d[3], prefix: d[4], family: d[5], script: d[6] }));
-  function fontStack(id) {
-    const f = FONTS.find((x) => x.id === id) || FONTS[0];
-    return f.stack;
-  }
-  function fontLabel(f) {
-    return getLang() === "ar" ? f.ar : f.en;
-  }
-  function fontFaceCSS() {
-    const base = new URL("fonts/", document.baseURI).href;
-    const faces = [];
-    const add = (family, file, w) => faces.push(`@font-face{font-family:'${family}';src:url('${base}${file}') format('woff2');font-weight:${w};font-display:swap}`);
-    [400, 700].forEach((w) => add("Amiri", `amiri-arabic-${w}-normal.woff2`, w));
-    [400, 600, 700].forEach((w) => add("Cairo", `cairo-arabic-${w}-normal.woff2`, w));
-    FONTS.filter((f) => f.prefix).forEach((f) => {
-      const script = f.script === "en" ? "latin" : "arabic";
-      [400, 700].forEach((w) => add(f.family, `${f.prefix}-${script}-${w}-normal.woff2`, w));
-    });
-    return faces.join("\n");
-  }
-  function fontPicker(current, onPick) {
-    const wrap = document.createElement("div");
-    wrap.className = "font-picker";
-    const sample = getLang() === "ar" ? "\u0641\u064A \u0627\u0644\u0628\u062F\u0621 \u0643\u0627\u0646\u062A \u0627\u0644\u0643\u0644\u0645\u0629\u060C \u0648\u0643\u0627\u0646\u062A \u0627\u0644\u0643\u0644\u0645\u0629 \u062C\u0645\u064A\u0644\u0629. Reading is fun 123" : "The quick brown fox jumps over the lazy dog. \u0641\u064A \u0627\u0644\u0628\u062F\u0621 \u0643\u0627\u0646\u062A \u0627\u0644\u0643\u0644\u0645\u0629";
-    wrap.innerHTML = `<div class="font-grid"></div><div class="font-preview" dir="auto"></div>`;
-    const grid = wrap.querySelector(".font-grid"), prev2 = wrap.querySelector(".font-preview");
-    const paint = (id) => {
-      prev2.style.fontFamily = fontStack(id);
-      prev2.textContent = sample;
-      grid.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.font === id));
-    };
-    FONTS.forEach((f) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.dataset.font = f.id;
-      b.className = "font-opt";
-      b.style.fontFamily = f.stack;
-      b.textContent = fontLabel(f);
-      b.onclick = () => {
-        paint(f.id);
-        onPick(f.id);
-      };
-      grid.appendChild(b);
-    });
-    paint(current || "auto");
-    return wrap;
-  }
-
-  // src/tts.js
-  var NATURAL_RE = /natural|neural|online|premium|enhanced|siri/i;
-  var ROBOTIC_RE = /hoda|naayf|compact|espeak|festival|pico/i;
-  function voices() {
-    try {
-      return window.speechSynthesis && window.speechSynthesis.getVoices() || [];
-    } catch {
-      return [];
-    }
-  }
-  function onVoices(cb) {
-    if (!window.speechSynthesis) return () => {
-    };
-    const fire2 = () => cb(voices());
-    window.speechSynthesis.addEventListener("voiceschanged", fire2);
-    if (!voices().length) setTimeout(fire2, 400);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", fire2);
-  }
-  function waitVoices(ms = 1500) {
-    return new Promise((res) => {
-      if (voices().length) return res(voices());
-      let done = false;
-      let stop = () => {
-      };
-      const finish = (v) => {
-        if (done) return;
-        done = true;
-        stop();
-        res(v);
-      };
-      stop = onVoices((v) => {
-        if (v.length) finish(v);
-      });
-      setTimeout(() => finish(voices()), ms);
-    });
-  }
-  var baseLang = (l) => String(l || "").toLowerCase().replace("_", "-").split("-")[0];
-  function quality(v) {
-    if (!v) return -1e9;
-    const name = (v.name || "") + " " + (v.voiceURI || "");
-    let s = 0;
-    if (NATURAL_RE.test(name)) s += 100;
-    if (ROBOTIC_RE.test(name)) s -= 40;
-    if (/google/i.test(name)) s += 30;
-    if (v.localService === false) s += 15;
-    if (v.default) s += 5;
-    return s;
-  }
-  var isNatural = (v) => !!v && NATURAL_RE.test((v.name || "") + " " + (v.voiceURI || ""));
-  function detectLang(text) {
-    const t2 = String(text || "");
-    const ar2 = (t2.match(/[\u0600-\u06FF\u0750-\u077F]/g) || []).length;
-    const lat = (t2.match(/[A-Za-z]/g) || []).length;
-    if (!ar2 && !lat) return "";
-    if (!ar2) return "en";
-    if (!lat) return "ar";
-    return ar2 >= lat * 0.5 ? "ar" : "en";
-  }
-  function langScore(v, lang2) {
-    const L = baseLang(lang2);
-    let s = quality(v);
-    if (!L) return s;
-    const vl = String(v.lang || "").toLowerCase().replace("_", "-");
-    if (vl === L) s += 12;
-    else if (vl.startsWith(L + "-")) s += 10;
-    else if (baseLang(vl) === L) s += 8;
-    if (L === "ar" && /^ar-eg/.test(vl)) s += 25;
-    return s;
-  }
-  function voicesFor(lang2) {
-    const L = baseLang(lang2);
-    return voices().filter((v) => !L || baseLang(v.lang) === L).slice().sort((a, b) => langScore(b, lang2) - langScore(a, lang2));
-  }
-  function pickVoice(lang2, preferURI) {
-    const all = voices();
-    if (!all.length) return null;
-    const L = baseLang(lang2);
-    if (preferURI) {
-      const p = all.find((v) => v.voiceURI === preferURI || v.name === preferURI);
-      if (p && (!L || baseLang(p.lang) === L)) return p;
-    }
-    const pool = voicesFor(lang2);
-    if (pool.length) return pool[0];
-    return all.slice().sort((a, b) => quality(b) - quality(a))[0] || null;
-  }
-  function sampleFor(lang2) {
-    return baseLang(lang2) === "ar" ? "\u062F\u0647 \u0634\u0643\u0644 \u0627\u0644\u0635\u0648\u062A \u0627\u0644\u062C\u062F\u064A\u062F \u0641\u064A \u0642\u0627\u0631\u0626. \u062C\u0631\u0651\u0628 \u0627\u0644\u0633\u0631\u0639\u0629 \u0644\u0648 \u0639\u0627\u064A\u0632\u0647\u0627 \u0623\u0633\u0631\u0639 \u0623\u0648 \u0623\u0628\u0637\u0623." : "This is how your book will sound in Qari. Try another speed if you like it faster or slower.";
-  }
-  function preview(voice, lang2, rate = 1) {
-    if (!window.speechSynthesis) return null;
-    try {
-      window.speechSynthesis.cancel();
-    } catch {
-    }
-    const u = new SpeechSynthesisUtterance(sampleFor(lang2));
-    try {
-      if (voice) u.voice = voice;
-    } catch (e) {
-      console.warn("tts voice rejected, using language default", e);
-    }
-    u.lang = voice && voice.lang || (baseLang(lang2) === "ar" ? "ar-EG" : "en-US");
-    u.rate = rate || 1;
-    try {
-      window.speechSynthesis.speak(u);
-    } catch {
-    }
-    return u;
-  }
-  function langLabel(lang2) {
-    const L = baseLang(lang2);
-    if (!L) return "";
-    try {
-      const uiLang = document.documentElement.lang || "ar";
-      const dn = new Intl.DisplayNames([uiLang], { type: "language" });
-      return dn.of(L) || L;
-    } catch {
-      return L;
-    }
-  }
-
-  // src/reader.js
-  var $4 = (s, r = document) => r.querySelector(s);
-  var R = null;
-  var HL_COLORS = ["#ffd54a", "#8ee08e", "#7ec8ff", "#ff9db0"];
-  function layoutMode() {
-    const w = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth);
-    return w < 700 ? "phone" : w < 1100 ? "tablet" : "desktop";
-  }
-  function applyLayout(resize = true) {
-    const m = layoutMode();
-    const stage = $4("#readerStage"), body = $4("#readerBody");
-    if (!stage || !body) return;
-    ["phone", "tablet", "desktop"].forEach((x) => {
-      stage.classList.toggle("lay-" + x, x === m);
-      body.classList.toggle("lay-" + x, x === m);
-    });
-    const l = getState().settings.layout || "auto";
-    $4("#phoneBtn") && $4("#phoneBtn").classList.toggle("on", l === "phone");
-    $4("#tabletBtn") && $4("#tabletBtn").classList.toggle("on", l === "tablet");
-    if (!resize || !R) return;
-    if (R.rendition) {
-      applyEpubTheme();
-      try {
-        R.rendition.resize();
-      } catch {
-      }
-    } else if (R.pdf) renderPdfPage();
-    else if (R.txtPages) renderTxtPage();
-  }
-  async function showTocPanel() {
-    const panel = $4("#readerPanel");
-    panel.classList.remove("hidden");
-    panel.dataset.kind = "toc";
-    panel.innerHTML = `<h3>\u{1F4D1} ${t("toc")}</h3><div id="tocList"><p class="muted">\u2026</p></div>`;
-    const list = panel.querySelector("#tocList");
-    const items = [];
-    try {
-      if (R.epub) {
-        const walk = (arr, d) => (arr || []).forEach((it) => {
-          items.push({ label: (it.label || "").trim(), depth: d, go: () => R.rendition.display(it.href) });
-          walk(it.subitems, d + 1);
-        });
-        walk(R.epub.navigation && R.epub.navigation.toc, 0);
-      } else if (R.pdf) {
-        const ol = await R.pdf.getOutline();
-        const walk = async (arr, d) => {
-          for (const it of arr || []) {
-            const go = async () => {
-              try {
-                let dest = it.dest;
-                if (typeof dest === "string") dest = await R.pdf.getDestination(dest);
-                const idx = await R.pdf.getPageIndex(dest[0]);
-                R.pdfPage = idx + 1;
-                renderPdfPage();
-              } catch {
-              }
-            };
-            items.push({ label: (it.title || "").trim(), depth: d, go });
-            await walk(it.items, d + 1);
-          }
-        };
-        await walk(ol, 0);
-      } else if (R.txtPages) {
-        const re = /^[ \t]*((?:chapter|part|book|section|الفصل|فصل|الباب|باب|الجزء|جزء|الكتاب)\b[^\n]{0,70})$/gim;
-        R.txtPages.forEach((p, i) => {
-          re.lastIndex = 0;
-          const m = re.exec(p);
-          if (m) items.push({ label: m[1].trim(), depth: 0, go: () => {
-            R.txtIdx = i;
-            renderTxtPage();
-          } });
-        });
-      }
-    } catch (e) {
-      console.warn("toc failed", e);
-    }
-    if (!items.length) {
-      list.innerHTML = `<p class="muted">${t("tocNone")}</p>`;
-      return;
-    }
-    list.innerHTML = "";
-    items.forEach((it) => {
-      const b = document.createElement("button");
-      b.className = "toc-item" + (it.depth ? " sub" : "");
-      b.textContent = it.label || "\u2014";
-      b.style.paddingInlineStart = 0.3 + it.depth * 1 + "rem";
-      b.onclick = async () => {
-        await it.go();
-        panel.classList.add("hidden");
-      };
-      list.appendChild(b);
-    });
-  }
-  var sliderDrag = false;
-  function bindSlider() {
-    const sl = $4("#pageSlider");
-    if (!sl || sl._bound) return;
-    sl._bound = true;
-    const label = (v) => {
-      if (!R) return "";
-      if (R.pdf) return `${t("pageN").replace("{n}", Math.max(1, Math.round(v / 1e3 * (R.pdf.numPages - 1)) + 1))} ${t("of")} ${R.pdf.numPages}`;
-      if (R.txtPages) return `${Math.round(v / 1e3 * (R.txtPages.length - 1)) + 1} / ${R.txtPages.length}`;
-      if (R.rendition && R.locationsReady) {
-        const tot = R.epub.locations.total;
-        return `${Math.max(1, Math.round(v / 1e3 * (tot - 1)) + 1)} / ${tot} \xB7 ${Math.round(v / 10)}%`;
-      }
-      return Math.round(v / 10) + "%";
-    };
-    sl.addEventListener("pointerdown", () => {
-      sliderDrag = true;
-    });
-    sl.addEventListener("input", () => {
-      sliderDrag = true;
-      $4("#readerProgressLabel").textContent = label(+sl.value);
-    });
-    sl.addEventListener("change", () => {
-      sliderDrag = false;
-      if (!R) return;
-      const v = +sl.value / 1e3;
-      if (R.pdf) {
-        R.pdfPage = Math.round(v * (R.pdf.numPages - 1)) + 1;
-        renderPdfPage();
-      } else if (R.txtPages) {
-        R.txtIdx = Math.round(v * (R.txtPages.length - 1));
-        renderTxtPage();
-      } else if (R.rendition) {
-        if (!R.locationsReady) {
-          toast(t("pagesPreparing"));
-          updateProgress();
-          return;
-        }
-        const cfi = R.epub.locations.cfiFromPercentage(Math.min(0.999, v));
-        if (cfi) R.rendition.display(cfi);
-      }
-    });
-    document.addEventListener("pointerup", () => {
-      sliderDrag = false;
-    });
-  }
-  var imgUrlCache = /* @__PURE__ */ new Map();
-  async function imgDataUrl(im) {
-    if (imgUrlCache.has(im.id)) return imgUrlCache.get(im.id);
-    const blob = await getFile(im.fileKey);
-    if (!blob) return "";
-    const u = await new Promise((res) => {
-      const fr = new FileReader();
-      fr.onload = () => res(fr.result);
-      fr.readAsDataURL(blob);
-    });
-    imgUrlCache.set(im.id, u);
-    return u;
-  }
-  async function shrinkImage(file) {
-    const url = URL.createObjectURL(file);
-    try {
-      const img = await new Promise((res, rej) => {
-        const i = new Image();
-        i.onload = () => res(i);
-        i.onerror = () => rej(new Error("bad image"));
-        i.src = url;
-      });
-      const sc = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.naturalWidth * sc);
-      c.height = Math.round(img.naturalHeight * sc);
-      const x = c.getContext("2d");
-      x.fillStyle = "#fff";
-      x.fillRect(0, 0, c.width, c.height);
-      x.drawImage(img, 0, 0, c.width, c.height);
-      return await new Promise((res) => c.toBlob(res, "image/jpeg", 0.85));
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  }
-  function blockAfter(range, doc) {
-    let el = range.endContainer;
-    while (el && el.nodeType !== 1) el = el.parentNode;
-    const body = doc.body;
-    while (el && el !== body && el.parentElement !== body && !/^(P|DIV|H[1-6]|LI|BLOCKQUOTE|SECTION|FIGURE|TABLE|PRE|UL|OL)$/.test(el.tagName)) el = el.parentElement;
-    return el || body;
-  }
-  function makeFigure(doc, im, url) {
-    const fig = doc.createElement("figure");
-    fig.className = "qari-img";
-    fig.dataset.id = im.id;
-    fig.setAttribute("style", "margin:1em auto;text-align:center;break-inside:avoid;max-width:100%");
-    const img = doc.createElement("img");
-    img.src = url;
-    img.alt = "";
-    img.setAttribute("style", "max-width:100%;max-height:80vh;height:auto;border-radius:6px");
-    if (im.scale && im.scale < 100) img.style.width = im.scale + "%";
-    fig.appendChild(img);
-    if (im.caption) {
-      const c = doc.createElement("figcaption");
-      c.textContent = im.caption;
-      c.setAttribute("style", "font-size:.85em;opacity:.7;margin-top:.3em");
-      fig.appendChild(c);
-    }
-    img.addEventListener("load", () => {
-      try {
-        R && R.rendition && R.rendition.resize();
-      } catch {
-      }
-    });
-    return fig;
-  }
-  async function placeEpubImages(contents) {
-    if (!R || !R.epub) return;
-    const doc = contents.document;
-    doc.querySelectorAll("figure.qari-img").forEach((f) => f.remove());
-    const imgs = bookImages(R.book.id).filter((i) => i.cfi && i.fileKey).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    for (const im of imgs) {
-      try {
-        const sec = R.epub.spine.get(im.cfi);
-        if (!sec || sec.index !== contents.sectionIndex) continue;
-        const range = contents.range(im.cfi, "qari-img");
-        if (!range) continue;
-        const url = await imgDataUrl(im);
-        if (!url) continue;
-        const fig = makeFigure(doc, im, url);
-        const el = blockAfter(range, doc);
-        if (el === doc.body) doc.body.appendChild(fig);
-        else el.insertAdjacentElement("afterend", fig);
-      } catch (e) {
-        console.warn("place image failed", e);
-      }
-    }
-  }
-  function refreshImages() {
-    if (!R) return;
-    if (R.rendition) {
-      try {
-        R.rendition.getContents().forEach((c) => placeEpubImages(c));
-        setTimeout(() => {
-          try {
-            R.rendition.resize();
-          } catch {
-          }
-        }, 150);
-      } catch {
-      }
-    } else if (R.txtPages) renderTxtPage();
-  }
-  function askRemoveImage(id) {
-    if (!confirm(getLang() === "ar" ? "\u0645\u0633\u062D \u0627\u0644\u0635\u0648\u0631\u0629 \u062F\u064A \u0645\u0646 \u0627\u0644\u0643\u062A\u0627\u0628\u061F" : "Remove this image from the book?")) return;
-    const im = (getState().images || []).find((i) => i.id === id);
-    removeImage(id);
-    if (im) deleteFile(im.fileKey).catch(() => {
-    });
-    imgUrlCache.delete(id);
-    refreshImages();
-    const p = $4("#readerPanel");
-    if (p && p.dataset.kind === "img") showImagePanel();
-  }
-  function capturePos() {
-    if (R.rendition) {
-      try {
-        const c = R.rendition.getContents()[0];
-        const sel = c.window.getSelection();
-        if (sel && sel.rangeCount && !sel.isCollapsed) return { cfi: c.cfiFromRange(sel.getRangeAt(0), "qari-img") };
-      } catch {
-      }
-      const loc = R.rendition.currentLocation();
-      if (loc && loc.start) return { cfi: loc.start.cfi };
-      return null;
-    }
-    if (R.txtPages) {
-      let at = null;
-      try {
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount && !sel.isCollapsed) {
-          const rg = sel.getRangeAt(0);
-          let n = rg.endContainer;
-          if (n.nodeType === 3) n = n.parentNode;
-          const sp = n.closest && n.closest(".seg");
-          if (sp) at = +sp.dataset.off + (rg.endContainer.nodeType === 3 ? rg.endOffset : 0);
-        }
-      } catch {
-      }
-      return { page: R.txtIdx + 1, at };
-    }
-    return null;
-  }
-  async function showImagePanel() {
-    const panel = $4("#readerPanel");
-    panel.classList.remove("hidden");
-    panel.dataset.kind = "img";
-    const ar2 = getLang() === "ar";
-    if (R.pdf || !(R.rendition || R.txtPages)) {
-      panel.innerHTML = `<h3>\u{1F5BC} ${t("addImage")}</h3><p class="muted">${t("imgNoPdf")}</p>`;
-      return;
-    }
-    if (!panel._pos || panel._bookId !== R.book.id || !panel._keep) {
-      panel._pos = capturePos();
-    }
-    panel._bookId = R.book.id;
-    panel._keep = false;
-    const list = bookImages(R.book.id);
-    panel.innerHTML = `<h3>\u{1F5BC} ${t("addImage")}</h3>
-    <p class="muted" style="margin-bottom:.6rem">${t("imgHint")}</p>
-    <input id="imgCap" placeholder="${t("imgCaption")}" style="width:100%;margin-bottom:.5rem">
-    <button id="imgPick" class="btn btn-primary" style="margin-bottom:.4rem">\uFF0B ${t("imgChoose")}</button>
-    <input type="file" id="imgFile" accept="image/*" hidden>
-    <h4 style="margin:.8rem 0 .4rem">${t("imgInBook")} (${list.length})</h4><div id="imgList"></div>`;
-    panel.querySelector("#imgPick").onclick = () => {
-      panel._keep = true;
-      panel.querySelector("#imgFile").click();
-    };
-    panel.querySelector("#imgFile").onchange = async (e) => {
-      const f = e.target.files[0];
-      if (!f) return;
-      try {
-        const pos = panel._pos || capturePos();
-        if (!pos) throw new Error(t("imgNoPos"));
-        const blob = await shrinkImage(f);
-        const im = addImage(Object.assign({ bookId: R.book.id, caption: panel.querySelector("#imgCap").value.trim() }, pos));
-        await putFile(im.fileKey, blob);
-        panel._pos = null;
-        refreshImages();
-        toast(t("added"));
-      } catch (err) {
-        toast("\u26A0 " + (err.message || err), 3500);
-      }
-      showImagePanel();
-    };
-    const lh = panel.querySelector("#imgList");
-    if (!list.length) lh.innerHTML = `<p class="muted">${t("imgNone")}</p>`;
-    list.forEach(async (im) => {
-      const row = document.createElement("div");
-      row.className = "comment";
-      row.innerHTML = `<div style="display:flex;gap:.5rem;align-items:center"><img style="width:56px;height:56px;object-fit:cover;border-radius:6px"><div style="flex:1" class="muted captext"></div><button class="icon-btn" data-act="jump">\u21A9</button><button class="icon-btn" data-act="del">\u{1F5D1}</button></div>
-      <div style="display:flex;gap:.5rem;align-items:center;margin-top:.35rem"><span class="muted" style="font-size:.8rem">${t("imgSize")}</span><input type="range" min="20" max="100" step="5" value="${im.scale || 100}" style="flex:1"><span class="muted szv" style="font-size:.8rem;min-width:2.6em;text-align:end">${im.scale || 100}%</span></div>`;
-      row.querySelector(".captext").textContent = im.caption || (im.page ? t("pageN").replace("{n}", im.page) : "");
-      imgDataUrl(im).then((u) => {
-        if (u) row.querySelector("img").src = u;
-      });
-      row.querySelector("[data-act=jump]").onclick = () => {
-        if (im.cfi && R.rendition) R.rendition.display(im.cfi);
-        else if (im.page && R.txtPages) {
-          R.txtIdx = im.page - 1;
-          renderTxtPage();
-        }
-      };
-      row.querySelector("[data-act=del]").onclick = () => askRemoveImage(im.id);
-      const rng = row.querySelector("input[type=range]");
-      rng.oninput = () => {
-        row.querySelector(".szv").textContent = rng.value + "%";
-      };
-      rng.onchange = () => {
-        updateImage(im.id, { scale: +rng.value });
-        refreshImages();
-      };
-      lh.appendChild(row);
-    });
-  }
-  async function openReader(book) {
-    const ov = $4("#readerOverlay");
-    ov.classList.remove("hidden");
-    document.body.style.overflow = "hidden";
-    $4("#readerTitle").textContent = book.title;
-    $4("#readerPanel").classList.add("hidden");
-    $4("#selPop").classList.add("hidden");
-    R = {
-      book,
-      startedAt: Date.now(),
-      pagesTurned: 0,
-      epub: null,
-      rendition: null,
-      pdf: null,
-      pdfPage: 1,
-      txtPages: null,
-      txtIdx: 0,
-      ttsActive: false,
-      locationsReady: false,
-      selAt: 0,
-      timer: null
-    };
-    R.timer = setInterval(() => {
-      if (!R || document.hidden || $4("#readerOverlay").classList.contains("hidden")) return;
-      const mins = (Date.now() - R.startedAt) / 6e4;
-      const st = $4("#sessionTimer");
-      if (st) st.textContent = mins < 60 ? `${Math.floor(mins)}:${String(Math.floor(mins % 1 * 60)).padStart(2, "0")}` : `${Math.floor(mins / 60)}h ${Math.floor(mins % 60)}m`;
-    }, 1e3);
-    bindChrome();
-    bindSlider();
-    applyLayout(false);
-    if (book.format === "web" || !book.fileKey) {
-      renderWebRef(book);
-      return;
-    }
-    const blob = await getFile(book.fileKey);
-    if (!blob) {
-      $4("#readerStage").innerHTML = `<p class="muted" style="padding:2rem">\u26A0 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628 \u0645\u0634 \u0645\u0648\u062C\u0648\u062F \u0639\u0644\u0649 \u0627\u0644\u062C\u0647\u0627\u0632.</p>`;
-      return;
-    }
-    try {
-      if (book.format === "epub") await openEpub(blob, book);
-      else if (book.format === "pdf") await openPdf(blob, book);
-      else openTxt(await blob.text(), book);
-    } catch (e) {
-      console.error(e);
-      $4("#readerStage").innerHTML = `<p class="muted" style="padding:2rem">\u26A0 ${esc(e.message || String(e))}</p>`;
-    }
-    markReading();
-  }
-  function markReading() {
-    if (R.book.shelf === "want") updateBook(R.book.id, { shelf: "reading" });
-  }
-  async function openEpub(blob, book) {
-    const buf = await blob.arrayBuffer();
-    const epub = ePub(buf);
-    R.epub = epub;
-    const s = getState().settings;
-    const stage = $4("#readerStage");
-    stage.innerHTML = "";
-    const rendition = epub.renderTo(stage, { width: "100%", height: "100%", flow: s.flow === "scrolled" ? "scrolled-doc" : "paginated", spread: "none", allowScriptedContent: false, ignoreClass: "qari-img" });
-    R.rendition = rendition;
-    const wireContents = (c) => {
-      try {
-        const d = c.document;
-        if (!d || d.__qariWired) return;
-        d.__qariWired = 1;
-        try {
-          const st = d.createElement("style");
-          st.textContent = fontFaceCSS();
-          d.head.appendChild(st);
-        } catch (e) {
-          console.warn("font inject failed", e);
-        }
-        placeEpubImages(c);
-        d.addEventListener("mousedown", () => window.__qariCloseFloating && window.__qariCloseFloating({}));
-        d.addEventListener("touchstart", () => window.__qariCloseFloating && window.__qariCloseFloating({}), { passive: true });
-        d.addEventListener("click", (ev) => {
-          if (!R) return;
-          if (Date.now() - (R.selAt || 0) < 500) return;
-          const tg = ev.target;
-          if (tg && tg.closest && tg.closest("a,button,input,img,figure")) return;
-          const sel = d.getSelection && d.getSelection();
-          if (sel && sel.toString().trim()) {
-            sel.removeAllRanges();
-            hideSelPop();
-          }
-          toggleReaderChrome();
-        });
-      } catch {
-      }
-    };
-    rendition.hooks.content.register(wireContents);
-    await epub.ready;
-    await epub.loaded.navigation.catch(() => {
-    });
-    await rendition.display(book.location || void 0);
-    applyEpubTheme();
-    rendition.on("rendered", () => {
-      applyEpubTheme();
-      try {
-        R.rendition.getContents().forEach(wireContents);
-      } catch {
-      }
-    });
-    const genLocations = () => epub.locations.generate(1200).then(() => {
-      if (R && R.epub === epub) {
-        R.locationsReady = true;
-        updateProgress();
-      }
-    }).catch(() => {
-    });
-    if ("requestIdleCallback" in window) requestIdleCallback(genLocations, { timeout: 9e3 });
-    else setTimeout(genLocations, 2500);
-    updateProgress();
-    rendition.on("relocated", () => {
-      R.pagesTurned++;
-      savePosition();
-      updateProgress();
-      if (R.ttsActive) speakCurrent();
-    });
-    rendition.on("selected", (cfiRange, contents) => {
-      const range = epub.getRange(cfiRange);
-      const text = range ? range.toString().trim() : "";
-      if (!text) return;
-      R.selAt = Date.now();
-      showSelPop(contents, text, (action, color) => {
-        if (action === "highlight") {
-          const hl = addHighlight({ bookId: book.id, text: text.slice(0, 500), cfi: cfiRange, color });
-          rendition.annotations.add("highlight", cfiRange, { id: hl.id }, null, "hl", { fill: color, "fill-opacity": "0.4" });
-          contents.window.getSelection().removeAllRanges();
-          hideSelPop();
-        } else if (action === "note") {
-          const note = prompt(t("addNote"));
-          const hl = addHighlight({ bookId: book.id, text: text.slice(0, 500), cfi: cfiRange, note: note || "", color: "#7ec8ff" });
-          rendition.annotations.add("highlight", cfiRange, { id: hl.id }, null, "hl", { fill: "#7ec8ff", "fill-opacity": "0.4" });
-          contents.window.getSelection().removeAllRanges();
-          hideSelPop();
-        } else if (action === "define") {
-          lookupWord(text);
-        }
-      });
-    });
-    rendition.on("rendered", () => {
-      bookHighlights(book.id).forEach((h) => {
-        if (h.cfi) try {
-          rendition.annotations.add("highlight", h.cfi, { id: h.id }, null, "hl", { fill: h.color, "fill-opacity": "0.4" });
-        } catch {
-        }
-      });
-    });
-  }
-  function applyEpubTheme() {
-    if (!R || !R.rendition) return;
-    const s = getState().settings;
-    const cs = getComputedStyle(document.body);
-    const theme = {
-      body: {
-        color: cs.getPropertyValue("--text") + "!important",
-        background: cs.getPropertyValue("--bg") + "!important",
-        "font-size": s.fontSize + "px !important",
-        "line-height": s.lineHeight + " !important",
-        "font-family": fontStack(s.fontFamily) + " !important",
-        padding: layoutMode() === "phone" ? "0 4px" : layoutMode() === "tablet" ? "0 16px" : "0 8px"
-      },
-      p: { "margin-bottom": "0.7em" },
-      img: { "max-width": "100%" }
-    };
-    try {
-      R.rendition.themes.register("qari", theme);
-      R.rendition.themes.select("qari");
-    } catch (e) {
-    }
-  }
-  async function openPdf(blob, book) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "js/vendor/pdf.worker.min.js";
-    const buf = await blob.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    R.pdf = pdf;
-    R.pdfPage = book.currentPage > 0 ? Math.min(book.currentPage, pdf.numPages) : 1;
-    updateBook(book.id, { totalPages: pdf.numPages });
-    await renderPdfPage();
-  }
-  async function renderPdfPage() {
-    const stage = $4("#readerStage");
-    const page = await R.pdf.getPage(R.pdfPage);
-    const containerW = stage.clientWidth - 40;
-    const base = page.getViewport({ scale: 1 });
-    const scale = Math.min(1.8, containerW / base.width);
-    const vp = page.getViewport({ scale: Math.max(0.8, scale) });
-    stage.innerHTML = "";
-    const canvas = document.createElement("canvas");
-    canvas.className = "pdf-page";
-    canvas.width = vp.width;
-    canvas.height = vp.height;
-    stage.appendChild(canvas);
-    await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
-    R.pagesTurned++;
-    savePosition();
-    updateProgress();
-  }
-  function openTxt(text, book) {
-    const chunks = [];
-    const CH = 3200;
-    let i = 0;
-    while (i < text.length) {
-      let end = Math.min(i + CH, text.length);
-      if (end < text.length) {
-        const nl = text.lastIndexOf("\n", end);
-        if (nl > i + CH / 2) end = nl;
-      }
-      chunks.push(text.slice(i, end));
-      i = end;
-    }
-    R.txtPages = chunks;
-    R.txtIdx = Math.min(book.currentPage || 0, chunks.length - 1);
-    updateBook(book.id, { totalPages: chunks.length });
-    renderTxtPage();
-  }
-  function renderTxtPage() {
-    const stage = $4("#readerStage");
-    const s = getState().settings;
-    const isAr = /[؀-ۿ]/.test(R.txtPages[R.txtIdx].slice(0, 200));
-    stage.innerHTML = "";
-    const div = document.createElement("div");
-    div.className = "txt-page";
-    div.dir = isAr ? "rtl" : "ltr";
-    div.style.setProperty("--rfs", s.fontSize + "px");
-    if (s.fontFamily && s.fontFamily !== "auto") div.style.fontFamily = fontStack(s.fontFamily);
-    div.style.setProperty("--rlh", s.lineHeight);
-    const pageText = R.txtPages[R.txtIdx];
-    const pimgs = bookImages(R.book.id).filter((i) => i.page === R.txtIdx + 1 && i.fileKey).sort((a, b) => (a.at || 0) - (b.at || 0));
-    let pos = 0;
-    const seg = (from, to) => {
-      const sp = document.createElement("span");
-      sp.className = "seg";
-      sp.dataset.off = from;
-      sp.textContent = pageText.slice(from, to);
-      div.appendChild(sp);
-    };
-    pimgs.forEach((im) => {
-      const at = Math.min(pageText.length, Math.max(pos, im.at == null ? pageText.length : im.at));
-      seg(pos, at);
-      pos = at;
-      const fig = document.createElement("figure");
-      fig.className = "qari-img";
-      fig.dataset.id = im.id;
-      fig.innerHTML = '<img alt=""><figcaption></figcaption>';
-      fig.querySelector("figcaption").textContent = im.caption || "";
-      if (im.scale && im.scale < 100) fig.querySelector("img").style.width = im.scale + "%";
-      imgDataUrl(im).then((u) => {
-        if (u) fig.querySelector("img").src = u;
-      });
-      div.appendChild(fig);
-    });
-    seg(pos, pageText.length);
-    stage.appendChild(div);
-    div.addEventListener("mouseup", maybeShowTxtSel);
-    R.pagesTurned++;
-    savePosition();
-    updateProgress();
-  }
-  function renderWebRef(book) {
-    const stage = $4("#readerStage");
-    stage.innerHTML = `<div class="txt-page" style="text-align:center">
-    <div class="cover" style="max-width:200px;margin:0 auto 1rem;border-radius:10px;overflow:hidden">${coverHTML(book)}</div>
-    <h2>${esc(book.title)}</h2><p class="muted">${esc(book.author)}</p>
-    <p style="margin-top:1rem">${t("sampleNote")}</p>
-    <p style="margin-top:.6rem"><a href="https://openlibrary.org/search?q=${encodeURIComponent(book.title)}" target="_blank" rel="noopener" style="color:var(--accent)">${t("readOnline")} \u2197</a></p>
-  </div>`;
-    $4("#readerProgressLabel").textContent = "";
-    $4("#readerProgressFill").style.width = "0%";
-  }
-  function next() {
-    if (!R) return;
-    if (R.rendition) R.rendition.next();
-    else if (R.pdf && R.pdfPage < R.pdf.numPages) {
-      R.pdfPage++;
-      renderPdfPage();
-    } else if (R.txtPages && R.txtIdx < R.txtPages.length - 1) {
-      R.txtIdx++;
-      renderTxtPage();
-    }
-  }
-  function prev() {
-    if (!R) return;
-    if (R.rendition) R.rendition.prev();
-    else if (R.pdf && R.pdfPage > 1) {
-      R.pdfPage--;
-      renderPdfPage();
-    } else if (R.txtPages && R.txtIdx > 0) {
-      R.txtIdx--;
-      renderTxtPage();
-    }
-  }
-  function savePosition() {
-    const patch = {};
-    if (R.rendition) {
-      const loc = R.rendition.currentLocation();
-      if (loc && loc.start) {
-        patch.location = loc.start.cfi;
-        if (R.locationsReady && loc.start.percentage != null) patch.progress = Math.round(loc.start.percentage * 100);
-        else patch.progress = R.book.progress;
-      }
-    } else if (R.pdf) {
-      patch.currentPage = R.pdfPage;
-      patch.progress = Math.round(R.pdfPage / R.pdf.numPages * 100);
-      patch.location = String(R.pdfPage);
-    } else if (R.txtPages) {
-      patch.currentPage = R.txtIdx;
-      patch.progress = Math.round((R.txtIdx + 1) / R.txtPages.length * 100);
-      patch.location = String(R.txtIdx);
-    } else return;
-    Object.assign(R.book, patch);
-    updateBook(R.book.id, patch);
-  }
-  function updateProgress() {
-    if (!R) return;
-    let label = "", pct = 0;
-    if (R.rendition) {
-      const loc = R.rendition.currentLocation();
-      if (loc && loc.start) {
-        pct = Math.round((loc.start.percentage || 0) * 100);
-        label = pct + "%";
-        if (R.locationsReady) {
-          try {
-            const n = R.epub.locations.locationFromCfi(loc.start.cfi);
-            label = `${n + 1} / ${R.epub.locations.total} \xB7 ${pct}%`;
-          } catch {
-          }
-        }
-      }
-    } else if (R.pdf) {
-      pct = Math.round(R.pdfPage / R.pdf.numPages * 100);
-      label = `${t("pageN").replace("{n}", R.pdfPage)} ${t("of")} ${R.pdf.numPages} \xB7 ${pct}%`;
-    } else if (R.txtPages) {
-      pct = Math.round((R.txtIdx + 1) / R.txtPages.length * 100);
-      label = `${R.txtIdx + 1} / ${R.txtPages.length} \xB7 ${pct}%`;
-    }
-    if (!sliderDrag) {
-      $4("#readerProgressLabel").textContent = label;
-      const sl = $4("#pageSlider");
-      if (sl) sl.value = R.pdf ? R.pdf.numPages > 1 ? Math.round((R.pdfPage - 1) / (R.pdf.numPages - 1) * 1e3) : 0 : R.txtPages ? R.txtPages.length > 1 ? Math.round(R.txtIdx / (R.txtPages.length - 1) * 1e3) : 0 : pct * 10;
-    }
-    $4("#readerProgressFill").style.width = pct + "%";
-  }
-  function showSelPop(contents, text, onAction) {
-    const pop = $4("#selPop");
-    if (!pop) return;
-    pop.innerHTML = "";
-    HL_COLORS.forEach((c, i) => {
-      const d = document.createElement("div");
-      d.className = "hl-dot" + (i === 0 ? " sel" : "");
-      d.style.background = c;
-      d.title = t("highlight");
-      d.onclick = () => onAction("highlight", c);
-      pop.appendChild(d);
-    });
-    const noteB = document.createElement("button");
-    noteB.className = "icon-btn";
-    noteB.textContent = "\u{1F4DD}";
-    noteB.title = t("note");
-    noteB.onclick = () => onAction("note");
-    const defB = document.createElement("button");
-    defB.className = "icon-btn";
-    defB.textContent = "\u{1F4D6}";
-    defB.title = t("define");
-    defB.onclick = () => onAction("define");
-    pop.append(noteB, defB);
-    pop.classList.remove("hidden");
-    pop.style.position = "fixed";
-    let rect = null;
-    try {
-      if (contents) {
-        const r = contents.window.getSelection().getRangeAt(0).getBoundingClientRect();
-        const frame = $4("#readerStage iframe");
-        const fr = frame ? frame.getBoundingClientRect() : { top: 0, left: 0 };
-        rect = { top: fr.top + r.top, bottom: fr.top + r.bottom, left: fr.left + r.left, right: fr.left + r.right };
-      } else rect = window.getSelection().getRangeAt(0).getBoundingClientRect();
-    } catch {
-    }
-    if (rect) {
-      let top = rect.bottom + 8, left = rect.left;
-      top = Math.max(60, Math.min(top, window.innerHeight - 60));
-      left = Math.max(10, Math.min(left, window.innerWidth - 230));
-      pop.style.top = top + "px";
-      pop.style.left = left + "px";
-      pop.style.transform = "";
-    } else {
-      pop.style.top = "70px";
-      pop.style.left = "50%";
-      pop.style.transform = "translateX(-50%)";
-    }
-  }
-  function hideSelPop() {
-    const p = $4("#selPop");
-    if (p) p.classList.add("hidden");
-  }
-  function maybeShowTxtSel() {
-    if (!R || !R.txtPages) return;
-    const sel = window.getSelection();
-    const txt = sel ? sel.toString().trim() : "";
-    if (!txt) return;
-    const st = $4("#readerStage");
-    if (!st || !sel.anchorNode || !st.contains(sel.anchorNode)) return;
-    if (Date.now() - (R.selAt || 0) < 600) return;
-    R.selAt = Date.now();
-    showSelPop(null, txt, (action, color) => {
-      if (action === "highlight" || action === "note") {
-        const note = action === "note" ? prompt(t("addNote")) || "" : "";
-        addHighlight({ bookId: R.book.id, text: txt.slice(0, 500), page: R.txtIdx + 1, note, color: action === "note" ? "#7ec8ff" : color });
-        if (sel && sel.removeAllRanges) sel.removeAllRanges();
-        hideSelPop();
-        toast(t("added"));
-      } else if (action === "define") lookupWord(txt);
-    });
-  }
-  async function lookupWord(text) {
-    hideSelPop();
-    const word = text.split(/\s+/)[0].replace(/[^\p{L}\p{N}''-]/gu, "");
-    if (!word) return;
-    const panel = $4("#readerPanel");
-    panel.classList.remove("hidden");
-    panel.innerHTML = `<h3>\u{1F4D6} ${esc(word)}</h3><p class="muted">${t("dictLoading")}</p>`;
-    const isLatin = /^[a-zA-Z'-]+$/.test(word);
-    let html = "";
-    if (isLatin) {
-      try {
-        const res = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(word));
-        if (res.ok) {
-          const data = await res.json();
-          const entry = data[0];
-          html = (entry.meanings || []).slice(0, 3).map((m) => `<p><strong style="color:var(--accent)">${esc(m.partOfSpeech)}</strong><br>${(m.definitions || []).slice(0, 2).map((d) => "\u2022 " + esc(d.definition)).join("<br>")}</p>`).join("");
-        }
-      } catch {
-      }
-    }
-    if (!html) html = `<p class="muted">${t("dictNone")}</p>`;
-    const trUrl = isLatin ? "https://translate.google.com/?sl=en&tl=ar&text=" + encodeURIComponent(word) : "https://translate.google.com/?sl=auto&tl=en&text=" + encodeURIComponent(word);
-    panel.innerHTML = `<h3>\u{1F4D6} ${esc(word)}</h3>${html}
-    <p style="margin-top:.6rem"><a href="${trUrl}" target="_blank" rel="noopener" style="color:var(--accent)">${t("translate")} \u2197</a></p>`;
-  }
-  function currentText() {
-    if (R.rendition) {
-      try {
-        return (R.rendition.getContents()[0].document.body.innerText || "").slice(0, 2200);
-      } catch {
-        return "";
-      }
-    }
-    if (R.txtPages) return R.txtPages[R.txtIdx].slice(0, 2200);
-    return "";
-  }
-  function bookLangOf() {
-    const fromPage = detectLang((currentText() || "").slice(0, 1200));
-    if (fromPage) return fromPage;
-    const meta3 = R && R.epub && R.epub.packaging && R.epub.packaging.metadata && String(R.epub.packaging.metadata.language || "").toLowerCase();
-    if (meta3) {
-      if (/^ar\b/.test(meta3)) return "ar";
-      if (/^en\b/.test(meta3)) return "en";
-    }
-    const fromTitle = detectLang(`${R && R.book && R.book.title || ""} ${R && R.book && R.book.author || ""}`);
-    if (fromTitle) return fromTitle;
-    return getState().settings.lang === "en" ? "en" : "ar";
-  }
-  function savedVoiceFor(lang2) {
-    const s = getState().settings;
-    return (s.ttsVoices || {})[lang2] || s.ttsVoice || "";
-  }
-  async function speakCurrent() {
-    if (!R || !R.ttsActive) return;
-    let text = currentText();
-    if (R.pdf) {
-      try {
-        const page = await R.pdf.getPage(R.pdfPage);
-        const tc = await page.getTextContent();
-        text = tc.items.map((i) => i.str).join(" ").slice(0, 2200);
-      } catch {
-      }
-    }
-    text = (text || "").trim();
-    if (!text) {
-      R.ttsActive = false;
-      const b = $4("#ttsBtn");
-      if (b) b.style.color = "";
-      return;
-    }
-    if (!R || !R.ttsActive) return;
-    const s = getState().settings;
-    const lang2 = bookLangOf();
-    if (!voices().length) await waitVoices(1200);
-    const v = pickVoice(lang2, savedVoiceFor(lang2));
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = s.ttsRate || 1;
-    try {
-      if (v) u.voice = v;
-    } catch (e) {
-      console.warn("tts voice rejected, using language default", e);
-    }
-    u.lang = v && v.lang || (lang2 === "ar" ? "ar-EG" : "en-US");
-    u.onend = () => {
-      if (R && R.ttsActive) next();
-    };
-    u.onerror = () => {
-      if (R) R.ttsActive = false;
-      const b = $4("#ttsBtn");
-      if (b) b.style.color = "";
-    };
-    try {
-      speechSynthesis.speak(u);
-    } catch (e) {
-      console.warn("tts failed", e);
-      if (R) R.ttsActive = false;
-    }
-  }
-  function toggleTts() {
-    if (!R) return;
-    if (R.ttsActive) {
-      R.ttsActive = false;
-      speechSynthesis.cancel();
-      $4("#ttsBtn").style.color = "";
-      toast(t("stop"));
-    } else {
-      R.ttsActive = true;
-      $4("#ttsBtn").style.color = "var(--accent)";
-      toast(t("listening"));
-      speakCurrent();
-    }
-  }
-  var chromeBound = false;
-  function bindChrome() {
-    if (chromeBound) return;
-    chromeBound = true;
-    const closeFloating = (e) => {
-      const pn = $4("#readerPanel"), sp = $4("#selPop");
-      if (pn && !pn.classList.contains("hidden") && !(e && e.target && e.target.closest && e.target.closest("#readerPanel,#readerSettingsBtn,#hlListBtn,#tocBtn,#imgBtn"))) pn.classList.add("hidden");
-      if (sp && !sp.classList.contains("hidden") && !(e && e.target && e.target.closest && e.target.closest("#selPop"))) sp.classList.add("hidden");
-    };
-    document.addEventListener("pointerdown", closeFloating, true);
-    window.__qariCloseFloating = closeFloating;
-    document.addEventListener("selectionchange", () => {
-      if (R && R.txtPages) maybeShowTxtSel();
-    });
-    $4("#prevZone").onclick = prev;
-    $4("#nextZone").onclick = next;
-    document.addEventListener("keydown", (e) => {
-      if (!R || $4("#readerOverlay").classList.contains("hidden")) return;
-      if (e.key === "ArrowLeft") document.documentElement.dir === "rtl" ? next() : prev();
-      if (e.key === "ArrowRight") document.documentElement.dir === "rtl" ? prev() : next();
-      if (e.key === "Escape") closeReader();
-    });
-    $4("#readerClose").onclick = closeReader;
-    $4("#ttsBtn").onclick = toggleTts;
-    $4("#tocBtn").onclick = () => {
-      const p = $4("#readerPanel");
-      if (!p.classList.contains("hidden") && p.dataset.kind === "toc") {
-        p.classList.add("hidden");
-        return;
-      }
-      showTocPanel();
-    };
-    $4("#imgBtn").onclick = () => {
-      const p = $4("#readerPanel");
-      if (!p.classList.contains("hidden") && p.dataset.kind === "img") {
-        p.classList.add("hidden");
-        return;
-      }
-      p._pos = null;
-      showImagePanel();
-    };
-    window.addEventListener("resize", () => {
-      if (R && !$4("#readerOverlay").classList.contains("hidden")) applyLayout(true);
-    });
-    $4("#readerSettingsBtn").onclick = () => {
-      const p = $4("#readerPanel");
-      if (!p.classList.contains("hidden") && p.dataset.kind === "settings") {
-        p.classList.add("hidden");
-        return;
-      }
-      showSettingsPanel();
-      p.dataset.kind = "settings";
-    };
-    $4("#hlListBtn").onclick = () => {
-      const p = $4("#readerPanel");
-      if (!p.classList.contains("hidden") && p.dataset.kind === "hl") {
-        p.classList.add("hidden");
-        return;
-      }
-      showHighlightsPanel();
-      p.dataset.kind = "hl";
-    };
-    $4("#readerStage").addEventListener("click", (ev) => {
-      if (!R || $4("#readerOverlay").classList.contains("hidden")) return;
-      if (Date.now() - (R.selAt || 0) < 500) return;
-      const t2 = ev.target;
-      if (t2 && t2.closest && t2.closest("a,button,input,textarea,select,#readerPanel,#selPop")) return;
-      const sel = window.getSelection && window.getSelection();
-      if (sel && sel.toString().trim()) {
-        sel.removeAllRanges();
-        hideSelPop();
-      }
-      toggleReaderChrome();
-    });
-  }
-  function toggleReaderChrome() {
-    const ov = $4("#readerOverlay");
-    if (!ov) return;
-    ov.classList.toggle("chrome-hidden");
-  }
-  function showSettingsPanel() {
-    const s = getState().settings;
-    const panel = $4("#readerPanel");
-    panel.classList.remove("hidden");
-    if (panel._voiceOff) {
-      panel._voiceOff();
-      panel._voiceOff = null;
-    }
-    panel.innerHTML = `<h3>\u2699 ${t("settings")}</h3>
-    <div class="set-row"><span>${t("theme")}</span><div class="seg">
-      <button data-th="light" class="${s.theme === "light" ? "active" : ""}">${t("themeLight")}</button>
-      <button data-th="sepia" class="${s.theme === "sepia" ? "active" : ""}">${t("themeSepia")}</button>
-      <button data-th="dark" class="${s.theme === "dark" ? "active" : ""}">${t("themeDark")}</button>
-      <button data-th="black" class="${s.theme === "black" ? "active" : ""}">${t("themeBlack")}</button></div></div>
-    <div style="margin-bottom:.6rem"><div style="font-size:.9rem;margin-bottom:.3rem">${t("fontFamily")}</div><div id="rFontHost"></div></div>
-    <div class="set-row"><span>${t("fontSize")}</span><input type="range" id="rFs" min="15" max="28" value="${s.fontSize}"><span id="rFsV">${s.fontSize}</span></div>
-    <div class="set-row"><span>${t("lineHeight")}</span><input type="range" id="rLh" min="14" max="26" value="${Math.round(s.lineHeight * 10)}"></div>
-    <div class="set-row"><span>${t("readingMode")}</span><div class="seg">
-      <button data-flow="paginated" class="${s.flow === "paginated" ? "active" : ""}">${t("paginated")}</button>
-      <button data-flow="scrolled" class="${s.flow === "scrolled" ? "active" : ""}">${t("scrolled")}</button></div></div>
-    <div class="set-row" style="align-items:flex-start;flex-direction:column;gap:.25rem"><span>${t("ttsVoice")} <span class="muted" id="rVoiceLang"></span></span>
-      <div style="display:flex;gap:.4rem;align-items:center;width:100%">
-        <select id="rVoice" style="flex:1;min-width:0"></select>
-        <button class="btn" id="rVoiceTest">\u25B6 ${t("ttsTest")}</button>
-      </div>
-      <div class="muted" id="rVoiceHint" style="font-size:.78rem"></div></div>
-    <div class="set-row"><span>${t("ttsSpeed")}</span><input type="range" id="rRate" min="5" max="20" value="${Math.round((s.ttsRate || 1) * 10)}"><span id="rRateV">${s.ttsRate || 1}x</span></div>`;
-    const upd = (patch) => {
-      Object.assign(getState().settings, patch);
-      save();
-    };
-    panel.querySelector("#rFontHost").appendChild(fontPicker(s.fontFamily, (id) => {
-      upd({ fontFamily: id });
-      if (R && R.rendition) applyEpubTheme();
-      if (R && R.txtPages) renderTxtPage();
-    }));
-    panel.querySelectorAll("[data-th]").forEach((b) => b.onclick = () => {
-      upd({ theme: b.dataset.th });
-      document.body.dataset.theme = b.dataset.th;
-      panel.querySelectorAll("[data-th]").forEach((x) => x.classList.toggle("active", x === b));
-      if (R && R.rendition) applyEpubTheme();
-      if (R && R.txtPages) renderTxtPage();
-    });
-    panel.querySelectorAll("[data-flow]").forEach((b) => b.onclick = () => {
-      upd({ flow: b.dataset.flow });
-      if (R && R.rendition) {
-        const bk = R.book;
-        closeReader(false);
-        openReader(bk);
-      }
-    });
-    panel.querySelector("#rFs").oninput = (e) => {
-      upd({ fontSize: +e.target.value });
-      panel.querySelector("#rFsV").textContent = e.target.value;
-      if (R && R.rendition) applyEpubTheme();
-      if (R && R.txtPages) renderTxtPage();
-    };
-    panel.querySelector("#rLh").oninput = (e) => {
-      upd({ lineHeight: +e.target.value / 10 });
-      if (R && R.rendition) applyEpubTheme();
-      if (R && R.txtPages) renderTxtPage();
-    };
-    panel.querySelector("#rRate").oninput = (e) => {
-      upd({ ttsRate: +e.target.value / 10 });
-      panel.querySelector("#rRateV").textContent = +e.target.value / 10 + "x";
-    };
-    bindVoicePicker(panel);
-  }
-  function shortVoiceName(v) {
-    if (!v) return "";
-    return String(v.name || v.voiceURI || "").replace(/\s+[-–]\s+[^-–]*\([^)]*\)\s*$/, "").replace(/^Microsoft\s+/i, "").trim();
-  }
-  function bindVoicePicker(panel) {
-    const sel = panel.querySelector("#rVoice"), hint = panel.querySelector("#rVoiceHint"), langEl = panel.querySelector("#rVoiceLang");
-    if (!sel) return;
-    const stopSpeaking = () => {
-      if (R && R.ttsActive) {
-        R.ttsActive = false;
-        try {
-          speechSynthesis.cancel();
-        } catch {
-        }
-        const b = $4("#ttsBtn");
-        if (b) b.style.color = "";
-      }
-    };
-    const fill = () => {
-      const L = bookLangOf();
-      const list = voices().filter((v) => ["ar", "en"].includes(baseLang(v.lang)));
-      const saved = (getState().settings.ttsVoices || {})[L] || "";
-      const auto = pickVoice(L, saved);
-      if (langEl) langEl.textContent = "\xB7 " + (L === "ar" ? t("ttsLangAr") : t("ttsLangEn"));
-      const groups = /* @__PURE__ */ new Map();
-      list.forEach((v) => {
-        const k = baseLang(v.lang) || "?";
-        if (!groups.has(k)) groups.set(k, []);
-        groups.get(k).push(v);
-      });
-      const keys = [...groups.keys()].sort((a, b) => a === L ? -1 : b === L ? 1 : a.localeCompare(b));
-      let html = `<option value="">${esc(t("ttsAutoVoice"))}${auto ? " \u2014 " + esc(shortVoiceName(auto)) : ""}</option>`;
-      keys.forEach((k) => {
-        const arr = groups.get(k).slice().sort((a, b) => (isNatural(b) ? 1 : 0) - (isNatural(a) ? 1 : 0) || a.name.localeCompare(b.name));
-        html += `<optgroup label="${esc((k === L ? "\u2605 " : "") + langLabel(k))}">` + arr.map((v) => `<option value="${esc(v.voiceURI)}" title="${esc(v.name + " \u2014 " + v.lang)}"${saved === v.voiceURI ? " selected" : ""}>${esc(shortVoiceName(v))}${isNatural(v) ? " \u2605" : ""}</option>`).join("") + "</optgroup>";
-      });
-      sel.innerHTML = html;
-      sel.value = saved && list.some((v) => v.voiceURI === saved) ? saved : "";
-      const used = saved ? list.find((v) => v.voiceURI === saved) : auto;
-      if (hint) hint.textContent = !list.length ? t("ttsNoVoices") : isNatural(used) ? `${t("ttsNaturalOk")} \u2014 ${shortVoiceName(used)}` : t("ttsNaturalTip");
-    };
-    sel.onchange = () => {
-      const L = bookLangOf(), uri = sel.value, st = getState().settings;
-      st.ttsVoices = Object.assign({}, st.ttsVoices || {});
-      if (uri) st.ttsVoices[L] = uri;
-      else delete st.ttsVoices[L];
-      save();
-      fill();
-      stopSpeaking();
-      preview(uri ? voices().find((v) => v.voiceURI === uri) : pickVoice(L, ""), L, getState().settings.ttsRate || 1);
-    };
-    panel.querySelector("#rVoiceTest").onclick = () => {
-      const L = bookLangOf(), uri = sel.value;
-      stopSpeaking();
-      preview(uri ? voices().find((v) => v.voiceURI === uri) : pickVoice(L, ""), L, getState().settings.ttsRate || 1);
-    };
-    fill();
-    panel._voiceOff = onVoices(fill);
-  }
-  function showHighlightsPanel() {
-    const panel = $4("#readerPanel");
-    panel.classList.remove("hidden");
-    const hls = bookHighlights(R.book.id);
-    panel.innerHTML = `<h3>\u{1F58A} ${t("highlights")} (${hls.length})</h3>
-    <button id="expHl" class="btn" style="margin-bottom:.7rem">\u2B07 ${t("exportHighlights")} (Markdown)</button>
-    <div id="hlPanelList"></div>`;
-    const list = panel.querySelector("#hlPanelList");
-    list.innerHTML = hls.length ? "" : `<p class="muted">${t("noHighlights")}</p>`;
-    hls.forEach((h) => {
-      const row = document.createElement("div");
-      row.className = "comment";
-      row.innerHTML = `<div style="border-inline-start:3px solid ${esc(h.color)};padding-inline-start:.5rem">${esc(h.text)}${h.note ? `<div class="muted">\u{1F4DD} ${esc(h.note)}</div>` : ""}</div>
-      <div style="margin-top:.3rem"><button class="icon-btn" style="font-size:.8rem" data-act="jump">\u21A9</button><button class="icon-btn" style="font-size:.8rem" data-act="del">\u{1F5D1}</button></div>`;
-      row.querySelector("[data-act=jump]").onclick = () => {
-        if (h.cfi && R.rendition) R.rendition.display(h.cfi);
-        else if (h.page && R.txtPages) {
-          R.txtIdx = h.page - 1;
-          renderTxtPage();
-        } else if (h.page && R.pdf) {
-          R.pdfPage = h.page;
-          renderPdfPage();
-        }
-      };
-      row.querySelector("[data-act=del]").onclick = () => {
-        removeHighlight(h.id);
-        showHighlightsPanel();
-      };
-      list.appendChild(row);
-    });
-    panel.querySelector("#expHl").onclick = () => {
-      const md = `# ${R.book.title} \u2014 ${R.book.author}
-
-` + hls.map((h) => `> ${h.text}
-
-${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateString()}*
-`).join("\n---\n\n");
-      const blob = new Blob([md], { type: "text/markdown" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = (R.book.title || "highlights") + "-highlights.md";
-      a.click();
-      toast(t("exported"));
-    };
-  }
-  function closeReader(log = true) {
-    if (!R) return;
-    if (R.ttsActive) {
-      R.ttsActive = false;
-      speechSynthesis.cancel();
-    }
-    const pn = $4("#readerPanel");
-    if (pn && pn._voiceOff) {
-      pn._voiceOff();
-      pn._voiceOff = null;
-    }
-    clearInterval(R.timer);
-    const mins = (Date.now() - R.startedAt) / 6e4;
-    if (log) logSession(R.book.id, mins, R.pagesTurned);
-    savePosition();
-    if (R.book.progress >= 99.5 && R.book.shelf !== "finished") updateBook(R.book.id, { shelf: "finished" });
-    try {
-      R.rendition && R.rendition.destroy();
-    } catch {
-    }
-    try {
-      R.epub && R.epub.destroy();
-    } catch {
-    }
-    try {
-      R.pdf && R.pdf.destroy();
-    } catch {
-    }
-    R = null;
-    $4("#readerStage").innerHTML = "";
-    $4("#readerOverlay").classList.add("hidden");
-    document.body.style.overflow = "";
   }
 
   // node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
@@ -24818,11 +22092,11 @@ ${suffix}`;
     emit();
     return profile;
   }
-  async function signUp(email, password, displayName) {
+  async function signUp(email, password, displayName2) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: (displayName || "").trim() } }
+      options: { data: { display_name: (displayName2 || "").trim() } }
     });
     if (error) throw new Error(friendlyError(error));
     if (data.session && data.user) {
@@ -24892,6 +22166,2748 @@ ${suffix}`;
       }
     });
     emit();
+  }
+
+  // src/stats.js
+  var $ = (s, r = document) => r.querySelector(s);
+  function displayName() {
+    const user2 = getUser();
+    if (!user2) return "";
+    const profile2 = getProfile();
+    const meta3 = user2.user_metadata || {};
+    const emailPrefix = (user2.email || "").split("@")[0];
+    const profileName = (profile2 && profile2.display_name || "").trim();
+    const metaName = (meta3.display_name || meta3.full_name || meta3.name || "").trim();
+    if (profileName && profileName !== emailPrefix) return profileName;
+    if (metaName) return metaName;
+    return profileName || emailPrefix;
+  }
+  function renderStats(view) {
+    const st = getState();
+    const s = st.settings;
+    const year = (/* @__PURE__ */ new Date()).getFullYear();
+    const doneYear = finishedThisYear(year);
+    const doneMonth = finishedThisMonth();
+    const sessionsY = sessionsThisYear(year);
+    const totalMin = sessionsY.reduce((a, x) => a + x.minutes, 0);
+    const totalPages = sessionsY.reduce((a, x) => a + (x.pages || 0), 0);
+    const todayMin = st.readingDays[(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)] || 0;
+    const streak = currentStreak();
+    const pph = totalMin > 0 ? Math.round(totalPages / (totalMin / 60)) : 0;
+    const name = displayName();
+    view.innerHTML = `
+    <div class="view-head"><h1>${t("navStats")}</h1><button id="editGoals" class="btn">\u270F ${t("setGoals")}</button></div>
+    ${name ? `<p style="font-size:1.1rem;font-weight:600;margin-bottom:1rem">${t("helloUser").replace("{name}", esc(name))}</p>` : ""}
+    <div class="stat-cards">
+      <div class="stat-card"><div class="lbl">${t("yearlyGoal")} (${year})</div><div class="num">${doneYear.length} / ${s.goalYear}</div>
+        <div class="goal-track"><div class="goal-fill" style="width:${Math.min(100, doneYear.length / Math.max(1, s.goalYear) * 100)}%"></div></div></div>
+      <div class="stat-card"><div class="lbl">${t("monthlyGoal")}</div><div class="num">${doneMonth.length} / ${s.goalMonth}</div>
+        <div class="goal-track"><div class="goal-fill" style="width:${Math.min(100, doneMonth.length / Math.max(1, s.goalMonth) * 100)}%"></div></div></div>
+      <div class="stat-card"><div class="lbl">${t("streakDays")}</div><div class="num">\u{1F525} ${streak}</div></div>
+      <div class="stat-card"><div class="lbl">${t("todayMin")}</div><div class="num">${todayMin}</div></div>
+      <div class="stat-card"><div class="lbl">${t("totalMin")} (${year})</div><div class="num">${totalMin}</div></div>
+      <div class="stat-card"><div class="lbl">${t("pagesPerHour")}</div><div class="num">${pph}</div></div>
+    </div>
+    <h2 style="margin-bottom:.5rem">${t("badges")}</h2>
+    <div class="badges" id="badgeRow"></div>
+    <div class="chart-box"><h3 style="margin-bottom:.6rem">${t("weeklyChart")}</h3><canvas id="daysChart" width="1000" height="220"></canvas></div>
+    <div class="chart-box"><h3 style="margin-bottom:.6rem">${t("yearlySummary")} ${year}</h3><div id="yearSummary"></div></div>
+    <div class="chart-box"><h3 style="margin-bottom:.6rem">${t("topBooks")}</h3><div id="topBooks"></div></div>`;
+    $("#editGoals", view).onclick = () => {
+      const y = prompt(t("yearlyGoal"), s.goalYear);
+      if (y === null) return;
+      const m = prompt(t("monthlyGoal"), s.goalMonth);
+      if (m === null) return;
+      getState().settings.goalYear = Math.max(1, parseInt(y) || s.goalYear);
+      getState().settings.goalMonth = Math.max(1, parseInt(m) || s.goalMonth);
+      recheckAchievements();
+      renderStats(view);
+      if (doneYear.length >= getState().settings.goalYear) toast(t("goalDone"), 4e3);
+    };
+    const badgeRow = $("#badgeRow", view);
+    badgeList().forEach((b) => {
+      const d = document.createElement("div");
+      d.className = "badge" + (b.unlocked ? "" : " locked");
+      d.innerHTML = `<div class="b-icon">${b.icon}</div><div class="b-name">${esc(b.name[getLang()] || b.name.ar)}</div>`;
+      badgeRow.appendChild(d);
+    });
+    drawDaysChart($("#daysChart", view), st.readingDays);
+    renderYearSummary($("#yearSummary", view), year, sessionsY, doneYear);
+    renderTopBooks($("#topBooks", view), st.books);
+  }
+  function drawDaysChart(canvas, readingDays) {
+    const ctx = canvas.getContext("2d");
+    const cs = getComputedStyle(document.body);
+    const accent = cs.getPropertyValue("--accent").trim() || "#8b5e34";
+    const muted = cs.getPropertyValue("--muted").trim() || "#999";
+    const W = canvas.width, H = canvas.height, N2 = 14, pad = 34;
+    const days = [];
+    for (let i = N2 - 1; i >= 0; i--) {
+      const d = /* @__PURE__ */ new Date();
+      d.setDate(d.getDate() - i);
+      days.push(d);
+    }
+    const vals = days.map((d) => readingDays[d.toISOString().slice(0, 10)] || 0);
+    const max = Math.max(10, ...vals);
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = muted;
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.moveTo(pad, 10);
+    ctx.lineTo(pad, H - 24);
+    ctx.lineTo(W, H - 24);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    const bw = (W - pad - 10) / N2;
+    days.forEach((d, i) => {
+      const v = vals[i];
+      const h = (H - 44) * (v / max);
+      ctx.fillStyle = v > 0 ? accent : "rgba(120,120,120,.18)";
+      ctx.beginPath();
+      ctx.roundRect(pad + 6 + i * bw, H - 24 - h, bw - 10, Math.max(2, h), 4);
+      ctx.fill();
+      ctx.fillStyle = muted;
+      ctx.font = "11px Cairo, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(d.getDate(), pad + 6 + i * bw + (bw - 10) / 2, H - 8);
+      if (v > 0) ctx.fillText(v, pad + 6 + i * bw + (bw - 10) / 2, H - 30 - h);
+    });
+  }
+  function renderYearSummary(host, year, sessions, doneYear) {
+    const totalMin = sessions.reduce((a, x) => a + x.minutes, 0);
+    const totalPages = sessions.reduce((a, x) => a + (x.pages || 0), 0);
+    const hours = Math.floor(totalMin / 60), mins = totalMin % 60;
+    const months = new Array(12).fill(0);
+    sessions.forEach((s) => {
+      months[new Date(s.end).getMonth()] += s.minutes;
+    });
+    const bestMonth = months.indexOf(Math.max(...months));
+    const monthNames = getLang() === "ar" ? ["\u064A\u0646\u0627\u064A\u0631", "\u0641\u0628\u0631\u0627\u064A\u0631", "\u0645\u0627\u0631\u0633", "\u0623\u0628\u0631\u064A\u0644", "\u0645\u0627\u064A\u0648", "\u064A\u0648\u0646\u064A\u0648", "\u064A\u0648\u0644\u064A\u0648", "\u0623\u063A\u0633\u0637\u0633", "\u0633\u0628\u062A\u0645\u0628\u0631", "\u0623\u0643\u062A\u0648\u0628\u0631", "\u0646\u0648\u0641\u0645\u0628\u0631", "\u062F\u064A\u0633\u0645\u0628\u0631"] : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    host.innerHTML = `
+    <div class="stat-cards" style="margin-bottom:0">
+      <div class="stat-card"><div class="num">${doneYear.length}</div><div class="lbl">${t("booksFinished")}</div></div>
+      <div class="stat-card"><div class="num">${hours}h ${mins}m</div><div class="lbl">${t("totalMin")}</div></div>
+      <div class="stat-card"><div class="num">${totalPages}</div><div class="lbl">${t("pages")}</div></div>
+      <div class="stat-card"><div class="num">${sessions.length}</div><div class="lbl">${t("sessions")}</div></div>
+      ${Math.max(...months) > 0 ? `<div class="stat-card"><div class="num">${monthNames[bestMonth]}</div><div class="lbl">\u2B50</div></div>` : ""}
+    </div>
+    <canvas id="monthsChart" width="1000" height="180" style="width:100%;margin-top:1rem"></canvas>`;
+    const canvas = host.querySelector("#monthsChart");
+    const ctx = canvas.getContext("2d");
+    const cs = getComputedStyle(document.body);
+    const accent = cs.getPropertyValue("--accent").trim() || "#8b5e34";
+    const muted = cs.getPropertyValue("--muted").trim() || "#999";
+    const W = canvas.width, H = canvas.height, pad = 34;
+    const max = Math.max(10, ...months);
+    const bw = (W - pad - 10) / 12;
+    ctx.clearRect(0, 0, W, H);
+    months.forEach((v, i) => {
+      const h = (H - 40) * (v / max);
+      ctx.fillStyle = v > 0 ? accent : "rgba(120,120,120,.15)";
+      ctx.beginPath();
+      ctx.roundRect(pad + 6 + i * bw, H - 24 - h, bw - 12, Math.max(2, h), 4);
+      ctx.fill();
+      ctx.fillStyle = muted;
+      ctx.font = "11px Cairo, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(monthNames[i], pad + 6 + i * bw + (bw - 12) / 2, H - 8);
+    });
+  }
+  function renderTopBooks(host, books) {
+    const rated = books.filter((b) => b.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 5);
+    host.innerHTML = rated.length ? "" : '<p class="muted">\u2014</p>';
+    rated.forEach((b) => {
+      const row = document.createElement("div");
+      row.className = "result-row";
+      row.style.marginBottom = ".4rem";
+      row.innerHTML = `<div style="width:42px;height:62px" class="cover">${coverHTML(b)}</div>
+      <div class="r-info"><div class="r-title">${esc(b.title)}</div><div class="r-author">${esc(b.author)}</div></div>`;
+      row.appendChild(stars(b.rating));
+      host.appendChild(row);
+    });
+  }
+
+  // src/public.js
+  var OWNER = "asratereg-glitch";
+  var REPO = "qari-public";
+  var BRANCH = "main";
+  var CATALOG_PATH = "public-books.json";
+  var API = "https://api.github.com";
+  var RAW = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}`;
+  var MAX_FILE = 40 * 1024 * 1024;
+  var CATALOG_TTL_MS = 60 * 1e3;
+  var TRANSLATIONS = { id: "cat-translations", name: "\u062A\u0631\u062C\u0645\u0627\u062A", sort_order: 0 };
+  var emptyCatalog = () => ({ format: "qari-public", version: 1, categories: [{ ...TRANSLATIONS }], books: [] });
+  var b64 = (str) => {
+    const bytes = new TextEncoder().encode(str);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(bin);
+  };
+  var unb64 = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, "")), (c) => c.charCodeAt(0)));
+  var blobToB64 = (blob) => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1]);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(blob);
+  });
+  var enc = (p) => p.split("/").map(encodeURIComponent).join("/");
+  function getSyncCreds() {
+    try {
+      const raw = JSON.parse(localStorage.getItem("qari.sync") || "{}");
+      return { token: raw.token || "", owner: raw.owner || "" };
+    } catch {
+      return { token: "", owner: "" };
+    }
+  }
+  function requireToken() {
+    const { token } = getSyncCreds();
+    if (!token) throw new Error(t("publishNeedsSync"));
+    return token;
+  }
+  async function errOf(r) {
+    let m = "";
+    try {
+      m = (await r.json()).message || "";
+    } catch {
+    }
+    return `GitHub ${r.status}${m ? ": " + m : ""}`;
+  }
+  function ghHeaders(token, extra) {
+    const h = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+    if (token) h.Authorization = "Bearer " + token;
+    return Object.assign(h, extra || {});
+  }
+  async function ghGet(path, token) {
+    const r = await fetch(`${API}/repos/${OWNER}/${REPO}/contents/${enc(path)}`, { headers: ghHeaders(token) });
+    if (r.status === 404) return { sha: null, doc: null };
+    if (!r.ok) throw new Error(await errOf(r));
+    const j = await r.json();
+    if (j.type === "file" && j.encoding === "base64" && j.content) {
+      let doc = null;
+      try {
+        doc = JSON.parse(unb64(j.content));
+      } catch {
+      }
+      return { sha: j.sha, doc };
+    }
+    return { sha: j.sha || null, doc: null };
+  }
+  async function ghPut(path, body, token) {
+    return fetch(`${API}/repos/${OWNER}/${REPO}/contents/${enc(path)}`, {
+      method: "PUT",
+      headers: ghHeaders(token, { "Content-Type": "application/json" }),
+      body: JSON.stringify(body)
+    });
+  }
+  async function ghDelete(path, sha, token) {
+    return fetch(`${API}/repos/${OWNER}/${REPO}/contents/${enc(path)}`, {
+      method: "DELETE",
+      headers: ghHeaders(token, { "Content-Type": "application/json" }),
+      body: JSON.stringify({ message: "Qari public library: delete " + path, sha })
+    });
+  }
+  var cache = null;
+  var cacheAt = 0;
+  async function readCatalog() {
+    const r = await fetch(`${RAW}/${CATALOG_PATH}`, { cache: "no-store" });
+    if (r.status === 404) return emptyCatalog();
+    if (!r.ok) throw new Error("GitHub " + r.status);
+    const doc = await r.json();
+    if (!doc || doc.format !== "qari-public") throw new Error("bad public catalog");
+    if (!Array.isArray(doc.categories) || !doc.categories.length) doc.categories = [{ ...TRANSLATIONS }];
+    if (!Array.isArray(doc.books)) doc.books = [];
+    return doc;
+  }
+  async function getCatalog(force = false) {
+    if (cache && !force && Date.now() - cacheAt < CATALOG_TTL_MS) return cache;
+    cache = await readCatalog();
+    cacheAt = Date.now();
+    return cache;
+  }
+  async function listCategories() {
+    const c = await getCatalog();
+    return (c.categories || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  }
+  async function getPublicBook(id) {
+    const c = await getCatalog();
+    return c.books.find((b) => b.id === id) || null;
+  }
+  function getCachedCategoryName(categoryId) {
+    if (!categoryId || !cache) return "";
+    const cat = (cache.categories || []).find((c) => c.id === categoryId);
+    return cat ? cat.name : "";
+  }
+  var publicFileUrl = (filePath) => `${RAW}/${filePath}`;
+  async function writeCatalog(mutator) {
+    const token = requireToken();
+    const apply = async () => {
+      const cur = await ghGet(CATALOG_PATH, token);
+      const doc = cur.doc && cur.doc.format === "qari-public" ? cur.doc : emptyCatalog();
+      if (!Array.isArray(doc.categories)) doc.categories = [{ ...TRANSLATIONS }];
+      if (!Array.isArray(doc.books)) doc.books = [];
+      const next2 = mutator(JSON.parse(JSON.stringify(doc)));
+      const body = { message: "Qari public library update", content: b64(JSON.stringify(next2)) };
+      if (cur.sha) body.sha = cur.sha;
+      const r = await ghPut(CATALOG_PATH, body, token);
+      if (r.status === 409 || r.status === 422) return "conflict";
+      if (!r.ok) throw new Error(await errOf(r));
+      cache = next2;
+      cacheAt = Date.now();
+      return "ok";
+    };
+    let res = await apply();
+    if (res === "conflict") res = await apply();
+    if (res === "conflict") throw new Error(t("publishConflict"));
+  }
+  async function addCategory(name) {
+    requireToken();
+    const n = (name || "").trim();
+    if (!n) throw new Error(t("categoryNamePh"));
+    let created = null;
+    await writeCatalog((doc) => {
+      const ex = doc.categories.find((c) => c.name === n);
+      if (ex) {
+        created = ex;
+        return doc;
+      }
+      created = { id: "cat-" + uid(), name: n, sort_order: Math.max(0, ...doc.categories.map((c) => c.sort_order || 0)) + 1 };
+      doc.categories.push(created);
+      return doc;
+    });
+    return created;
+  }
+  async function publishBook({ file, fileName = "", meta: meta3, format, categoryId }) {
+    const token = requireToken();
+    if (file && file.size > MAX_FILE) throw new Error(t("fileTooBig"));
+    const id = crypto.randomUUID();
+    let file_path = null, file_size = 0, file_name = "";
+    if (file) {
+      const fileKey = "file-" + uid();
+      const r = await ghPut(`files/${fileKey}`, { message: "Qari public book file " + fileKey, content: await blobToB64(file) }, token);
+      if (!r.ok && r.status !== 422) throw new Error(await errOf(r));
+      file_path = `files/${fileKey}`;
+      file_size = file.size;
+      file_name = fileName || file.name || "";
+    }
+    const row = {
+      id,
+      title: meta3.title || "?",
+      author: meta3.author || "",
+      cover: meta3.cover || "",
+      description: meta3.description || "",
+      format: format || "web",
+      category_id: categoryId || null,
+      file_path,
+      file_size,
+      file_name,
+      ol_key: meta3.olKey || "",
+      isbn: meta3.isbn || "",
+      year: meta3.year || "",
+      subjects: meta3.subjects || [],
+      created_by: "",
+      created_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    await writeCatalog((doc) => {
+      doc.books.unshift(row);
+      return doc;
+    });
+    return row;
+  }
+  async function publishExistingBook(localBook) {
+    requireToken();
+    const cats = await listCategories();
+    const catId = localBook.shelf === "translations" ? (cats.find((c) => c.name === "\u062A\u0631\u062C\u0645\u0627\u062A") || cats[0] || {}).id || null : null;
+    let fileBlob = null;
+    if (localBook.fileKey && localBook.format !== "web") fileBlob = await getFile(localBook.fileKey);
+    const row = await publishBook({
+      file: fileBlob,
+      fileName: localBook.fileName || "",
+      meta: { title: localBook.title, author: localBook.author, cover: localBook.cover, description: "", olKey: localBook.olKey, isbn: localBook.isbn, year: localBook.year, subjects: localBook.subjects },
+      format: fileBlob ? localBook.format : "web",
+      categoryId: catId
+    });
+    updateBook(localBook.id, { public_book_id: row.id, public_file_path: row.file_path || "" });
+    return row;
+  }
+  async function deletePublicBook(id) {
+    requireToken();
+    const token = getSyncCreds().token;
+    const cat = await getCatalog(true);
+    const row = cat.books.find((b) => b.id === id);
+    if (!row) return false;
+    await writeCatalog((doc) => {
+      doc.books = doc.books.filter((b) => b.id !== id);
+      return doc;
+    });
+    if (row.file_path) {
+      try {
+        const cur = await ghGet(row.file_path, token);
+        if (cur.sha) await ghDelete(row.file_path, cur.sha, token);
+      } catch {
+      }
+    }
+    return true;
+  }
+  function findSavedBook(input) {
+    const st = getState();
+    if (input.public_book_id) {
+      const b = st.books.find((x) => x.public_book_id === input.public_book_id);
+      if (b) return b;
+    }
+    if (input.olKey) {
+      const b = findBookByOl(input.olKey);
+      if (b) return b;
+    }
+    return st.books.find((x) => x.title === input.title && (x.author || "") === (input.author || "")) || null;
+  }
+  async function downloadPublicFile(book) {
+    try {
+      const r = await fetch(publicFileUrl(book.public_file_path), { cache: "no-store" });
+      if (!r.ok) return;
+      await putFile(book.fileKey, await r.blob());
+    } catch {
+    }
+  }
+  function saveToMyLibrary(input, fileBlob) {
+    const found = findSavedBook(input);
+    if (found) return found;
+    const catName = input.categoryName || getCachedCategoryName(input.category_id);
+    const shelf = catName === "\u062A\u0631\u062C\u0645\u0627\u062A" ? "translations" : "want";
+    const fileKey = input.public_file_path ? "file-" + uid() : "";
+    const b = addBook({
+      title: input.title,
+      author: input.author || "",
+      format: input.format || "web",
+      cover: input.cover || "",
+      source: input.public_book_id ? "public" : "openlibrary",
+      subjects: input.subjects || [],
+      isbn: input.isbn || "",
+      olKey: input.olKey || "",
+      year: input.year || "",
+      shelf,
+      fileKey,
+      public_book_id: input.public_book_id || "",
+      public_file_path: input.public_file_path || ""
+    });
+    if (fileBlob) putFile(fileKey, fileBlob).catch(() => {
+    });
+    else if (input.public_file_path) downloadPublicFile(b);
+    return b;
+  }
+
+  // src/meta.js
+  var OL = "https://openlibrary.org";
+  var FIELDS = "key,title,author_name,author_key,cover_i,first_publish_year,edition_count,number_of_pages_median,ratings_average,ratings_count,want_to_read_count,already_read_count,currently_reading_count,subject,publisher,language,isbn,first_sentence";
+  async function getJSON(url, ms = 12e3) {
+    const ctl = new AbortController();
+    const timer2 = setTimeout(() => ctl.abort(), ms);
+    try {
+      const res = await fetch(url, { signal: ctl.signal });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return await res.json();
+    } finally {
+      clearTimeout(timer2);
+    }
+  }
+  var cleanKey = (k) => (k || "").replace("/works/", "");
+  var coverUrl = (id, size = "L") => id ? `https://covers.openlibrary.org/b/id/${id}-${size}.jpg?default=false` : "";
+  function textOf(v) {
+    return !v ? "" : typeof v === "string" ? v : v.value || "";
+  }
+  function cleanSubjects(list = []) {
+    const seen = /* @__PURE__ */ new Set(), out = [];
+    for (const s of list) {
+      const k = s.toLowerCase();
+      if (/[:=]|^nyt|award|bestseller|reviewed|large type|accessible|open library|protected daisy|in library|^fiction,/.test(k) || s.length > 32 || /\d{3}/.test(s)) continue;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(s);
+      if (out.length >= 10) break;
+    }
+    return out;
+  }
+  function fromSearchDoc(d) {
+    return {
+      olKey: cleanKey(d.key),
+      title: d.title || "",
+      author: (d.author_name || [])[0] || "",
+      authors: d.author_name || [],
+      authorKey: (d.author_key || [])[0] || "",
+      cover: coverUrl(d.cover_i),
+      coverId: d.cover_i || 0,
+      year: d.first_publish_year || "",
+      pages: d.number_of_pages_median || 0,
+      editions: d.edition_count || 0,
+      rating: d.ratings_average || 0,
+      ratingCount: d.ratings_count || 0,
+      wantToRead: d.want_to_read_count || 0,
+      alreadyRead: d.already_read_count || 0,
+      currentlyReading: d.currently_reading_count || 0,
+      subjects: d.subject || [],
+      publisher: (d.publisher || [])[0] || "",
+      languages: (d.language || []).slice(0, 8),
+      isbn: (d.isbn || []).find((x) => x.length === 13) || (d.isbn || [])[0] || "",
+      firstSentence: (d.first_sentence || [])[0] || ""
+    };
+  }
+  async function olSearchDoc(q) {
+    const data = await getJSON(`${OL}/search.json?${q}&limit=1&fields=${FIELDS}`);
+    return data.docs && data.docs[0] ? fromSearchDoc(data.docs[0]) : null;
+  }
+  async function googleBooks(m) {
+    const key = (getState().settings.gbKey || "").trim();
+    const q = m.isbn ? `isbn:${m.isbn}` : `intitle:${m.title}${m.author ? "+inauthor:" + m.author : ""}`;
+    const data = await getJSON(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q).replace(/%2B/g, "+")}&maxResults=1${key ? "&key=" + encodeURIComponent(key) : ""}`, 9e3);
+    const v = data.items && data.items[0] && data.items[0].volumeInfo;
+    if (!v) return null;
+    return {
+      rating: v.averageRating || 0,
+      count: v.ratingsCount || 0,
+      pages: v.pageCount || 0,
+      categories: v.categories || [],
+      description: v.description || "",
+      publisher: v.publisher || "",
+      date: v.publishedDate || "",
+      link: v.infoLink || "",
+      cover: v.imageLinks ? (v.imageLinks.thumbnail || "").replace("http://", "https://") : ""
+    };
+  }
+  async function loadMeta(ref, { force = false } = {}) {
+    let olKey = ref.olKey || "";
+    if (olKey && !force) {
+      const c = getMeta(olKey);
+      if (c) return { ...c, fromCache: true };
+    }
+    let m = null, errors = [];
+    try {
+      if (olKey) m = await olSearchDoc(`q=key:/works/${olKey}`);
+      else if (ref.isbn) m = await olSearchDoc(`isbn=${encodeURIComponent(ref.isbn)}`);
+      if (!m && ref.title) m = await olSearchDoc(`title=${encodeURIComponent(ref.title)}${ref.author ? "&author=" + encodeURIComponent(ref.author) : ""}`);
+    } catch (e) {
+      errors.push("ol:" + e.message);
+    }
+    if (!m) {
+      const stale = olKey && getMetaStale(olKey);
+      if (stale) return { ...stale, fromCache: true, stale: true };
+      return { olKey: "", title: ref.title || "", author: ref.author || "", cover: ref.cover || "", subjects: [], notFound: true, errors };
+    }
+    olKey = m.olKey;
+    try {
+      const w = await getJSON(`${OL}/works/${olKey}.json`);
+      m.description = textOf(w.description).replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").replace(/\(\[source\][^)]*\)/g, "").split("\n\n----------")[0].trim();
+      if (w.first_publish_date && !m.year) m.year = (w.first_publish_date.match(/\d{4}/) || [""])[0];
+      if (!m.subjects.length && w.subjects) m.subjects = w.subjects;
+      if (!m.authorKey && w.authors && w.authors[0]) m.authorKey = cleanKey(((w.authors[0].author || {}).key || "").replace("/authors/", ""));
+    } catch (e) {
+      errors.push("work:" + e.message);
+    }
+    if (m.authorKey) {
+      try {
+        const a = await getJSON(`${OL}/authors/${m.authorKey}.json`);
+        m.authorBio = textOf(a.bio).split("\n")[0].slice(0, 600);
+        m.authorBorn = a.birth_date || "";
+        m.authorDied = a.death_date || "";
+        m.authorPhoto = a.photos && a.photos[0] > 0 ? `https://covers.openlibrary.org/a/id/${a.photos[0]}-M.jpg` : "";
+      } catch (e) {
+      }
+    }
+    try {
+      m.gb = await googleBooks(m);
+    } catch (e) {
+      m.gb = null;
+      m.gbError = e.message;
+    }
+    if (m.gb && !m.description) m.description = m.gb.description.replace(/<[^>]+>/g, "");
+    if (m.gb && !m.pages) m.pages = m.gb.pages;
+    m.errors = errors;
+    m.fetchedAt = (/* @__PURE__ */ new Date()).toISOString();
+    setMeta(olKey, m);
+    return m;
+  }
+  async function moreByAuthor(authorKey, exceptKey) {
+    if (!authorKey) return [];
+    const data = await getJSON(`${OL}/search.json?q=author_key:${authorKey}&sort=editions&limit=14&fields=key,title,author_name,cover_i,first_publish_year,ratings_average`);
+    return (data.docs || []).filter((d) => cleanKey(d.key) !== exceptKey).slice(0, 12).map(fromSearchDoc);
+  }
+  async function similarBooks(subjects, exceptKey, exceptAuthorKey) {
+    let subj = cleanSubjects(subjects).filter((s) => !/^(fiction|american|english|literature)/i.test(s)).slice(0, 2);
+    if (!subj.length) subj = (subjects || []).filter((x) => x && x.length <= 40 && !/^(fiction|literature)/i.test(x)).slice(0, 2);
+    if (!subj.length) return [];
+    const run = async (q) => {
+      const data = await getJSON(`${OL}/search.json?q=${encodeURIComponent(q)}&sort=rating&limit=20&fields=key,title,author_name,author_key,cover_i,first_publish_year,ratings_average,ratings_count`);
+      return (data.docs || []).filter((d) => cleanKey(d.key) !== exceptKey && (d.author_key || [])[0] !== exceptAuthorKey && d.cover_i);
+    };
+    let docs = await run(subj.map((x) => `subject:"${x}"`).join(" AND "));
+    if (docs.length < 6 && subj.length > 1) {
+      try {
+        const more = await run(`subject:"${subj[0]}"`);
+        const seen = new Set(docs.map((d) => d.key));
+        more.forEach((d) => {
+          if (!seen.has(d.key)) docs.push(d);
+        });
+      } catch {
+      }
+    }
+    return docs.slice(0, 12).map(fromSearchDoc);
+  }
+  var SDOC = "key,title,author_name,author_key,cover_i,first_publish_year,ratings_average,ratings_count,subject";
+  function firstAuthorName(name) {
+    return String(name || "").split(/\s*(?:,|&|;| and | و )\s*/i)[0].trim() || String(name || "").trim();
+  }
+  async function resolveAuthorKey(name) {
+    const n = firstAuthorName(name);
+    if (!n) return "";
+    try {
+      const d = await getJSON(`${OL}/search/authors.json?q=${encodeURIComponent(n)}&limit=5`);
+      const docs = d.docs || [];
+      const norm = (x) => String(x || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+      const exact = docs.find((a) => norm(a.name) === norm(n));
+      const best = exact || docs.slice().sort((a, b) => (b.work_count || 0) - (a.work_count || 0))[0];
+      return best ? best.key : "";
+    } catch {
+      return "";
+    }
+  }
+  async function worksByAuthor(name, page = 0, limit = 24, authorKey = "") {
+    const n = firstAuthorName(name);
+    const key = authorKey || await resolveAuthorKey(n);
+    const off = page * limit;
+    let data = null;
+    if (key) {
+      try {
+        data = await getJSON(`${OL}/search.json?q=${encodeURIComponent("author_key:" + key)}&sort=editions&limit=${limit}&offset=${off}&fields=${SDOC},isbn`);
+      } catch {
+      }
+    }
+    if (!data || !(data.docs || []).length) data = await getJSON(`${OL}/search.json?author=${encodeURIComponent(n)}&limit=${limit}&offset=${off}&fields=${SDOC},isbn`);
+    const docs = (data.docs || []).filter((d) => d.title);
+    return { items: docs.map((d) => ({ ...fromSearchDoc(d), year: d.first_publish_year || "", subjects: (d.subject || []).slice(0, 8), isbn: (d.isbn || [])[0] || "" })), more: off + limit < (data.numFound || 0) };
+  }
+  async function googleRelated(q, exceptTitle) {
+    const d = await getJSON(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=20&orderBy=relevance&printType=books`);
+    const seen = /* @__PURE__ */ new Set();
+    return (d.items || []).map((v) => {
+      const i = v.volumeInfo || {};
+      return {
+        olKey: "",
+        title: i.title || "",
+        author: (i.authors || [])[0] || "",
+        rating: i.averageRating || 0,
+        cover: ((i.imageLinks || {}).thumbnail || "").replace("http://", "https://"),
+        subjects: i.categories || [],
+        year: (i.publishedDate || "").slice(0, 4)
+      };
+    }).filter((x) => x.title && x.title.toLowerCase() !== String(exceptTitle || "").toLowerCase() && !seen.has(x.title.toLowerCase()) && seen.add(x.title.toLowerCase()));
+  }
+  async function relatedBooks({ subjects, olKey, authorKey, title, author }) {
+    const out = [], seen = /* @__PURE__ */ new Set();
+    const add = (items) => {
+      for (const it of items || []) {
+        const k = (it.title || "").toLowerCase();
+        if (!k || k === String(title || "").toLowerCase() || it.olKey && it.olKey === olKey || seen.has(k)) continue;
+        seen.add(k);
+        out.push(it);
+      }
+    };
+    const step = async (fn) => {
+      if (out.length >= 8) return;
+      try {
+        add(await fn());
+      } catch {
+      }
+    };
+    await step(() => similarBooks(subjects, olKey, authorKey));
+    await step(async () => (await worksByAuthor(author, 0, 14, authorKey)).items);
+    const subj = cleanSubjects(subjects).slice(0, 2);
+    await step(() => googleRelated(subj.length ? subj.map((s) => "subject:" + s).join(" ") : author ? "inauthor:" + firstAuthorName(author) : title, title));
+    await step(async () => (await getJSON(`${OL}/search.json?q=${encodeURIComponent(String(title || "").replace(/[^\p{L}\p{N} ]/gu, " "))}&limit=15&fields=${SDOC}`)).docs.map(fromSearchDoc));
+    await step(async () => (await getJSON(`${OL}/search.json?q=${encodeURIComponent('subject:"' + (subj[0] || "fiction") + '"')}&sort=rating&limit=15&fields=${SDOC}`)).docs.map(fromSearchDoc));
+    return out.slice(0, 14);
+  }
+
+  // src/discover.js
+  var $2 = (s, r = document) => r.querySelector(s);
+  async function searchOpenLibrary(q, { subject = null, limit = 12, offset = 0 } = {}) {
+    let url;
+    if (subject) url = `https://openlibrary.org/subjects/${encodeURIComponent(subject)}.json?limit=${limit}&offset=${offset}`;
+    else if (/^(97[89])?\d{9}[\dXx]$/.test(q.replace(/-/g, ""))) url = `https://openlibrary.org/search.json?isbn=${encodeURIComponent(q)}&limit=${limit}&fields=key,title,author_name,cover_i,first_publish_year,subject,isbn,ratings_average,ratings_count`;
+    else url = `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=${limit}&fields=key,title,author_name,cover_i,first_publish_year,subject,isbn,ratings_average,ratings_count`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("network " + res.status);
+    const data = await res.json();
+    const docs = subject ? data.works || [] : data.docs || [];
+    return docs.map((d) => ({
+      olKey: (d.key || "").replace("/works/", ""),
+      title: d.title || "?",
+      author: d.authors && d.authors[0] && d.authors[0].name || d.author_name && d.author_name[0] || "",
+      year: d.first_publish_year || "",
+      cover: d.cover_i || d.cover_id ? `https://covers.openlibrary.org/b/id/${d.cover_i || d.cover_id}-L.jpg` : "",
+      rating: d.ratings_average || 0,
+      ratingCount: d.ratings_count || 0,
+      subjects: (d.subject || []).slice(0, 8),
+      isbn: d.isbn && d.isbn[0] || ""
+    })).filter((x) => x.title);
+  }
+  var OL_FIELDS = "&fields=key,title,author_name,cover_i,first_publish_year,subject,isbn,ratings_average,ratings_count";
+  async function searchScoped(q, scope, page = 0, limit = 24) {
+    if (scope === "author") {
+      try {
+        const r = await worksByAuthor(q, page, limit);
+        if (r.items.length) return r;
+      } catch {
+      }
+    }
+    let url;
+    if (scope === "title") url = `https://openlibrary.org/search.json?title=${encodeURIComponent(q)}&limit=${limit}&offset=${page * limit}${OL_FIELDS}`;
+    else if (scope === "author") url = `https://openlibrary.org/search.json?author=${encodeURIComponent(q)}&limit=${limit}&offset=${page * limit}${OL_FIELDS}`;
+    else if (scope === "subject") url = `https://openlibrary.org/search.json?q=${encodeURIComponent('subject:"' + q + '"')}&limit=${limit}&offset=${page * limit}${OL_FIELDS}`;
+    else url = `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=${limit}&offset=${page * limit}${OL_FIELDS}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("network " + res.status);
+    const data = await res.json();
+    const items = (data.docs || []).map((d) => ({
+      olKey: (d.key || "").replace("/works/", ""),
+      title: d.title || "?",
+      author: d.author_name && d.author_name[0] || "",
+      year: d.first_publish_year || "",
+      cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : "",
+      rating: d.ratings_average || 0,
+      ratingCount: d.ratings_count || 0,
+      subjects: (d.subject || []).slice(0, 8),
+      isbn: d.isbn && d.isbn[0] || ""
+    })).filter((x) => x.title);
+    return { items, more: (page + 1) * limit < (data.numFound || 0) };
+  }
+  var AWARDS = {
+    hugo: [
+      ["A Desolation Called Peace", "Arkady Martine", 2022],
+      ["Network Effect", "Martha Wells", 2021],
+      ["A Memory Called Empire", "Arkady Martine", 2020],
+      ["The Calculating Stars", "Mary Robinette Kowal", 2019],
+      ["The Stone Sky", "N.K. Jemisin", 2018],
+      ["The Obelisk Gate", "N.K. Jemisin", 2017],
+      ["The Fifth Season", "N.K. Jemisin", 2016],
+      ["The Three-Body Problem", "Liu Cixin", 2015],
+      ["Ancillary Justice", "Ann Leckie", 2014],
+      ["Redshirts", "John Scalzi", 2013],
+      ["Among Others", "Jo Walton", 2012]
+    ],
+    nebula: [
+      ["Babel", "R.F. Kuang", 2022],
+      ["A Master of Djinn", "P. Dj\xE8l\xED Clark", 2021],
+      ["Network Effect", "Martha Wells", 2020],
+      ["A Song for a New Day", "Sarah Pinsker", 2019],
+      ["The Calculating Stars", "Mary Robinette Kowal", 2018],
+      ["All the Birds in the Sky", "Charlie Jane Anders", 2016],
+      ["Uprooted", "Naomi Novik", 2015],
+      ["Ancillary Justice", "Ann Leckie", 2013],
+      ["2312", "Kim Stanley Robinson", 2012],
+      ["Blackout / All Clear", "Connie Willis", 2010]
+    ],
+    booker: [
+      ["Orbital", "Samantha Harvey", 2024],
+      ["Prophet Song", "Paul Lynch", 2023],
+      ["The Seven Moons of Maali Almeida", "Shehan Karunatilaka", 2022],
+      ["The Promise", "Damon Galgut", 2021],
+      ["Shuggie Bain", "Douglas Stuart", 2020],
+      ["Girl, Woman, Other", "Bernardine Evaristo", 2019],
+      ["Milkman", "Anna Burns", 2018],
+      ["Lincoln in the Bardo", "George Saunders", 2017],
+      ["The Sellout", "Paul Beatty", 2016],
+      ["A Brief History of Seven Killings", "Marlon James", 2015]
+    ]
+  };
+  var MOODS = [
+    { id: "short_thrilling", icon: "\u26A1", subject: "thriller" },
+    { id: "cozy", icon: "\u{1F375}", subject: "cozy_fiction" },
+    { id: "cry", icon: "\u{1F622}", subject: "tearjerkers" },
+    { id: "think", icon: "\u{1F9E0}", subject: "philosophy" },
+    { id: "adventure", icon: "\u{1F5FA}", subject: "adventure_stories" },
+    { id: "funny", icon: "\u{1F604}", subject: "humorous_fiction" }
+  ];
+  var N = (id, ar2, en, q, sub) => ({ id, ar: ar2, en, q, sub: sub || [] });
+  var CATS = [
+    { id: "fiction", kind: "fiction", ar: "\u0631\u0648\u0627\u0626\u064A", en: "Fiction", sub: [
+      N("scifi", "\u062E\u064A\u0627\u0644 \u0639\u0644\u0645\u064A", "Science fiction", "science fiction", [N("dystopian", "\u062F\u064A\u0633\u062A\u0648\u0628\u064A\u0627", "Dystopian", "dystopian"), N("space", "\u0645\u0644\u0627\u062D\u0645 \u0641\u0636\u0627\u0626\u064A\u0629", "Space opera", "space opera"), N("cyber", "\u0633\u0627\u064A\u0628\u0631 \u0628\u0627\u0646\u0643", "Cyberpunk", "cyberpunk"), N("time", "\u0633\u0641\u0631 \u0639\u0628\u0631 \u0627\u0644\u0632\u0645\u0646", "Time travel", "time travel"), N("postapoc", "\u0645\u0627 \u0628\u0639\u062F \u0627\u0644\u0643\u0627\u0631\u062B\u0629", "Post-apocalyptic", "post-apocalyptic"), N("aliens", "\u0643\u0627\u0626\u0646\u0627\u062A \u0641\u0636\u0627\u0626\u064A\u0629", "Aliens / first contact", "extraterrestrial beings"), N("ai", "\u0630\u0643\u0627\u0621 \u0627\u0635\u0637\u0646\u0627\u0639\u064A \u0648\u0631\u0648\u0628\u0648\u062A\u0627\u062A", "AI & robots", "robots"), N("hardsf", "\u062E\u064A\u0627\u0644 \u0639\u0644\u0645\u064A \u0635\u0644\u0628", "Hard SF", "hard science fiction")]),
+      N("fantasy", "\u0641\u0627\u0646\u062A\u0627\u0632\u064A\u0627", "Fantasy", "fantasy", [N("epic", "\u0645\u0644\u062D\u0645\u064A\u0629", "Epic fantasy", "epic fantasy"), N("urban", "\u062D\u0636\u0631\u064A\u0629", "Urban fantasy", "urban fantasy"), N("darkf", "\u0645\u0638\u0644\u0645\u0629", "Dark fantasy", "dark fantasy"), N("dragons", "\u062A\u0646\u0627\u0646\u064A\u0646", "Dragons", "dragons"), N("fairy", "\u062D\u0643\u0627\u064A\u0627\u062A \u062E\u0631\u0627\u0641\u064A\u0629", "Fairy tales", "fairy tales")]),
+      N("mystery", "\u063A\u0645\u0648\u0636 \u0648\u062C\u0631\u064A\u0645\u0629", "Mystery & crime", "mystery", [N("detective", "\u062A\u062D\u0631\u064A", "Detective", "detective and mystery stories"), N("noir", "\u0646\u0648\u0627\u0631", "Noir", "noir"), N("cozy", "\u063A\u0645\u0648\u0636 \u0647\u0627\u062F\u0626", "Cozy mystery", "cozy mystery"), N("procedural", "\u0625\u062C\u0631\u0627\u0626\u064A \u0628\u0648\u0644\u064A\u0633\u064A", "Police procedural", "police procedural")]),
+      N("thriller", "\u0625\u062B\u0627\u0631\u0629 \u0648\u062A\u0634\u0648\u064A\u0642", "Thriller", "thriller", [N("spy", "\u062C\u0627\u0633\u0648\u0633\u064A\u0629", "Espionage", "spy stories"), N("psych", "\u0646\u0641\u0633\u064A", "Psychological", "psychological thriller"), N("legal", "\u0642\u0627\u0646\u0648\u0646\u064A", "Legal thriller", "legal thriller"), N("suspense", "\u062A\u0634\u0648\u064A\u0642", "Suspense", "suspense")]),
+      N("horror", "\u0631\u0639\u0628", "Horror", "horror", [N("ghost", "\u0642\u0635\u0635 \u0623\u0634\u0628\u0627\u062D", "Ghost stories", "ghost stories"), N("vampire", "\u0645\u0635\u0627\u0635\u0648 \u062F\u0645\u0627\u0621", "Vampires", "vampires"), N("gothic", "\u0642\u0648\u0637\u064A", "Gothic", "gothic fiction")]),
+      N("romance", "\u0631\u0648\u0645\u0627\u0646\u0633\u064A", "Romance", "romance", [N("histrom", "\u062A\u0627\u0631\u064A\u062E\u064A", "Historical romance", "historical romance"), N("controm", "\u0645\u0639\u0627\u0635\u0631", "Contemporary romance", "contemporary romance")]),
+      N("dystopia", "\u062F\u064A\u0633\u062A\u0648\u0628\u064A\u0627", "Dystopia", "dystopian"),
+      N("paranormal", "\u062E\u0648\u0627\u0631\u0642", "Paranormal", "paranormal fiction"),
+      N("contemp", "\u0645\u0639\u0627\u0635\u0631", "Contemporary", "contemporary fiction"),
+      N("magrealism", "\u0648\u0627\u0642\u0639\u064A\u0629 \u0633\u062D\u0631\u064A\u0629", "Magical realism", "magic realism"),
+      N("histfic", "\u0631\u0648\u0627\u064A\u0627\u062A \u062A\u0627\u0631\u064A\u062E\u064A\u0629", "Historical fiction", "historical fiction"),
+      N("literary", "\u0623\u062F\u0628 \u0623\u062F\u0628\u064A", "Literary fiction", "literary fiction"),
+      N("classics", "\u0643\u0644\u0627\u0633\u064A\u0643\u064A\u0627\u062A", "Classics", "classics", [N("russian", "\u0623\u062F\u0628 \u0631\u0648\u0633\u064A", "Russian literature", "russian fiction"), N("french", "\u0623\u062F\u0628 \u0641\u0631\u0646\u0633\u064A", "French literature", "french fiction"), N("english", "\u0623\u062F\u0628 \u0625\u0646\u062C\u0644\u064A\u0632\u064A", "English literature", "english fiction")]),
+      N("arabicfic", "\u0631\u0648\u0627\u064A\u0627\u062A \u0639\u0631\u0628\u064A\u0629", "Arabic novels", "arabic fiction"),
+      N("adventure", "\u0645\u063A\u0627\u0645\u0631\u0627\u062A", "Adventure", "adventure"),
+      N("humor", "\u0643\u0648\u0645\u064A\u062F\u064A\u0627", "Humor", "humorous fiction"),
+      N("war", "\u062D\u0631\u0628", "War fiction", "war stories"),
+      N("ya", "\u0646\u0627\u0634\u0626\u0629", "Young adult", "young adult fiction")
+    ] },
+    { id: "nonfiction", kind: "nonfiction", ar: "\u063A\u064A\u0631 \u0631\u0648\u0627\u0626\u064A", en: "Non-fiction", sub: [
+      N("history", "\u062A\u0627\u0631\u064A\u062E", "History", "history", [N("ancient", "\u0627\u0644\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0642\u062F\u064A\u0645", "Ancient history", "ancient history"), N("medieval", "\u0627\u0644\u0639\u0635\u0648\u0631 \u0627\u0644\u0648\u0633\u0637\u0649", "Medieval", "middle ages"), N("ww2", "\u0627\u0644\u062D\u0631\u0628 \u0627\u0644\u0639\u0627\u0644\u0645\u064A\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629", "World War II", "world war, 1939-1945"), N("islamhist", "\u0627\u0644\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0625\u0633\u0644\u0627\u0645\u064A", "Islamic history", "islamic history"), N("egypt", "\u0645\u0635\u0631", "Egypt", "egypt")]),
+      N("biography", "\u0633\u064A\u0631 \u0630\u0627\u062A\u064A\u0629", "Biography", "biography", [N("memoir", "\u0645\u0630\u0643\u0631\u0627\u062A", "Memoirs", "autobiography"), N("leaders", "\u0642\u0627\u062F\u0629 \u0648\u0633\u064A\u0627\u0633\u064A\u0648\u0646", "Leaders", "heads of state")]),
+      N("philosophy", "\u0641\u0644\u0633\u0641\u0629", "Philosophy", "philosophy", [N("ethics", "\u0623\u062E\u0644\u0627\u0642", "Ethics", "ethics"), N("stoic", "\u0631\u0648\u0627\u0642\u064A\u0629", "Stoicism", "stoics"), N("exist", "\u0648\u062C\u0648\u062F\u064A\u0629", "Existentialism", "existentialism")]),
+      N("psychology", "\u0639\u0644\u0645 \u0646\u0641\u0633", "Psychology", "psychology"),
+      N("selfhelp", "\u062A\u0637\u0648\u064A\u0631 \u0630\u0627\u062A", "Self-help", "self-help", [N("habits", "\u0639\u0627\u062F\u0627\u062A \u0648\u0625\u0646\u062A\u0627\u062C\u064A\u0629", "Habits & productivity", "habit"), N("success", "\u0646\u062C\u0627\u062D", "Success", "success")]),
+      N("business", "\u0623\u0639\u0645\u0627\u0644", "Business", "business", [N("entre", "\u0631\u064A\u0627\u062F\u0629 \u0623\u0639\u0645\u0627\u0644", "Entrepreneurship", "entrepreneurship"), N("leader", "\u0642\u064A\u0627\u062F\u0629", "Leadership", "leadership"), N("marketing", "\u062A\u0633\u0648\u064A\u0642", "Marketing", "marketing")]),
+      N("economics", "\u0627\u0642\u062A\u0635\u0627\u062F", "Economics", "economics", [N("finance", "\u0627\u0633\u062A\u062B\u0645\u0627\u0631 \u0648\u062A\u0645\u0648\u064A\u0644", "Investing & finance", "investments")]),
+      N("science", "\u0639\u0644\u0648\u0645", "Science", "science", [N("physics", "\u0641\u064A\u0632\u064A\u0627\u0621", "Physics", "physics"), N("astro", "\u0641\u0644\u0643", "Astronomy", "astronomy"), N("bio", "\u0623\u062D\u064A\u0627\u0621", "Biology", "biology"), N("math", "\u0631\u064A\u0627\u0636\u064A\u0627\u062A", "Mathematics", "mathematics"), N("computers", "\u062D\u0627\u0633\u0648\u0628 \u0648\u062A\u0642\u0646\u064A\u0629", "Computers & technology", "computers")]),
+      N("politics", "\u0633\u064A\u0627\u0633\u0629", "Politics", "political science"),
+      N("religion", "\u062F\u064A\u0646", "Religion", "religion", [N("islam", "\u0625\u0633\u0644\u0627\u0645", "Islam", "islam"), N("christ", "\u0645\u0633\u064A\u062D\u064A\u0629", "Christianity", "christianity"), N("buddhism", "\u0628\u0648\u0630\u064A\u0629", "Buddhism", "buddhism")]),
+      N("essays", "\u0645\u0642\u0627\u0644\u0627\u062A", "Essays", "essays"),
+      N("travel", "\u0631\u062D\u0644\u0627\u062A", "Travel", "travel"),
+      N("health", "\u0635\u062D\u0629", "Health", "health"),
+      N("art", "\u0641\u0646", "Art", "art"),
+      N("truecrime", "\u062C\u0631\u0627\u0626\u0645 \u062D\u0642\u064A\u0642\u064A\u0629", "True crime", "true crime"),
+      N("spirit", "\u0631\u0648\u062D\u0627\u0646\u064A\u0627\u062A", "Spirituality", "spirituality"),
+      N("sports", "\u0631\u064A\u0627\u0636\u0629", "Sports", "sports"),
+      N("music", "\u0645\u0648\u0633\u064A\u0642\u0649", "Music", "music"),
+      N("cook", "\u0637\u0628\u062E", "Cookbooks", "cooking"),
+      N("parenting", "\u062A\u0631\u0628\u064A\u0629", "Parenting", "parenting"),
+      N("education", "\u062A\u0639\u0644\u064A\u0645", "Education", "education"),
+      N("nature", "\u0637\u0628\u064A\u0639\u0629", "Nature", "nature")
+    ] },
+    { id: "other", kind: "other", ar: "\u0623\u062E\u0631\u0649", en: "Other", sub: [
+      N("poetry", "\u0634\u0639\u0631", "Poetry", "poetry"),
+      N("drama", "\u0645\u0633\u0631\u062D\u064A\u0627\u062A", "Plays / drama", "drama"),
+      N("shorts", "\u0642\u0635\u0635 \u0642\u0635\u064A\u0631\u0629", "Short stories", "short stories"),
+      N("comics", "\u0643\u0648\u0645\u064A\u0643\u0633 \u0648\u0631\u0633\u0648\u0645", "Comics & graphic novels", "comics & graphic novels"),
+      N("manga", "\u0645\u0627\u0646\u063A\u0627", "Manga", "manga"),
+      N("kids", "\u0623\u0637\u0641\u0627\u0644", "Children's", "children's literature"),
+      N("anthology", "\u0645\u062E\u062A\u0627\u0631\u0627\u062A", "Anthologies", "anthologies")
+    ] }
+  ];
+  var FIC_EX = ' AND -subject:"history and criticism" AND -subject:"criticism" AND -subject:"biography" AND -subject:"nonfiction" AND -subject:"non-fiction"';
+  var NONFIC_EX = ' AND -subject:"fiction" AND -subject:"juvenile fiction" AND -subject:"stories"';
+  function olQuery(kind2, q) {
+    const base = `subject:"${q}" AND ratings_count:[10 TO *]`;
+    if (kind2 === "fiction") return base + ' AND subject:"fiction"' + FIC_EX;
+    if (kind2 === "nonfiction") return base + NONFIC_EX;
+    return base;
+  }
+  function isFictionCats(cats) {
+    return (cats || []).some((c) => /fiction|novel|stories|fantasy/i.test(c) && !/nonfiction|non-fiction|criticism/i.test(c));
+  }
+  function isNonFictionCats(cats) {
+    return !(cats || []).length || (cats || []).every((c) => !/fiction|novel|stories/i.test(c) || /nonfiction|non-fiction|criticism/i.test(c));
+  }
+  var PAGE = 24;
+  var YEAR_RANGES = [["", "\u0643\u0644 \u0627\u0644\u0633\u0646\u0648\u0627\u062A", "All years"], ["2020-2029", "2020\u20132029", "2020\u20132029"], ["2010-2019", "2010\u20132019", "2010\u20132019"], ["2000-2009", "2000\u20132009", "2000\u20132009"], ["1990-1999", "1990\u20131999", "1990\u20131999"], ["1980-1989", "1980\u20131989", "1980\u20131989"], ["0-1979", "\u0642\u0628\u0644 1980", "Before 1980"]];
+  function yrClause(yr) {
+    if (!yr) return "";
+    const [a, b] = yr.split("-");
+    return ` AND first_publish_year:[${a || "*"} TO ${b || "*"}]`;
+  }
+  function inYear(it, yr) {
+    if (!yr) return true;
+    const [a, b] = yr.split("-").map(Number);
+    const y = parseInt(it.year, 10);
+    return !isNaN(y) && y >= a && y <= b;
+  }
+  async function topOL(node, page) {
+    const q = olQuery(node.kind, node.q) + yrClause(node.yr);
+    const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&sort=rating&limit=${PAGE}&offset=${page * PAGE}&fields=key,title,author_name,cover_i,first_publish_year,subject,isbn,ratings_average,ratings_count`);
+    if (!res.ok) throw new Error("Open Library " + res.status);
+    const d = await res.json();
+    return { items: (d.docs || []).map((x) => ({
+      olKey: (x.key || "").replace("/works/", ""),
+      title: x.title,
+      author: (x.author_name || [])[0] || "",
+      year: x.first_publish_year || "",
+      cover: x.cover_i ? `https://covers.openlibrary.org/b/id/${x.cover_i}-L.jpg` : "",
+      subjects: (x.subject || []).slice(0, 8),
+      isbn: (x.isbn || [])[0] || "",
+      rating: x.ratings_average || 0,
+      ratingCount: x.ratings_count || 0
+    })), more: (page + 1) * PAGE < (d.numFound || 0) };
+  }
+  async function topGB(node, page) {
+    const subject = node.q;
+    const key = (getState().settings.gbKey || "").trim();
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent("subject:" + (node.kind === "fiction" ? "fiction " : "") + subject)}&orderBy=relevance&printType=books&maxResults=${PAGE}&startIndex=${page * PAGE}${key ? "&key=" + encodeURIComponent(key) : ""}`);
+    if (res.status === 429) throw new Error(getLang() === "ar" ? "Google Books: \u0627\u0644\u062D\u062F \u0627\u0644\u0645\u062C\u0627\u0646\u064A \u062E\u0644\u0635. \u062D\u0637 \u0645\u0641\u062A\u0627\u062D API \u0641\u064A \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A." : "Google Books quota reached. Add an API key in Settings.");
+    if (!res.ok) throw new Error("Google Books " + res.status);
+    const d = await res.json();
+    const keep = (x) => {
+      const c = (x.volumeInfo || {}).categories || [];
+      return node.kind === "fiction" ? isFictionCats(c) : node.kind === "nonfiction" ? isNonFictionCats(c) : true;
+    };
+    return {
+      items: (d.items || []).filter(keep).map((x) => {
+        const v = x.volumeInfo || {};
+        const ids = v.industryIdentifiers || [];
+        return {
+          olKey: "",
+          title: v.title || "?",
+          author: (v.authors || [])[0] || "",
+          year: (v.publishedDate || "").slice(0, 4),
+          cover: (v.imageLinks && (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail) || "").replace("http://", "https://").replace("zoom=1", "zoom=2"),
+          subjects: (v.categories || []).slice(0, 6),
+          isbn: (ids.find((i) => i.type === "ISBN_13") || ids[0] || {}).identifier || "",
+          rating: v.averageRating || 0,
+          ratingCount: v.ratingsCount || 0
+        };
+      }).filter((x) => inYear(x, node.yr)),
+      more: (page + 1) * PAGE < (d.totalItems || 0) && (d.items || []).length > 0
+    };
+  }
+  var SOURCES = { ol: ["Open Library", topOL], gb: ["Google Books", topGB] };
+  async function wikidataAward(qid2, page) {
+    const sp = `SELECT ?wLabel ?aLabel ?year WHERE { ?w wdt:P166 wd:${qid2} . OPTIONAL{?w wdt:P50 ?a} OPTIONAL{?w wdt:P577 ?d . BIND(YEAR(?d) AS ?year)} SERVICE wikibase:label { bd:serviceParam wikibase:language "en,ar". } } ORDER BY DESC(?year) LIMIT ${PAGE} OFFSET ${page * PAGE}`;
+    const res = await fetch("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(sp));
+    if (!res.ok) throw new Error("Wikidata " + res.status);
+    const d = await res.json();
+    const seen = /* @__PURE__ */ new Set();
+    const items = d.results.bindings.map((b) => ({ olKey: "", title: b.wLabel.value, author: b.aLabel ? b.aLabel.value : "", year: b.year ? b.year.value : "", cover: "", subjects: [], isbn: "", rating: 0, ratingCount: 0 })).filter((x) => !/^Q\d+$/.test(x.title) && !seen.has(x.title + x.author) && seen.add(x.title + x.author));
+    return { items, more: d.results.bindings.length === PAGE };
+  }
+  var WD_AWARDS = [
+    ["pulitzer", "\u0628\u0648\u0644\u064A\u062A\u0632\u0631 (\u0631\u0648\u0627\u064A\u0629)", "Pulitzer (Fiction)", "Q833633"],
+    ["arabic", "\u0627\u0644\u062C\u0627\u0626\u0632\u0629 \u0627\u0644\u0639\u0627\u0644\u0645\u064A\u0629 \u0644\u0644\u0631\u0648\u0627\u064A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629", "Intl. Prize for Arabic Fiction", "Q4118790"],
+    ["nba", "\u0627\u0644\u062C\u0627\u0626\u0632\u0629 \u0627\u0644\u0648\u0637\u0646\u064A\u0629 \u0644\u0644\u0643\u062A\u0627\u0628", "National Book Award (Fiction)", "Q3873144"],
+    ["goncourt", "\u063A\u0648\u0646\u0643\u0648\u0631", "Prix Goncourt", "Q187300"],
+    ["hugoall", "\u0647\u0648\u063A\u0648 (\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629)", "Hugo (full list)", "Q255032"],
+    ["nebulaall", "\u0646\u064A\u0628\u0648\u0644\u0627 (\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629)", "Nebula (full list)", "Q266012"],
+    ["bookerall", "\u0628\u0648\u0643\u0631 (\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629)", "Booker (full list)", "Q160082"]
+  ];
+  var ar0 = (a, e) => getLang() === "ar" ? a : e;
+  function renderDiscover(view) {
+    view.innerHTML = `
+    <div class="view-head"><h1>${t("navDiscover")}</h1></div>
+    <div class="disc-section"><div class="search-row">
+      <select id="dScope"><option value="all">${ar0("\u0627\u0644\u0643\u0644", "All")}</option><option value="title">${ar0("\u0627\u0644\u0639\u0646\u0648\u0627\u0646", "Title")}</option><option value="author">${ar0("\u0627\u0644\u0645\u0624\u0644\u0641", "Author")}</option><option value="subject">${ar0("\u0627\u0644\u062A\u0635\u0646\u064A\u0641", "Subject")}</option></select>
+      <input id="dQ" placeholder="${ar0("\u062F\u0648\u0651\u0631 \u0641\u064A \u0645\u0644\u0627\u064A\u064A\u0646 \u0627\u0644\u0643\u062A\u0628\u2026", "Search millions of books\u2026")}">
+      <button id="dGo" class="btn btn-primary">\u{1F50D} ${ar0("\u0628\u062D\u062B", "Search")}</button></div></div>
+    <div class="disc-section"><div class="chip-row" id="moodGrid" style="margin-bottom:0"></div></div>
+    <div class="disc-section"><h2 style="margin-bottom:.7rem">${t("recommendations")}</h2>
+      <p class="muted" id="recHint" style="margin-bottom:.7rem"></p><div class="award-row" id="recGrid"></div></div>
+    <div class="disc-section"><h2 style="margin-bottom:.7rem">${t("awards")}</h2>
+      <div class="chip-row" id="awardChips"></div><div class="award-row" id="awardList"></div></div>
+    <div class="disc-section"><h2 style="margin-bottom:.7rem">${t("topRated")}</h2><div class="award-row" id="topRatedRow"></div></div>
+    <div class="disc-section"><h2 style="margin-bottom:.4rem">\u{1F3C5} ${getLang() === "ar" ? "\u0623\u0641\u0636\u0644 \u0627\u0644\u0642\u0648\u0627\u0626\u0645 (\u062D\u0633\u0628 \u062A\u0642\u064A\u064A\u0645\u0627\u062A Open Library)" : "Top lists (by Open Library ratings)"}</h2>
+      <p class="muted" style="margin-bottom:.6rem">${getLang() === "ar" ? "\u0623\u0639\u0644\u0649 \u0627\u0644\u0643\u062A\u0628 \u062A\u0642\u064A\u064A\u0645\u064B\u0627 \u0641\u064A \u0643\u0644 \u062A\u0635\u0646\u064A\u0641. \u062A\u0642\u062F\u0631 \u062A\u062D\u0641\u0638 \u0623\u064A \u0642\u0627\u0626\u0645\u0629 \u0643\u0642\u0627\u0626\u0645\u0629 \u0642\u0631\u0627\u0621\u0629 \u0639\u0646\u062F\u0643. \u0648\u0644\u0648 \u0639\u0646\u062F\u0643 \u0645\u0643\u062A\u0628\u0629 Goodreads\u060C \u0627\u0633\u062A\u0648\u0631\u062F\u0647\u0627 \u0645\u0646 \u062A\u0628\u0648\u064A\u0628 \u0627\u0644\u0642\u0648\u0627\u0626\u0645." : "Highest-rated books per subject. Save any list as your own reading list. Got a Goodreads library? Import its CSV from the Lists tab."}</p>
+      <div style="margin-bottom:.6rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center"><span><label class="muted">${getLang() === "ar" ? "\u0627\u0644\u0645\u0635\u062F\u0631" : "Source"}: </label><select id="topSrc">${Object.entries(SOURCES).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join("")}</select></span>
+      <span><label class="muted">${getLang() === "ar" ? "\u0633\u0646\u0648\u0627\u062A \u0627\u0644\u0625\u0635\u062F\u0627\u0631" : "Published"}: </label><select id="topYear">${YEAR_RANGES.map(([v, a, e]) => `<option value="${v}">${getLang() === "ar" ? a : e}</option>`).join("")}</select></span></div>
+      <div class="chip-row" id="topKinds"></div><div id="topCrumb" class="muted" style="margin:.4rem 0"></div><div class="chip-row" id="topChips"></div></div>
+    <div id="discResults" class="disc-section hidden"><div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;margin-bottom:.7rem"><h2 style="margin:0" id="discResultsTitle"></h2><select id="discSort" class="hidden" title="${getLang() === "ar" ? "\u0627\u0644\u062A\u0631\u062A\u064A\u0628" : "Sort"}">${sortOptionsHTML("default")}</select></div><div class="grid" id="discResultsGrid"></div></div>`;
+    const mg = $2("#moodGrid", view);
+    MOODS.forEach((m) => {
+      const c = document.createElement("button");
+      c.className = "chip";
+      c.textContent = m.icon + " " + t("mood_" + m.id);
+      c.onclick = () => showResults(view, t("mood_" + m.id), async (page) => {
+        const items = await searchOpenLibrary("", { subject: m.subject, limit: 24, offset: page * 24 });
+        return { items, more: items.length === 24 };
+      });
+      mg.appendChild(c);
+    });
+    const runSearch = () => {
+      const q = $2("#dQ", view).value.trim();
+      if (!q) return;
+      const scope = $2("#dScope", view).value;
+      const scopeName = $2("#dScope", view).selectedOptions[0].textContent;
+      showResults(view, "\u{1F50D} " + q + " \xB7 " + scopeName, (page) => searchScoped(q, scope, page));
+    };
+    $2("#dGo", view).onclick = runSearch;
+    $2("#dQ", view).addEventListener("keydown", (e) => {
+      if (e.key === "Enter") runSearch();
+    });
+    const takePending = () => {
+      try {
+        const ps = JSON.parse(sessionStorage.getItem("qari.pendingSearch") || "null");
+        if (ps && ps.q) {
+          sessionStorage.removeItem("qari.pendingSearch");
+          $2("#dScope", view).value = ps.scope || "all";
+          $2("#dQ", view).value = ps.q;
+          runSearch();
+        }
+      } catch {
+      }
+    };
+    takePending();
+    window.__qariDiscoverPending = takePending;
+    const chips = $2("#awardChips", view);
+    [["hugo", t("hugo")], ["nebula", t("nebula")], ["booker", t("booker")]].forEach(([k, label], i) => {
+      const chip2 = document.createElement("button");
+      chip2.className = "chip" + (i === 0 ? " active" : "");
+      chip2.textContent = label;
+      chip2.onclick = () => {
+        chips.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
+        chip2.classList.add("active");
+        renderAward(view, k);
+      };
+      chips.appendChild(chip2);
+    });
+    const ar2 = getLang() === "ar", nm = (n) => ar2 ? n.ar : n.en;
+    const kindsEl = $2("#topKinds", view), tc = $2("#topChips", view), crumb = $2("#topCrumb", view);
+    let lastRun = null;
+    const startList = (node, path) => {
+      const src = $2("#topSrc", view).value;
+      const yr = $2("#topYear", view).value;
+      const ttl = path.map(nm).join(" \u203A ");
+      showResults(view, "\u{1F3C5} " + ttl + (yr ? " \xB7 " + $2("#topYear", view).selectedOptions[0].textContent : "") + " \xB7 " + SOURCES[src][0], (page) => SOURCES[src][1]({ kind: path[0].kind, q: node.q, yr }, page), true);
+    };
+    const rerun3 = () => {
+      if (lastRun) lastRun();
+    };
+    $2("#topSrc", view).onchange = rerun3;
+    $2("#topYear", view).onchange = rerun3;
+    const showLevel = (nodes, path) => {
+      tc.innerHTML = "";
+      crumb.textContent = path.map(nm).join(" \u203A ");
+      nodes.forEach((n) => {
+        const chip2 = document.createElement("button");
+        chip2.className = "chip";
+        chip2.textContent = nm(n) + (n.sub && n.sub.length ? " \u25BE" : "");
+        chip2.onclick = () => {
+          const np = path.concat(n);
+          if (n.q) {
+            startList(n, np);
+            lastRun = () => startList(n, np);
+          }
+          if (n.sub && n.sub.length) {
+            const back = path.length ? [] : [];
+            showLevel(n.sub, np);
+            addBack(nodes, path);
+          } else {
+            tc.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
+          }
+        };
+        tc.appendChild(chip2);
+      });
+    };
+    const addBack = (parentNodes, parentPath) => {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.textContent = "\u2B05 " + (ar2 ? "\u0631\u062C\u0648\u0639" : "Back");
+      b.onclick = () => showLevel(parentNodes, parentPath);
+      tc.prepend(b);
+    };
+    CATS.forEach((c) => {
+      const chip2 = document.createElement("button");
+      chip2.className = "chip";
+      chip2.textContent = nm(c);
+      chip2.onclick = () => {
+        kindsEl.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
+        chip2.classList.add("active");
+        showLevel(c.sub, [c]);
+      };
+      kindsEl.appendChild(chip2);
+    });
+    kindsEl.firstChild.click();
+    WD_AWARDS.forEach(([k, ar3, en, qid2]) => {
+      const chip2 = document.createElement("button");
+      chip2.className = "chip";
+      chip2.textContent = (getLang() === "ar" ? ar3 : en) + " \u2197";
+      chip2.onclick = () => showResults(view, "\u{1F3C6} " + (getLang() === "ar" ? ar3 : en) + " \xB7 Wikidata", (page) => wikidataAward(qid2, page));
+      chips.appendChild(chip2);
+    });
+    renderAward(view, "hugo");
+    renderTopRatedRow(view);
+    renderRecommendations(view);
+  }
+  function awardCard(title, author, year, view) {
+    const c = document.createElement("div");
+    c.className = "book-card";
+    c.style.minWidth = "150px";
+    c.innerHTML = `<div class="cover">${placeholderHTML(title, "\u{1F3C6}")}</div>
+    <div class="book-meta"><div class="book-title">${esc(title)}</div><div class="book-author">${authorHTML(author)} \xB7 ${year}</div></div>`;
+    c.onclick = () => showResults(view, title, () => searchOpenLibrary(title + " " + author, { limit: 4 }));
+    const cv = c.querySelector(".cover");
+    const load2 = async () => {
+      const f = await findCover(title, author);
+      if (f && f.cover) {
+        cv.innerHTML = coverImgHTML({ cover: f.cover, title }, "\u{1F3C6}");
+        if (f.olKey) c.onclick = () => {
+          location.hash = "#/work/" + f.olKey;
+        };
+      }
+    };
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((es) => {
+        if (es[0].isIntersecting) {
+          io.disconnect();
+          load2();
+        }
+      }, { rootMargin: "300px" });
+      io.observe(c);
+    } else load2();
+    return c;
+  }
+  function renderAward(view, key) {
+    const host = $2("#awardList", view);
+    host.innerHTML = "";
+    AWARDS[key].forEach(([ti, au, yr]) => host.appendChild(awardCard(ti, au, yr, view)));
+  }
+  function renderTopRatedRow(view) {
+    const host = $2("#topRatedRow", view);
+    host.innerHTML = "";
+    const rated = getState().books.filter((b) => b.rating >= 4).sort((a, b) => b.rating - a.rating).slice(0, 8);
+    if (!rated.length) {
+      host.innerHTML = `<p class="muted">${t("needRatings")}</p>`;
+      return;
+    }
+    rated.forEach((b) => {
+      const c = document.createElement("div");
+      c.className = "book-card";
+      c.style.minWidth = "150px";
+      c.innerHTML = `<div class="cover">${coverImgHTML(b, "\u2B50")}</div>
+      <div class="book-meta"><div class="book-title">${esc(b.title)}</div><div class="book-author">${"\u2605".repeat(b.rating)}</div></div>`;
+      c.onclick = () => {
+        location.hash = "#/book/" + b.id;
+      };
+      host.appendChild(c);
+    });
+  }
+  async function renderRecommendations(view) {
+    const hint = $2("#recHint", view), grid = $2("#recGrid", view);
+    const loved = getState().books.filter((b) => b.rating >= 4 && (b.subjects || []).length);
+    if (!loved.length) {
+      hint.textContent = t("needRatings");
+      return;
+    }
+    hint.textContent = t("loading");
+    const freq = {};
+    loved.forEach((b) => b.subjects.forEach((s) => {
+      freq[s] = (freq[s] || 0) + 1;
+    }));
+    const topSubjects = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([s]) => s);
+    const owned = new Set(getState().books.map((b) => (b.title || "").toLowerCase()));
+    try {
+      const lists = await Promise.all(topSubjects.map((s) => searchOpenLibrary("", { subject: s.toLowerCase().replace(/\s+/g, "_"), limit: 8 }).catch(() => [])));
+      const items = lists.flat().filter((x) => !owned.has(x.title.toLowerCase())).slice(0, 8);
+      hint.textContent = topSubjects.length ? `(${topSubjects.join(" \xB7 ")})` : "";
+      grid.innerHTML = "";
+      items.forEach((it) => {
+        const c = recCard(it, view);
+        c.style.minWidth = "150px";
+        c.style.maxWidth = "150px";
+        grid.appendChild(c);
+      });
+    } catch {
+      hint.textContent = t("dictNone");
+    }
+  }
+  function recCard(it, view) {
+    const c = document.createElement("div");
+    c.className = "book-card";
+    c.innerHTML = `<div class="cover">${coverImgHTML(it)}</div>
+    <div class="book-meta"><div class="book-title">${esc(it.title)}</div><div class="book-author">${authorHTML(it.author)}</div>${it.rating ? `<div class="muted">\u2605 ${it.rating.toFixed(1)} (${it.ratingCount})</div>` : ""}
+    <button class="btn btn-primary" style="margin-top:.4rem;font-size:.75rem;padding:.25rem .7rem">${t("addToMyLibrary")}</button></div>`;
+    c.onclick = async () => {
+      if (it.olKey) {
+        location.hash = "#/work/" + it.olKey;
+        return;
+      }
+      toast(t("loading"));
+      const f = await findCover(it.title, it.author);
+      if (f && f.olKey) {
+        it.olKey = f.olKey;
+        location.hash = "#/work/" + f.olKey;
+      } else toast(getLang() === "ar" ? "\u0645\u0634 \u0644\u0627\u0642\u064A \u0635\u0641\u062D\u0629 \u0644\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 \u0641\u064A Open Library" : "No Open Library page found for this book", 3e3);
+    };
+    if (!it.cover && !it.isbn) {
+      const run = async () => {
+        const f = await findCover(it.title, it.author);
+        if (f) {
+          if (f.cover) {
+            it.cover = f.cover;
+            c.querySelector(".cover").innerHTML = coverImgHTML(it);
+          }
+          if (f.olKey) {
+            it.olKey = f.olKey;
+            c.onclick = () => {
+              location.hash = "#/work/" + f.olKey;
+            };
+          }
+        }
+      };
+      if ("IntersectionObserver" in window) {
+        const io = new IntersectionObserver((es) => {
+          if (es[0].isIntersecting) {
+            io.disconnect();
+            run();
+          }
+        }, { rootMargin: "300px" });
+        io.observe(c);
+      } else run();
+    }
+    c.querySelector("button").onclick = (e) => {
+      e.stopPropagation();
+      saveToMyLibrary({ title: it.title, author: it.author, format: "web", cover: it.cover, source: "openlibrary", subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || "", year: it.year || "" });
+      e.target.textContent = t("inMyLibrary");
+      e.target.disabled = true;
+      toast(t("added"));
+    };
+    if (findSavedBook({ title: it.title, author: it.author, olKey: it.olKey || "" })) {
+      const btn = c.querySelector("button");
+      btn.textContent = t("inMyLibrary");
+      btn.disabled = true;
+    }
+    return c;
+  }
+  async function showResults(view, title, fetcher, saveable = false) {
+    const sec = $2("#discResults", view), grid = $2("#discResultsGrid", view), ttl = $2("#discResultsTitle", view), sortSel = $2("#discSort", view);
+    sec.classList.remove("hidden");
+    ttl.textContent = title;
+    grid.innerHTML = `<p class="muted">${t("loading")}</p>`;
+    sec.scrollIntoView({ behavior: "smooth" });
+    const all = [];
+    let page = 0, more = true, busy3 = false, token = {};
+    grid.__token = token;
+    let sortMode = "default", saveBtn = null;
+    if (sortSel) {
+      sortSel.value = "default";
+      sortSel.classList.add("hidden");
+      sortSel.onchange = () => {
+        sortMode = sortSel.value;
+        paint();
+      };
+    }
+    const paint = () => {
+      grid.innerHTML = "";
+      if (!all.length) {
+        grid.innerHTML = `<p class="muted">${t("noResults")}</p>`;
+        return;
+      }
+      if (saveBtn) grid.appendChild(saveBtn);
+      (sortMode === "default" ? all : sortBooks(all, sortMode)).forEach((it) => grid.appendChild(recCard(it, view)));
+    };
+    const old = sec.querySelector(".more-box");
+    if (old) old.remove();
+    const box = document.createElement("div");
+    box.className = "more-box";
+    sec.appendChild(box);
+    const loadPage = async () => {
+      if (busy3 || !more || grid.__token !== token) return;
+      busy3 = true;
+      try {
+        const r = await fetcher(page);
+        const items = Array.isArray(r) ? r : r.items;
+        more = Array.isArray(r) ? false : r.more;
+        page++;
+        items.forEach((it) => all.push(it));
+        if (page === 1 && saveable && items.length && !saveBtn) {
+          saveBtn = document.createElement("button");
+          saveBtn.className = "btn btn-primary";
+          saveBtn.style.gridColumn = "1/-1";
+          saveBtn.textContent = "\u{1F4CB} " + (getLang() === "ar" ? "\u0627\u062D\u0641\u0638\u0647\u0627 \u0643\u0642\u0627\u0626\u0645\u0629 \u0642\u0631\u0627\u0621\u0629 (\u0643\u0644 \u0627\u0644\u0644\u064A \u0638\u0627\u0647\u0631)" : "Save as reading list (everything loaded)");
+          saveBtn.onclick = () => {
+            const l = createList(title.replace(/^[^ ]+ /, "").split(" \xB7 ")[0], "Open Library");
+            all.forEach((it) => {
+              const bk = saveToMyLibrary({ title: it.title, author: it.author, format: "web", cover: it.cover, source: "openlibrary", subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || "", year: it.year || "" });
+              listToggleBook(l.id, bk.id);
+            });
+            toast(t("added"));
+            location.hash = "#/lists/" + l.id;
+          };
+        }
+        paint();
+        if (sortSel) sortSel.classList.toggle("hidden", all.length < 2);
+      } catch (e) {
+        if (page === 0) grid.innerHTML = `<p class="muted">\u26A0 ${esc(e.message)}</p>`;
+        more = false;
+      }
+      busy3 = false;
+      box.innerHTML = more ? `<button class="btn" style="margin:1rem auto;display:block">${getLang() === "ar" ? "\u0639\u0631\u0636 \u0627\u0644\u0645\u0632\u064A\u062F" : "Load more"}</button>` : all.length ? `<p class="muted" style="text-align:center">${all.length} ${getLang() === "ar" ? "\u0643\u062A\u0627\u0628" : "books"}</p>` : "";
+      const btn = box.querySelector("button");
+      if (btn) {
+        btn.onclick = loadPage;
+        if ("IntersectionObserver" in window) {
+          const io = new IntersectionObserver((es) => {
+            if (es[0].isIntersecting) {
+              io.disconnect();
+              loadPage();
+            }
+          }, { rootMargin: "600px" });
+          io.observe(btn);
+        }
+      }
+    };
+    loadPage();
+  }
+  function bindDiscover() {
+  }
+
+  // src/community.js
+  var $3 = (s, r = document) => r.querySelector(s);
+  function renderCommunity(view) {
+    const st = getState();
+    view.innerHTML = `
+    <div class="view-head"><h1>${t("navCommunity")}</h1></div>
+    <div class="stat-card" style="margin-bottom:1.4rem">
+      <h3 style="margin-bottom:.6rem">\u{1F465} ${t("buddyRead")}</h3>
+      <div class="search-row" style="max-width:360px"><input id="buddyName" placeholder="${t("buddyName")}" value="${esc(st.buddy.name || "")}"><button id="saveBuddy" class="btn">${t("save")}</button></div>
+      <p class="muted" style="margin-bottom:.6rem">${getLang() === "ar" ? "\u0633\u062C\u0651\u0644 \u062A\u0639\u0644\u064A\u0642\u0627\u062A\u0643 \u0639\u0644\u0649 \u0641\u0635\u0648\u0644 \u0643\u062A\u0627\u0628 \u0628\u062A\u0642\u0631\u0627\u0647 \u0645\u0639 \u0635\u0627\u062D\u0628\u0643\u060C \u0648\u0628\u0627\u062F\u0644\u0648\u0627 \u0627\u0644\u0645\u0644\u0641\u0627\u062A: \u0635\u062F\u0651\u0631 \u062A\u0639\u0644\u064A\u0642\u0627\u062A\u0643 \u0648\u0627\u0628\u0639\u062A\u0647\u0627\u060C \u0648\u0627\u0633\u062A\u0648\u0631\u062F \u062A\u0639\u0644\u064A\u0642\u0627\u062A\u0647 \u2014 \u0628\u062A\u062A\u062F\u0645\u062C \u062A\u0644\u0642\u0627\u0626\u064A." : "Comment on chapters of a book you read with a friend, then swap files: export your comments and import theirs \u2014 they merge automatically."}</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <select id="buddyBook">${st.books.map((b) => `<option value="${b.id}">${esc(b.title)}</option>`).join("")}</select>
+        <input id="chapterName" placeholder="${t("chapters")}\u2026" style="max-width:160px">
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.5rem;align-items:flex-start">
+        <textarea id="commentText" rows="2" style="flex:1" placeholder="${t("addComment")}"></textarea>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
+        <button id="sendMe" class="btn btn-primary">${t("send")} (${t("asMe")})</button>
+        <button id="sendBuddy" class="btn">${t("send")} (${t("asBuddy")})</button>
+        <button id="expComments" class="btn">\u2B07 ${t("exportBuddy")}</button>
+        <button id="impComments" class="btn">\u2B06 ${t("importBuddy")}</button>
+        <input type="file" id="impFile" accept=".json" hidden>
+      </div>
+      <div id="commentsList" style="margin-top:1rem"></div>
+    </div>
+    <h2 style="margin-bottom:.7rem">${t("myActivity")}</h2>
+    <div id="activityFeed"></div>`;
+  }
+  function bindCommunity(view) {
+    const st = getState();
+    $3("#saveBuddy", view).onclick = () => {
+      st.buddy.name = $3("#buddyName", view).value.trim();
+      save();
+      toast(t("added"));
+    };
+    const refreshComments = () => renderComments(view);
+    $3("#buddyBook", view).onchange = refreshComments;
+    $3("#sendMe", view).onclick = () => postComment(view, getLang() === "ar" ? "\u0623\u0646\u0627" : "Me", "me");
+    $3("#sendBuddy", view).onclick = () => {
+      const name = (st.buddy.name || "").trim();
+      if (!name) {
+        toast(t("buddyName"));
+        return;
+      }
+      postComment(view, name, "buddy");
+    };
+    $3("#expComments", view).onclick = () => {
+      const mine = st.comments.filter((c) => c.origin === "me");
+      const blob = new Blob([JSON.stringify({ app: "qari-comments", from: "me", comments: mine }, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "qari-comments.json";
+      a.click();
+      toast(t("exported"));
+    };
+    $3("#impComments", view).onclick = () => $3("#impFile", view).click();
+    $3("#impFile", view).onchange = async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      try {
+        const data = JSON.parse(await f.text());
+        const arr = data.comments || data.data && data.data.comments || [];
+        let added = 0;
+        const have = new Set(st.comments.map((c) => c.id));
+        arr.forEach((c) => {
+          if (c && c.id && !have.has(c.id)) {
+            st.comments.push(c);
+            added++;
+          }
+        });
+        save();
+        toast(t("imported") + ` (${added})`);
+        refreshComments();
+        e.target.value = "";
+      } catch (err) {
+        toast("\u26A0 " + err.message, 3500);
+      }
+    };
+    renderComments(view);
+    renderActivity(view);
+  }
+  function postComment(view, author, origin) {
+    const bookId = $3("#buddyBook", view).value;
+    const chapter = $3("#chapterName", view).value.trim();
+    const text = $3("#commentText", view).value.trim();
+    if (!bookId || !text) return;
+    addComment({ bookId, chapter, author, text, origin });
+    $3("#commentText", view).value = "";
+    renderComments(view);
+  }
+  function renderComments(view) {
+    const bookId = $3("#buddyBook", view).value;
+    const list = $3("#commentsList", view);
+    const cms = bookComments(bookId);
+    list.innerHTML = cms.length ? "" : '<p class="muted">\u2014</p>';
+    cms.forEach((c) => {
+      const d = document.createElement("div");
+      d.className = "comment";
+      d.innerHTML = `<div class="c-meta">${c.origin === "buddy" ? "\u{1F464}" : "\u{1F642}"} ${esc(c.author)} ${c.chapter ? "\xB7 " + esc(c.chapter) : ""} \xB7 ${fmtDate(c.createdAt)}</div><div>${esc(c.text)}</div>`;
+      list.appendChild(d);
+    });
+  }
+  function renderActivity(view) {
+    const st = getState();
+    const host = $3("#activityFeed", view);
+    const feed = st.activity.slice(0, 30);
+    host.innerHTML = feed.length ? "" : '<p class="muted">\u2014</p>';
+    feed.forEach((a) => {
+      const b = getBook(a.bookId);
+      const d = document.createElement("div");
+      d.className = "review-card";
+      const icon = { rating: "\u2B50", review: "\u270D\uFE0F", comment: "\u{1F4AC}", finished: "\u2705" }[a.type] || "\u2022";
+      d.innerHTML = `<div class="rc-head"><strong>${icon} ${esc(b ? b.title : a.text || "")}</strong><span class="muted">${fmtDate(a.createdAt)}</span></div>
+      ${b && b.rating ? `<div style="margin-top:.25rem"></div>` : ""}
+      ${b && a.type === "review" && b.review ? `<p style="margin-top:.3rem">${esc(b.review)}</p>` : ""}`;
+      if (b && b.rating) d.querySelector(".rc-head").appendChild(stars(b.rating));
+      host.appendChild(d);
+    });
+  }
+
+  // src/fonts.js
+  var DEFS = [
+    ["auto", "'Amiri', Georgia, serif", "\u062A\u0644\u0642\u0627\u0626\u064A (\u0623\u0645\u064A\u0631\u064A)", "Auto (Amiri)", null, null, "ar"],
+    ["amiri", "'Amiri', Georgia, serif", "\u0623\u0645\u064A\u0631\u064A (\u0646\u0633\u062E \u0643\u0644\u0627\u0633\u064A\u0643\u064A)", "Amiri (classic naskh)", null, null, "ar"],
+    ["naskh", "'Noto Naskh Arabic', Georgia, serif", "\u0646\u0648\u062A\u0648 \u0646\u0633\u062E", "Noto Naskh", "noto-naskh-arabic", "Noto Naskh Arabic", "ar"],
+    ["schehe", "'Scheherazade New', Georgia, serif", "\u0634\u0647\u0631\u0632\u0627\u062F", "Scheherazade New", "scheherazade-new", "Scheherazade New", "ar"],
+    ["lateef", "'Lateef', Georgia, serif", "\u0644\u0637\u064A\u0641 (\u0646\u0633\u062A\u0639\u0644\u064A\u0642 \u062E\u0641\u064A\u0641)", "Lateef", "lateef", "Lateef", "ar"],
+    ["markazi", "'Markazi Text', Georgia, serif", "\u0645\u0631\u0643\u0632\u064A", "Markazi Text", "markazi-text", "Markazi Text", "ar"],
+    ["messiri", "'El Messiri', Georgia, serif", "\u0627\u0644\u0645\u0633\u064A\u0631\u064A", "El Messiri", "el-messiri", "El Messiri", "ar"],
+    ["cairo", "'Cairo', system-ui, sans-serif", "\u0627\u0644\u0642\u0627\u0647\u0631\u0629 (\u0633\u0627\u0646 \u0633\u064A\u0631\u064A\u0641)", "Cairo (sans)", null, null, "ar"],
+    ["tajawal", "'Tajawal', system-ui, sans-serif", "\u062A\u062C\u0648\u0627\u0644", "Tajawal (sans)", "tajawal", "Tajawal", "ar"],
+    ["almarai", "'Almarai', system-ui, sans-serif", "\u0627\u0644\u0645\u0631\u0639\u064A", "Almarai (sans)", "almarai", "Almarai", "ar"],
+    ["kufi", "'Noto Kufi Arabic', system-ui, sans-serif", "\u0646\u0648\u062A\u0648 \u0643\u0648\u0641\u064A", "Noto Kufi", "noto-kufi-arabic", "Noto Kufi Arabic", "ar"],
+    ["lora", "'Lora', Georgia, serif", "Lora (\u0625\u0646\u062C\u0644\u064A\u0632\u064A \u0633\u064A\u0631\u064A\u0641)", "Lora (serif)", "lora", "Lora", "en"],
+    ["georgia", "Georgia, 'Times New Roman', serif", "\u062C\u0648\u0631\u062C\u064A\u0627", "Georgia", null, null, "en"],
+    ["system", "system-ui, 'Segoe UI', sans-serif", "\u062E\u0637 \u0627\u0644\u0646\u0638\u0627\u0645", "System sans", null, null, "en"]
+  ];
+  var FONTS = DEFS.map((d) => ({ id: d[0], stack: d[1], ar: d[2], en: d[3], prefix: d[4], family: d[5], script: d[6] }));
+  function fontStack(id) {
+    const f = FONTS.find((x) => x.id === id) || FONTS[0];
+    return f.stack;
+  }
+  function fontLabel(f) {
+    return getLang() === "ar" ? f.ar : f.en;
+  }
+  function fontFaceCSS() {
+    const base = new URL("fonts/", document.baseURI).href;
+    const faces = [];
+    const add = (family, file, w) => faces.push(`@font-face{font-family:'${family}';src:url('${base}${file}') format('woff2');font-weight:${w};font-display:swap}`);
+    [400, 700].forEach((w) => add("Amiri", `amiri-arabic-${w}-normal.woff2`, w));
+    [400, 600, 700].forEach((w) => add("Cairo", `cairo-arabic-${w}-normal.woff2`, w));
+    FONTS.filter((f) => f.prefix).forEach((f) => {
+      const script = f.script === "en" ? "latin" : "arabic";
+      [400, 700].forEach((w) => add(f.family, `${f.prefix}-${script}-${w}-normal.woff2`, w));
+    });
+    return faces.join("\n");
+  }
+  function fontPicker(current, onPick) {
+    const wrap = document.createElement("div");
+    wrap.className = "font-picker";
+    const sample = getLang() === "ar" ? "\u0641\u064A \u0627\u0644\u0628\u062F\u0621 \u0643\u0627\u0646\u062A \u0627\u0644\u0643\u0644\u0645\u0629\u060C \u0648\u0643\u0627\u0646\u062A \u0627\u0644\u0643\u0644\u0645\u0629 \u062C\u0645\u064A\u0644\u0629. Reading is fun 123" : "The quick brown fox jumps over the lazy dog. \u0641\u064A \u0627\u0644\u0628\u062F\u0621 \u0643\u0627\u0646\u062A \u0627\u0644\u0643\u0644\u0645\u0629";
+    wrap.innerHTML = `<div class="font-grid"></div><div class="font-preview" dir="auto"></div>`;
+    const grid = wrap.querySelector(".font-grid"), prev2 = wrap.querySelector(".font-preview");
+    const paint = (id) => {
+      prev2.style.fontFamily = fontStack(id);
+      prev2.textContent = sample;
+      grid.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.font === id));
+    };
+    FONTS.forEach((f) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.dataset.font = f.id;
+      b.className = "font-opt";
+      b.style.fontFamily = f.stack;
+      b.textContent = fontLabel(f);
+      b.onclick = () => {
+        paint(f.id);
+        onPick(f.id);
+      };
+      grid.appendChild(b);
+    });
+    paint(current || "auto");
+    return wrap;
+  }
+
+  // src/tts.js
+  var NATURAL_RE = /natural|neural|online|premium|enhanced|siri/i;
+  var ROBOTIC_RE = /hoda|naayf|compact|espeak|festival|pico/i;
+  function voices() {
+    try {
+      return window.speechSynthesis && window.speechSynthesis.getVoices() || [];
+    } catch {
+      return [];
+    }
+  }
+  function onVoices(cb) {
+    if (!window.speechSynthesis) return () => {
+    };
+    const fire2 = () => cb(voices());
+    window.speechSynthesis.addEventListener("voiceschanged", fire2);
+    if (!voices().length) setTimeout(fire2, 400);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", fire2);
+  }
+  function waitVoices(ms = 1500) {
+    return new Promise((res) => {
+      if (voices().length) return res(voices());
+      let done = false;
+      let stop = () => {
+      };
+      const finish = (v) => {
+        if (done) return;
+        done = true;
+        stop();
+        res(v);
+      };
+      stop = onVoices((v) => {
+        if (v.length) finish(v);
+      });
+      setTimeout(() => finish(voices()), ms);
+    });
+  }
+  var baseLang = (l) => String(l || "").toLowerCase().replace("_", "-").split("-")[0];
+  function quality(v) {
+    if (!v) return -1e9;
+    const name = (v.name || "") + " " + (v.voiceURI || "");
+    let s = 0;
+    if (NATURAL_RE.test(name)) s += 100;
+    if (ROBOTIC_RE.test(name)) s -= 40;
+    if (/google/i.test(name)) s += 30;
+    if (v.localService === false) s += 15;
+    if (v.default) s += 5;
+    return s;
+  }
+  var isNatural = (v) => !!v && NATURAL_RE.test((v.name || "") + " " + (v.voiceURI || ""));
+  function detectLang(text) {
+    const t2 = String(text || "");
+    const ar2 = (t2.match(/[\u0600-\u06FF\u0750-\u077F]/g) || []).length;
+    const lat = (t2.match(/[A-Za-z]/g) || []).length;
+    if (!ar2 && !lat) return "";
+    if (!ar2) return "en";
+    if (!lat) return "ar";
+    return ar2 >= lat * 0.5 ? "ar" : "en";
+  }
+  function langScore(v, lang2) {
+    const L = baseLang(lang2);
+    let s = quality(v);
+    if (!L) return s;
+    const vl = String(v.lang || "").toLowerCase().replace("_", "-");
+    if (vl === L) s += 12;
+    else if (vl.startsWith(L + "-")) s += 10;
+    else if (baseLang(vl) === L) s += 8;
+    if (L === "ar" && /^ar-eg/.test(vl)) s += 25;
+    return s;
+  }
+  function voicesFor(lang2) {
+    const L = baseLang(lang2);
+    return voices().filter((v) => !L || baseLang(v.lang) === L).slice().sort((a, b) => langScore(b, lang2) - langScore(a, lang2));
+  }
+  function pickVoice(lang2, preferURI) {
+    const all = voices();
+    if (!all.length) return null;
+    const L = baseLang(lang2);
+    if (preferURI) {
+      const p = all.find((v) => v.voiceURI === preferURI || v.name === preferURI);
+      if (p && (!L || baseLang(p.lang) === L)) return p;
+    }
+    const pool = voicesFor(lang2);
+    if (pool.length) return pool[0];
+    return all.slice().sort((a, b) => quality(b) - quality(a))[0] || null;
+  }
+  function sampleFor(lang2) {
+    return baseLang(lang2) === "ar" ? "\u062F\u0647 \u0634\u0643\u0644 \u0627\u0644\u0635\u0648\u062A \u0627\u0644\u062C\u062F\u064A\u062F \u0641\u064A \u0642\u0627\u0631\u0626. \u062C\u0631\u0651\u0628 \u0627\u0644\u0633\u0631\u0639\u0629 \u0644\u0648 \u0639\u0627\u064A\u0632\u0647\u0627 \u0623\u0633\u0631\u0639 \u0623\u0648 \u0623\u0628\u0637\u0623." : "This is how your book will sound in Qari. Try another speed if you like it faster or slower.";
+  }
+  function preview(voice, lang2, rate = 1) {
+    if (!window.speechSynthesis) return null;
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+    }
+    const u = new SpeechSynthesisUtterance(sampleFor(lang2));
+    try {
+      if (voice) u.voice = voice;
+    } catch (e) {
+      console.warn("tts voice rejected, using language default", e);
+    }
+    u.lang = voice && voice.lang || (baseLang(lang2) === "ar" ? "ar-EG" : "en-US");
+    u.rate = rate || 1;
+    try {
+      window.speechSynthesis.speak(u);
+    } catch {
+    }
+    return u;
+  }
+  function langLabel(lang2) {
+    const L = baseLang(lang2);
+    if (!L) return "";
+    try {
+      const uiLang = document.documentElement.lang || "ar";
+      const dn = new Intl.DisplayNames([uiLang], { type: "language" });
+      return dn.of(L) || L;
+    } catch {
+      return L;
+    }
+  }
+
+  // src/reader.js
+  var $4 = (s, r = document) => r.querySelector(s);
+  var R = null;
+  var HL_COLORS = ["#ffd54a", "#8ee08e", "#7ec8ff", "#ff9db0"];
+  function layoutMode() {
+    const w = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth);
+    return w < 700 ? "phone" : w < 1100 ? "tablet" : "desktop";
+  }
+  function applyLayout(resize = true) {
+    const m = layoutMode();
+    const stage = $4("#readerStage"), body = $4("#readerBody");
+    if (!stage || !body) return;
+    ["phone", "tablet", "desktop"].forEach((x) => {
+      stage.classList.toggle("lay-" + x, x === m);
+      body.classList.toggle("lay-" + x, x === m);
+    });
+    const l = getState().settings.layout || "auto";
+    $4("#phoneBtn") && $4("#phoneBtn").classList.toggle("on", l === "phone");
+    $4("#tabletBtn") && $4("#tabletBtn").classList.toggle("on", l === "tablet");
+    if (!resize || !R) return;
+    if (R.rendition) {
+      applyEpubTheme();
+      try {
+        R.rendition.resize();
+      } catch {
+      }
+    } else if (R.pdf) renderPdfPage();
+    else if (R.txtPages) renderTxtPage();
+  }
+  async function showTocPanel() {
+    const panel = $4("#readerPanel");
+    panel.classList.remove("hidden");
+    panel.dataset.kind = "toc";
+    panel.innerHTML = `<h3>\u{1F4D1} ${t("toc")}</h3><div id="tocList"><p class="muted">\u2026</p></div>`;
+    const list = panel.querySelector("#tocList");
+    const items = [];
+    try {
+      if (R.epub) {
+        const walk = (arr, d) => (arr || []).forEach((it) => {
+          items.push({ label: (it.label || "").trim(), depth: d, go: () => R.rendition.display(it.href) });
+          walk(it.subitems, d + 1);
+        });
+        walk(R.epub.navigation && R.epub.navigation.toc, 0);
+      } else if (R.pdf) {
+        const ol = await R.pdf.getOutline();
+        const walk = async (arr, d) => {
+          for (const it of arr || []) {
+            const go = async () => {
+              try {
+                let dest = it.dest;
+                if (typeof dest === "string") dest = await R.pdf.getDestination(dest);
+                const idx = await R.pdf.getPageIndex(dest[0]);
+                R.pdfPage = idx + 1;
+                renderPdfPage();
+              } catch {
+              }
+            };
+            items.push({ label: (it.title || "").trim(), depth: d, go });
+            await walk(it.items, d + 1);
+          }
+        };
+        await walk(ol, 0);
+      } else if (R.txtPages) {
+        const re = /^[ \t]*((?:chapter|part|book|section|الفصل|فصل|الباب|باب|الجزء|جزء|الكتاب)\b[^\n]{0,70})$/gim;
+        R.txtPages.forEach((p, i) => {
+          re.lastIndex = 0;
+          const m = re.exec(p);
+          if (m) items.push({ label: m[1].trim(), depth: 0, go: () => {
+            R.txtIdx = i;
+            renderTxtPage();
+          } });
+        });
+      }
+    } catch (e) {
+      console.warn("toc failed", e);
+    }
+    if (!items.length) {
+      list.innerHTML = `<p class="muted">${t("tocNone")}</p>`;
+      return;
+    }
+    list.innerHTML = "";
+    items.forEach((it) => {
+      const b = document.createElement("button");
+      b.className = "toc-item" + (it.depth ? " sub" : "");
+      b.textContent = it.label || "\u2014";
+      b.style.paddingInlineStart = 0.3 + it.depth * 1 + "rem";
+      b.onclick = async () => {
+        await it.go();
+        panel.classList.add("hidden");
+      };
+      list.appendChild(b);
+    });
+  }
+  var sliderDrag = false;
+  function bindSlider() {
+    const sl = $4("#pageSlider");
+    if (!sl || sl._bound) return;
+    sl._bound = true;
+    const label = (v) => {
+      if (!R) return "";
+      if (R.pdf) return `${t("pageN").replace("{n}", Math.max(1, Math.round(v / 1e3 * (R.pdf.numPages - 1)) + 1))} ${t("of")} ${R.pdf.numPages}`;
+      if (R.txtPages) return `${Math.round(v / 1e3 * (R.txtPages.length - 1)) + 1} / ${R.txtPages.length}`;
+      if (R.rendition && R.locationsReady) {
+        const tot = R.epub.locations.total;
+        return `${Math.max(1, Math.round(v / 1e3 * (tot - 1)) + 1)} / ${tot} \xB7 ${Math.round(v / 10)}%`;
+      }
+      return Math.round(v / 10) + "%";
+    };
+    sl.addEventListener("pointerdown", () => {
+      sliderDrag = true;
+    });
+    sl.addEventListener("input", () => {
+      sliderDrag = true;
+      $4("#readerProgressLabel").textContent = label(+sl.value);
+    });
+    sl.addEventListener("change", () => {
+      sliderDrag = false;
+      if (!R) return;
+      const v = +sl.value / 1e3;
+      if (R.pdf) {
+        R.pdfPage = Math.round(v * (R.pdf.numPages - 1)) + 1;
+        renderPdfPage();
+      } else if (R.txtPages) {
+        R.txtIdx = Math.round(v * (R.txtPages.length - 1));
+        renderTxtPage();
+      } else if (R.rendition) {
+        if (!R.locationsReady) {
+          toast(t("pagesPreparing"));
+          updateProgress();
+          return;
+        }
+        const cfi = R.epub.locations.cfiFromPercentage(Math.min(0.999, v));
+        if (cfi) R.rendition.display(cfi);
+      }
+    });
+    document.addEventListener("pointerup", () => {
+      sliderDrag = false;
+    });
+  }
+  var imgUrlCache = /* @__PURE__ */ new Map();
+  async function imgDataUrl(im) {
+    if (imgUrlCache.has(im.id)) return imgUrlCache.get(im.id);
+    const blob = await getFile(im.fileKey);
+    if (!blob) return "";
+    const u = await new Promise((res) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.readAsDataURL(blob);
+    });
+    imgUrlCache.set(im.id, u);
+    return u;
+  }
+  async function shrinkImage(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = () => rej(new Error("bad image"));
+        i.src = url;
+      });
+      const sc = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * sc);
+      c.height = Math.round(img.naturalHeight * sc);
+      const x = c.getContext("2d");
+      x.fillStyle = "#fff";
+      x.fillRect(0, 0, c.width, c.height);
+      x.drawImage(img, 0, 0, c.width, c.height);
+      return await new Promise((res) => c.toBlob(res, "image/jpeg", 0.85));
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  function blockAfter(range, doc) {
+    let el = range.endContainer;
+    while (el && el.nodeType !== 1) el = el.parentNode;
+    const body = doc.body;
+    while (el && el !== body && el.parentElement !== body && !/^(P|DIV|H[1-6]|LI|BLOCKQUOTE|SECTION|FIGURE|TABLE|PRE|UL|OL)$/.test(el.tagName)) el = el.parentElement;
+    return el || body;
+  }
+  function makeFigure(doc, im, url) {
+    const fig = doc.createElement("figure");
+    fig.className = "qari-img";
+    fig.dataset.id = im.id;
+    fig.setAttribute("style", "margin:1em auto;text-align:center;break-inside:avoid;max-width:100%");
+    const img = doc.createElement("img");
+    img.src = url;
+    img.alt = "";
+    img.setAttribute("style", "max-width:100%;max-height:80vh;height:auto;border-radius:6px");
+    if (im.scale && im.scale < 100) img.style.width = im.scale + "%";
+    fig.appendChild(img);
+    if (im.caption) {
+      const c = doc.createElement("figcaption");
+      c.textContent = im.caption;
+      c.setAttribute("style", "font-size:.85em;opacity:.7;margin-top:.3em");
+      fig.appendChild(c);
+    }
+    img.addEventListener("load", () => {
+      try {
+        R && R.rendition && R.rendition.resize();
+      } catch {
+      }
+    });
+    return fig;
+  }
+  async function placeEpubImages(contents) {
+    if (!R || !R.epub) return;
+    const doc = contents.document;
+    doc.querySelectorAll("figure.qari-img").forEach((f) => f.remove());
+    const imgs = bookImages(R.book.id).filter((i) => i.cfi && i.fileKey).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    for (const im of imgs) {
+      try {
+        const sec = R.epub.spine.get(im.cfi);
+        if (!sec || sec.index !== contents.sectionIndex) continue;
+        const range = contents.range(im.cfi, "qari-img");
+        if (!range) continue;
+        const url = await imgDataUrl(im);
+        if (!url) continue;
+        const fig = makeFigure(doc, im, url);
+        const el = blockAfter(range, doc);
+        if (el === doc.body) doc.body.appendChild(fig);
+        else el.insertAdjacentElement("afterend", fig);
+      } catch (e) {
+        console.warn("place image failed", e);
+      }
+    }
+  }
+  function refreshImages() {
+    if (!R) return;
+    if (R.rendition) {
+      try {
+        R.rendition.getContents().forEach((c) => placeEpubImages(c));
+        setTimeout(() => {
+          try {
+            R.rendition.resize();
+          } catch {
+          }
+        }, 150);
+      } catch {
+      }
+    } else if (R.txtPages) renderTxtPage();
+  }
+  function askRemoveImage(id) {
+    if (!confirm(getLang() === "ar" ? "\u0645\u0633\u062D \u0627\u0644\u0635\u0648\u0631\u0629 \u062F\u064A \u0645\u0646 \u0627\u0644\u0643\u062A\u0627\u0628\u061F" : "Remove this image from the book?")) return;
+    const im = (getState().images || []).find((i) => i.id === id);
+    removeImage(id);
+    if (im) deleteFile(im.fileKey).catch(() => {
+    });
+    imgUrlCache.delete(id);
+    refreshImages();
+    const p = $4("#readerPanel");
+    if (p && p.dataset.kind === "img") showImagePanel();
+  }
+  function capturePos() {
+    if (R.rendition) {
+      try {
+        const c = R.rendition.getContents()[0];
+        const sel = c.window.getSelection();
+        if (sel && sel.rangeCount && !sel.isCollapsed) return { cfi: c.cfiFromRange(sel.getRangeAt(0), "qari-img") };
+      } catch {
+      }
+      const loc = R.rendition.currentLocation();
+      if (loc && loc.start) return { cfi: loc.start.cfi };
+      return null;
+    }
+    if (R.txtPages) {
+      let at = null;
+      try {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount && !sel.isCollapsed) {
+          const rg = sel.getRangeAt(0);
+          let n = rg.endContainer;
+          if (n.nodeType === 3) n = n.parentNode;
+          const sp = n.closest && n.closest(".seg");
+          if (sp) at = +sp.dataset.off + (rg.endContainer.nodeType === 3 ? rg.endOffset : 0);
+        }
+      } catch {
+      }
+      return { page: R.txtIdx + 1, at };
+    }
+    return null;
+  }
+  async function showImagePanel() {
+    const panel = $4("#readerPanel");
+    panel.classList.remove("hidden");
+    panel.dataset.kind = "img";
+    const ar2 = getLang() === "ar";
+    if (R.pdf || !(R.rendition || R.txtPages)) {
+      panel.innerHTML = `<h3>\u{1F5BC} ${t("addImage")}</h3><p class="muted">${t("imgNoPdf")}</p>`;
+      return;
+    }
+    if (!panel._pos || panel._bookId !== R.book.id || !panel._keep) {
+      panel._pos = capturePos();
+    }
+    panel._bookId = R.book.id;
+    panel._keep = false;
+    const list = bookImages(R.book.id);
+    panel.innerHTML = `<h3>\u{1F5BC} ${t("addImage")}</h3>
+    <p class="muted" style="margin-bottom:.6rem">${t("imgHint")}</p>
+    <input id="imgCap" placeholder="${t("imgCaption")}" style="width:100%;margin-bottom:.5rem">
+    <button id="imgPick" class="btn btn-primary" style="margin-bottom:.4rem">\uFF0B ${t("imgChoose")}</button>
+    <input type="file" id="imgFile" accept="image/*" hidden>
+    <h4 style="margin:.8rem 0 .4rem">${t("imgInBook")} (${list.length})</h4><div id="imgList"></div>`;
+    panel.querySelector("#imgPick").onclick = () => {
+      panel._keep = true;
+      panel.querySelector("#imgFile").click();
+    };
+    panel.querySelector("#imgFile").onchange = async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      try {
+        const pos = panel._pos || capturePos();
+        if (!pos) throw new Error(t("imgNoPos"));
+        const blob = await shrinkImage(f);
+        const im = addImage(Object.assign({ bookId: R.book.id, caption: panel.querySelector("#imgCap").value.trim() }, pos));
+        await putFile(im.fileKey, blob);
+        panel._pos = null;
+        refreshImages();
+        toast(t("added"));
+      } catch (err) {
+        toast("\u26A0 " + (err.message || err), 3500);
+      }
+      showImagePanel();
+    };
+    const lh = panel.querySelector("#imgList");
+    if (!list.length) lh.innerHTML = `<p class="muted">${t("imgNone")}</p>`;
+    list.forEach(async (im) => {
+      const row = document.createElement("div");
+      row.className = "comment";
+      row.innerHTML = `<div style="display:flex;gap:.5rem;align-items:center"><img style="width:56px;height:56px;object-fit:cover;border-radius:6px"><div style="flex:1" class="muted captext"></div><button class="icon-btn" data-act="jump">\u21A9</button><button class="icon-btn" data-act="del">\u{1F5D1}</button></div>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-top:.35rem"><span class="muted" style="font-size:.8rem">${t("imgSize")}</span><input type="range" min="20" max="100" step="5" value="${im.scale || 100}" style="flex:1"><span class="muted szv" style="font-size:.8rem;min-width:2.6em;text-align:end">${im.scale || 100}%</span></div>`;
+      row.querySelector(".captext").textContent = im.caption || (im.page ? t("pageN").replace("{n}", im.page) : "");
+      imgDataUrl(im).then((u) => {
+        if (u) row.querySelector("img").src = u;
+      });
+      row.querySelector("[data-act=jump]").onclick = () => {
+        if (im.cfi && R.rendition) R.rendition.display(im.cfi);
+        else if (im.page && R.txtPages) {
+          R.txtIdx = im.page - 1;
+          renderTxtPage();
+        }
+      };
+      row.querySelector("[data-act=del]").onclick = () => askRemoveImage(im.id);
+      const rng = row.querySelector("input[type=range]");
+      rng.oninput = () => {
+        row.querySelector(".szv").textContent = rng.value + "%";
+      };
+      rng.onchange = () => {
+        updateImage(im.id, { scale: +rng.value });
+        refreshImages();
+      };
+      lh.appendChild(row);
+    });
+  }
+  async function openReader(book) {
+    const ov = $4("#readerOverlay");
+    ov.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    $4("#readerTitle").textContent = book.title;
+    $4("#readerPanel").classList.add("hidden");
+    $4("#selPop").classList.add("hidden");
+    R = {
+      book,
+      startedAt: Date.now(),
+      pagesTurned: 0,
+      epub: null,
+      rendition: null,
+      pdf: null,
+      pdfPage: 1,
+      txtPages: null,
+      txtIdx: 0,
+      ttsActive: false,
+      locationsReady: false,
+      selAt: 0,
+      timer: null
+    };
+    R.timer = setInterval(() => {
+      if (!R || document.hidden || $4("#readerOverlay").classList.contains("hidden")) return;
+      const mins = (Date.now() - R.startedAt) / 6e4;
+      const st = $4("#sessionTimer");
+      if (st) st.textContent = mins < 60 ? `${Math.floor(mins)}:${String(Math.floor(mins % 1 * 60)).padStart(2, "0")}` : `${Math.floor(mins / 60)}h ${Math.floor(mins % 60)}m`;
+    }, 1e3);
+    bindChrome();
+    bindSlider();
+    applyLayout(false);
+    if (book.format === "web" || !book.fileKey) {
+      renderWebRef(book);
+      return;
+    }
+    const blob = await getFile(book.fileKey);
+    if (!blob) {
+      $4("#readerStage").innerHTML = `<p class="muted" style="padding:2rem">\u26A0 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628 \u0645\u0634 \u0645\u0648\u062C\u0648\u062F \u0639\u0644\u0649 \u0627\u0644\u062C\u0647\u0627\u0632.</p>`;
+      return;
+    }
+    try {
+      if (book.format === "epub") await openEpub(blob, book);
+      else if (book.format === "pdf") await openPdf(blob, book);
+      else openTxt(await blob.text(), book);
+    } catch (e) {
+      console.error(e);
+      $4("#readerStage").innerHTML = `<p class="muted" style="padding:2rem">\u26A0 ${esc(e.message || String(e))}</p>`;
+    }
+    markReading();
+  }
+  function markReading() {
+    if (R.book.shelf === "want") updateBook(R.book.id, { shelf: "reading" });
+  }
+  async function openEpub(blob, book) {
+    const buf = await blob.arrayBuffer();
+    const epub = ePub(buf);
+    R.epub = epub;
+    const s = getState().settings;
+    const stage = $4("#readerStage");
+    stage.innerHTML = "";
+    const rendition = epub.renderTo(stage, { width: "100%", height: "100%", flow: s.flow === "scrolled" ? "scrolled-doc" : "paginated", spread: "none", allowScriptedContent: false, ignoreClass: "qari-img" });
+    R.rendition = rendition;
+    const wireContents = (c) => {
+      try {
+        const d = c.document;
+        if (!d || d.__qariWired) return;
+        d.__qariWired = 1;
+        try {
+          const st = d.createElement("style");
+          st.textContent = fontFaceCSS();
+          d.head.appendChild(st);
+        } catch (e) {
+          console.warn("font inject failed", e);
+        }
+        placeEpubImages(c);
+        d.addEventListener("mousedown", () => window.__qariCloseFloating && window.__qariCloseFloating({}));
+        d.addEventListener("touchstart", () => window.__qariCloseFloating && window.__qariCloseFloating({}), { passive: true });
+        d.addEventListener("click", (ev) => {
+          if (!R) return;
+          if (Date.now() - (R.selAt || 0) < 500) return;
+          const tg = ev.target;
+          if (tg && tg.closest && tg.closest("a,button,input,img,figure")) return;
+          const sel = d.getSelection && d.getSelection();
+          if (sel && sel.toString().trim()) {
+            sel.removeAllRanges();
+            hideSelPop();
+          }
+          toggleReaderChrome();
+        });
+      } catch {
+      }
+    };
+    rendition.hooks.content.register(wireContents);
+    await epub.ready;
+    await epub.loaded.navigation.catch(() => {
+    });
+    await rendition.display(book.location || void 0);
+    applyEpubTheme();
+    rendition.on("rendered", () => {
+      applyEpubTheme();
+      try {
+        R.rendition.getContents().forEach(wireContents);
+      } catch {
+      }
+    });
+    const genLocations = () => epub.locations.generate(1200).then(() => {
+      if (R && R.epub === epub) {
+        R.locationsReady = true;
+        updateProgress();
+      }
+    }).catch(() => {
+    });
+    if ("requestIdleCallback" in window) requestIdleCallback(genLocations, { timeout: 9e3 });
+    else setTimeout(genLocations, 2500);
+    updateProgress();
+    rendition.on("relocated", () => {
+      R.pagesTurned++;
+      savePosition();
+      updateProgress();
+      if (R.ttsActive) speakCurrent();
+    });
+    rendition.on("selected", (cfiRange, contents) => {
+      const range = epub.getRange(cfiRange);
+      const text = range ? range.toString().trim() : "";
+      if (!text) return;
+      R.selAt = Date.now();
+      showSelPop(contents, text, (action, color) => {
+        if (action === "highlight") {
+          const hl = addHighlight({ bookId: book.id, text: text.slice(0, 500), cfi: cfiRange, color });
+          rendition.annotations.add("highlight", cfiRange, { id: hl.id }, null, "hl", { fill: color, "fill-opacity": "0.4" });
+          contents.window.getSelection().removeAllRanges();
+          hideSelPop();
+        } else if (action === "note") {
+          const note = prompt(t("addNote"));
+          const hl = addHighlight({ bookId: book.id, text: text.slice(0, 500), cfi: cfiRange, note: note || "", color: "#7ec8ff" });
+          rendition.annotations.add("highlight", cfiRange, { id: hl.id }, null, "hl", { fill: "#7ec8ff", "fill-opacity": "0.4" });
+          contents.window.getSelection().removeAllRanges();
+          hideSelPop();
+        } else if (action === "define") {
+          lookupWord(text);
+        }
+      });
+    });
+    rendition.on("rendered", () => {
+      bookHighlights(book.id).forEach((h) => {
+        if (h.cfi) try {
+          rendition.annotations.add("highlight", h.cfi, { id: h.id }, null, "hl", { fill: h.color, "fill-opacity": "0.4" });
+        } catch {
+        }
+      });
+    });
+  }
+  function applyEpubTheme() {
+    if (!R || !R.rendition) return;
+    const s = getState().settings;
+    const cs = getComputedStyle(document.body);
+    const theme = {
+      body: {
+        color: cs.getPropertyValue("--text") + "!important",
+        background: cs.getPropertyValue("--bg") + "!important",
+        "font-size": s.fontSize + "px !important",
+        "line-height": s.lineHeight + " !important",
+        "font-family": fontStack(s.fontFamily) + " !important",
+        padding: layoutMode() === "phone" ? "0 4px" : layoutMode() === "tablet" ? "0 16px" : "0 8px"
+      },
+      p: { "margin-bottom": "0.7em" },
+      img: { "max-width": "100%" }
+    };
+    try {
+      R.rendition.themes.register("qari", theme);
+      R.rendition.themes.select("qari");
+    } catch (e) {
+    }
+  }
+  async function openPdf(blob, book) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "js/vendor/pdf.worker.min.js";
+    const buf = await blob.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    R.pdf = pdf;
+    R.pdfPage = book.currentPage > 0 ? Math.min(book.currentPage, pdf.numPages) : 1;
+    updateBook(book.id, { totalPages: pdf.numPages });
+    await renderPdfPage();
+  }
+  async function renderPdfPage() {
+    const stage = $4("#readerStage");
+    const page = await R.pdf.getPage(R.pdfPage);
+    const containerW = stage.clientWidth - 40;
+    const base = page.getViewport({ scale: 1 });
+    const scale = Math.min(1.8, containerW / base.width);
+    const vp = page.getViewport({ scale: Math.max(0.8, scale) });
+    stage.innerHTML = "";
+    const canvas = document.createElement("canvas");
+    canvas.className = "pdf-page";
+    canvas.width = vp.width;
+    canvas.height = vp.height;
+    stage.appendChild(canvas);
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+    R.pagesTurned++;
+    savePosition();
+    updateProgress();
+  }
+  function openTxt(text, book) {
+    const chunks = [];
+    const CH = 3200;
+    let i = 0;
+    while (i < text.length) {
+      let end = Math.min(i + CH, text.length);
+      if (end < text.length) {
+        const nl = text.lastIndexOf("\n", end);
+        if (nl > i + CH / 2) end = nl;
+      }
+      chunks.push(text.slice(i, end));
+      i = end;
+    }
+    R.txtPages = chunks;
+    R.txtIdx = Math.min(book.currentPage || 0, chunks.length - 1);
+    updateBook(book.id, { totalPages: chunks.length });
+    renderTxtPage();
+  }
+  function renderTxtPage() {
+    const stage = $4("#readerStage");
+    const s = getState().settings;
+    const isAr = /[؀-ۿ]/.test(R.txtPages[R.txtIdx].slice(0, 200));
+    stage.innerHTML = "";
+    const div = document.createElement("div");
+    div.className = "txt-page";
+    div.dir = isAr ? "rtl" : "ltr";
+    div.style.setProperty("--rfs", s.fontSize + "px");
+    if (s.fontFamily && s.fontFamily !== "auto") div.style.fontFamily = fontStack(s.fontFamily);
+    div.style.setProperty("--rlh", s.lineHeight);
+    const pageText = R.txtPages[R.txtIdx];
+    const pimgs = bookImages(R.book.id).filter((i) => i.page === R.txtIdx + 1 && i.fileKey).sort((a, b) => (a.at || 0) - (b.at || 0));
+    let pos = 0;
+    const seg = (from, to) => {
+      const sp = document.createElement("span");
+      sp.className = "seg";
+      sp.dataset.off = from;
+      sp.textContent = pageText.slice(from, to);
+      div.appendChild(sp);
+    };
+    pimgs.forEach((im) => {
+      const at = Math.min(pageText.length, Math.max(pos, im.at == null ? pageText.length : im.at));
+      seg(pos, at);
+      pos = at;
+      const fig = document.createElement("figure");
+      fig.className = "qari-img";
+      fig.dataset.id = im.id;
+      fig.innerHTML = '<img alt=""><figcaption></figcaption>';
+      fig.querySelector("figcaption").textContent = im.caption || "";
+      if (im.scale && im.scale < 100) fig.querySelector("img").style.width = im.scale + "%";
+      imgDataUrl(im).then((u) => {
+        if (u) fig.querySelector("img").src = u;
+      });
+      div.appendChild(fig);
+    });
+    seg(pos, pageText.length);
+    stage.appendChild(div);
+    div.addEventListener("mouseup", maybeShowTxtSel);
+    R.pagesTurned++;
+    savePosition();
+    updateProgress();
+  }
+  function renderWebRef(book) {
+    const stage = $4("#readerStage");
+    stage.innerHTML = `<div class="txt-page" style="text-align:center">
+    <div class="cover" style="max-width:200px;margin:0 auto 1rem;border-radius:10px;overflow:hidden">${coverHTML(book)}</div>
+    <h2>${esc(book.title)}</h2><p class="muted">${esc(book.author)}</p>
+    <p style="margin-top:1rem">${t("sampleNote")}</p>
+    <p style="margin-top:.6rem"><a href="https://openlibrary.org/search?q=${encodeURIComponent(book.title)}" target="_blank" rel="noopener" style="color:var(--accent)">${t("readOnline")} \u2197</a></p>
+  </div>`;
+    $4("#readerProgressLabel").textContent = "";
+    $4("#readerProgressFill").style.width = "0%";
+  }
+  function next() {
+    if (!R) return;
+    if (R.rendition) R.rendition.next();
+    else if (R.pdf && R.pdfPage < R.pdf.numPages) {
+      R.pdfPage++;
+      renderPdfPage();
+    } else if (R.txtPages && R.txtIdx < R.txtPages.length - 1) {
+      R.txtIdx++;
+      renderTxtPage();
+    }
+  }
+  function prev() {
+    if (!R) return;
+    if (R.rendition) R.rendition.prev();
+    else if (R.pdf && R.pdfPage > 1) {
+      R.pdfPage--;
+      renderPdfPage();
+    } else if (R.txtPages && R.txtIdx > 0) {
+      R.txtIdx--;
+      renderTxtPage();
+    }
+  }
+  function savePosition() {
+    const patch = {};
+    if (R.rendition) {
+      const loc = R.rendition.currentLocation();
+      if (loc && loc.start) {
+        patch.location = loc.start.cfi;
+        if (R.locationsReady && loc.start.percentage != null) patch.progress = Math.round(loc.start.percentage * 100);
+        else patch.progress = R.book.progress;
+      }
+    } else if (R.pdf) {
+      patch.currentPage = R.pdfPage;
+      patch.progress = Math.round(R.pdfPage / R.pdf.numPages * 100);
+      patch.location = String(R.pdfPage);
+    } else if (R.txtPages) {
+      patch.currentPage = R.txtIdx;
+      patch.progress = Math.round((R.txtIdx + 1) / R.txtPages.length * 100);
+      patch.location = String(R.txtIdx);
+    } else return;
+    Object.assign(R.book, patch);
+    updateBook(R.book.id, patch);
+  }
+  function updateProgress() {
+    if (!R) return;
+    let label = "", pct = 0;
+    if (R.rendition) {
+      const loc = R.rendition.currentLocation();
+      if (loc && loc.start) {
+        pct = Math.round((loc.start.percentage || 0) * 100);
+        label = pct + "%";
+        if (R.locationsReady) {
+          try {
+            const n = R.epub.locations.locationFromCfi(loc.start.cfi);
+            label = `${n + 1} / ${R.epub.locations.total} \xB7 ${pct}%`;
+          } catch {
+          }
+        }
+      }
+    } else if (R.pdf) {
+      pct = Math.round(R.pdfPage / R.pdf.numPages * 100);
+      label = `${t("pageN").replace("{n}", R.pdfPage)} ${t("of")} ${R.pdf.numPages} \xB7 ${pct}%`;
+    } else if (R.txtPages) {
+      pct = Math.round((R.txtIdx + 1) / R.txtPages.length * 100);
+      label = `${R.txtIdx + 1} / ${R.txtPages.length} \xB7 ${pct}%`;
+    }
+    if (!sliderDrag) {
+      $4("#readerProgressLabel").textContent = label;
+      const sl = $4("#pageSlider");
+      if (sl) sl.value = R.pdf ? R.pdf.numPages > 1 ? Math.round((R.pdfPage - 1) / (R.pdf.numPages - 1) * 1e3) : 0 : R.txtPages ? R.txtPages.length > 1 ? Math.round(R.txtIdx / (R.txtPages.length - 1) * 1e3) : 0 : pct * 10;
+    }
+    $4("#readerProgressFill").style.width = pct + "%";
+  }
+  function showSelPop(contents, text, onAction) {
+    const pop = $4("#selPop");
+    if (!pop) return;
+    pop.innerHTML = "";
+    HL_COLORS.forEach((c, i) => {
+      const d = document.createElement("div");
+      d.className = "hl-dot" + (i === 0 ? " sel" : "");
+      d.style.background = c;
+      d.title = t("highlight");
+      d.onclick = () => onAction("highlight", c);
+      pop.appendChild(d);
+    });
+    const noteB = document.createElement("button");
+    noteB.className = "icon-btn";
+    noteB.textContent = "\u{1F4DD}";
+    noteB.title = t("note");
+    noteB.onclick = () => onAction("note");
+    const defB = document.createElement("button");
+    defB.className = "icon-btn";
+    defB.textContent = "\u{1F4D6}";
+    defB.title = t("define");
+    defB.onclick = () => onAction("define");
+    pop.append(noteB, defB);
+    pop.classList.remove("hidden");
+    pop.style.position = "fixed";
+    let rect = null;
+    try {
+      if (contents) {
+        const r = contents.window.getSelection().getRangeAt(0).getBoundingClientRect();
+        const frame = $4("#readerStage iframe");
+        const fr = frame ? frame.getBoundingClientRect() : { top: 0, left: 0 };
+        rect = { top: fr.top + r.top, bottom: fr.top + r.bottom, left: fr.left + r.left, right: fr.left + r.right };
+      } else rect = window.getSelection().getRangeAt(0).getBoundingClientRect();
+    } catch {
+    }
+    if (rect) {
+      let top = rect.bottom + 8, left = rect.left;
+      top = Math.max(60, Math.min(top, window.innerHeight - 60));
+      left = Math.max(10, Math.min(left, window.innerWidth - 230));
+      pop.style.top = top + "px";
+      pop.style.left = left + "px";
+      pop.style.transform = "";
+    } else {
+      pop.style.top = "70px";
+      pop.style.left = "50%";
+      pop.style.transform = "translateX(-50%)";
+    }
+  }
+  function hideSelPop() {
+    const p = $4("#selPop");
+    if (p) p.classList.add("hidden");
+  }
+  function maybeShowTxtSel() {
+    if (!R || !R.txtPages) return;
+    const sel = window.getSelection();
+    const txt = sel ? sel.toString().trim() : "";
+    if (!txt) return;
+    const st = $4("#readerStage");
+    if (!st || !sel.anchorNode || !st.contains(sel.anchorNode)) return;
+    if (Date.now() - (R.selAt || 0) < 600) return;
+    R.selAt = Date.now();
+    showSelPop(null, txt, (action, color) => {
+      if (action === "highlight" || action === "note") {
+        const note = action === "note" ? prompt(t("addNote")) || "" : "";
+        addHighlight({ bookId: R.book.id, text: txt.slice(0, 500), page: R.txtIdx + 1, note, color: action === "note" ? "#7ec8ff" : color });
+        if (sel && sel.removeAllRanges) sel.removeAllRanges();
+        hideSelPop();
+        toast(t("added"));
+      } else if (action === "define") lookupWord(txt);
+    });
+  }
+  async function lookupWord(text) {
+    hideSelPop();
+    const word = text.split(/\s+/)[0].replace(/[^\p{L}\p{N}''-]/gu, "");
+    if (!word) return;
+    const panel = $4("#readerPanel");
+    panel.classList.remove("hidden");
+    panel.innerHTML = `<h3>\u{1F4D6} ${esc(word)}</h3><p class="muted">${t("dictLoading")}</p>`;
+    const isLatin = /^[a-zA-Z'-]+$/.test(word);
+    let html = "";
+    if (isLatin) {
+      try {
+        const res = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(word));
+        if (res.ok) {
+          const data = await res.json();
+          const entry = data[0];
+          html = (entry.meanings || []).slice(0, 3).map((m) => `<p><strong style="color:var(--accent)">${esc(m.partOfSpeech)}</strong><br>${(m.definitions || []).slice(0, 2).map((d) => "\u2022 " + esc(d.definition)).join("<br>")}</p>`).join("");
+        }
+      } catch {
+      }
+    }
+    if (!html) html = `<p class="muted">${t("dictNone")}</p>`;
+    const trUrl = isLatin ? "https://translate.google.com/?sl=en&tl=ar&text=" + encodeURIComponent(word) : "https://translate.google.com/?sl=auto&tl=en&text=" + encodeURIComponent(word);
+    panel.innerHTML = `<h3>\u{1F4D6} ${esc(word)}</h3>${html}
+    <p style="margin-top:.6rem"><a href="${trUrl}" target="_blank" rel="noopener" style="color:var(--accent)">${t("translate")} \u2197</a></p>`;
+  }
+  function currentText() {
+    if (R.rendition) {
+      try {
+        return (R.rendition.getContents()[0].document.body.innerText || "").slice(0, 2200);
+      } catch {
+        return "";
+      }
+    }
+    if (R.txtPages) return R.txtPages[R.txtIdx].slice(0, 2200);
+    return "";
+  }
+  function bookLangOf() {
+    const fromPage = detectLang((currentText() || "").slice(0, 1200));
+    if (fromPage) return fromPage;
+    const meta3 = R && R.epub && R.epub.packaging && R.epub.packaging.metadata && String(R.epub.packaging.metadata.language || "").toLowerCase();
+    if (meta3) {
+      if (/^ar\b/.test(meta3)) return "ar";
+      if (/^en\b/.test(meta3)) return "en";
+    }
+    const fromTitle = detectLang(`${R && R.book && R.book.title || ""} ${R && R.book && R.book.author || ""}`);
+    if (fromTitle) return fromTitle;
+    return getState().settings.lang === "en" ? "en" : "ar";
+  }
+  function savedVoiceFor(lang2) {
+    const s = getState().settings;
+    return (s.ttsVoices || {})[lang2] || s.ttsVoice || "";
+  }
+  async function speakCurrent() {
+    if (!R || !R.ttsActive) return;
+    let text = currentText();
+    if (R.pdf) {
+      try {
+        const page = await R.pdf.getPage(R.pdfPage);
+        const tc = await page.getTextContent();
+        text = tc.items.map((i) => i.str).join(" ").slice(0, 2200);
+      } catch {
+      }
+    }
+    text = (text || "").trim();
+    if (!text) {
+      R.ttsActive = false;
+      const b = $4("#ttsBtn");
+      if (b) b.style.color = "";
+      return;
+    }
+    if (!R || !R.ttsActive) return;
+    const s = getState().settings;
+    const lang2 = bookLangOf();
+    if (!voices().length) await waitVoices(1200);
+    const v = pickVoice(lang2, savedVoiceFor(lang2));
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = s.ttsRate || 1;
+    try {
+      if (v) u.voice = v;
+    } catch (e) {
+      console.warn("tts voice rejected, using language default", e);
+    }
+    u.lang = v && v.lang || (lang2 === "ar" ? "ar-EG" : "en-US");
+    u.onend = () => {
+      if (R && R.ttsActive) next();
+    };
+    u.onerror = () => {
+      if (R) R.ttsActive = false;
+      const b = $4("#ttsBtn");
+      if (b) b.style.color = "";
+    };
+    try {
+      speechSynthesis.speak(u);
+    } catch (e) {
+      console.warn("tts failed", e);
+      if (R) R.ttsActive = false;
+    }
+  }
+  function toggleTts() {
+    if (!R) return;
+    if (R.ttsActive) {
+      R.ttsActive = false;
+      speechSynthesis.cancel();
+      $4("#ttsBtn").style.color = "";
+      toast(t("stop"));
+    } else {
+      R.ttsActive = true;
+      $4("#ttsBtn").style.color = "var(--accent)";
+      toast(t("listening"));
+      speakCurrent();
+    }
+  }
+  var chromeBound = false;
+  function bindChrome() {
+    if (chromeBound) return;
+    chromeBound = true;
+    const closeFloating = (e) => {
+      const pn = $4("#readerPanel"), sp = $4("#selPop");
+      if (pn && !pn.classList.contains("hidden") && !(e && e.target && e.target.closest && e.target.closest("#readerPanel,#readerSettingsBtn,#hlListBtn,#tocBtn,#imgBtn"))) pn.classList.add("hidden");
+      if (sp && !sp.classList.contains("hidden") && !(e && e.target && e.target.closest && e.target.closest("#selPop"))) sp.classList.add("hidden");
+    };
+    document.addEventListener("pointerdown", closeFloating, true);
+    window.__qariCloseFloating = closeFloating;
+    document.addEventListener("selectionchange", () => {
+      if (R && R.txtPages) maybeShowTxtSel();
+    });
+    $4("#prevZone").onclick = prev;
+    $4("#nextZone").onclick = next;
+    document.addEventListener("keydown", (e) => {
+      if (!R || $4("#readerOverlay").classList.contains("hidden")) return;
+      if (e.key === "ArrowLeft") document.documentElement.dir === "rtl" ? next() : prev();
+      if (e.key === "ArrowRight") document.documentElement.dir === "rtl" ? prev() : next();
+      if (e.key === "Escape") closeReader();
+    });
+    $4("#readerClose").onclick = closeReader;
+    $4("#ttsBtn").onclick = toggleTts;
+    $4("#tocBtn").onclick = () => {
+      const p = $4("#readerPanel");
+      if (!p.classList.contains("hidden") && p.dataset.kind === "toc") {
+        p.classList.add("hidden");
+        return;
+      }
+      showTocPanel();
+    };
+    $4("#imgBtn").onclick = () => {
+      const p = $4("#readerPanel");
+      if (!p.classList.contains("hidden") && p.dataset.kind === "img") {
+        p.classList.add("hidden");
+        return;
+      }
+      p._pos = null;
+      showImagePanel();
+    };
+    window.addEventListener("resize", () => {
+      if (R && !$4("#readerOverlay").classList.contains("hidden")) applyLayout(true);
+    });
+    $4("#readerSettingsBtn").onclick = () => {
+      const p = $4("#readerPanel");
+      if (!p.classList.contains("hidden") && p.dataset.kind === "settings") {
+        p.classList.add("hidden");
+        return;
+      }
+      showSettingsPanel();
+      p.dataset.kind = "settings";
+    };
+    $4("#hlListBtn").onclick = () => {
+      const p = $4("#readerPanel");
+      if (!p.classList.contains("hidden") && p.dataset.kind === "hl") {
+        p.classList.add("hidden");
+        return;
+      }
+      showHighlightsPanel();
+      p.dataset.kind = "hl";
+    };
+    $4("#readerStage").addEventListener("click", (ev) => {
+      if (!R || $4("#readerOverlay").classList.contains("hidden")) return;
+      if (Date.now() - (R.selAt || 0) < 500) return;
+      const t2 = ev.target;
+      if (t2 && t2.closest && t2.closest("a,button,input,textarea,select,#readerPanel,#selPop")) return;
+      const sel = window.getSelection && window.getSelection();
+      if (sel && sel.toString().trim()) {
+        sel.removeAllRanges();
+        hideSelPop();
+      }
+      toggleReaderChrome();
+    });
+  }
+  function toggleReaderChrome() {
+    const ov = $4("#readerOverlay");
+    if (!ov) return;
+    ov.classList.toggle("chrome-hidden");
+  }
+  function showSettingsPanel() {
+    const s = getState().settings;
+    const panel = $4("#readerPanel");
+    panel.classList.remove("hidden");
+    if (panel._voiceOff) {
+      panel._voiceOff();
+      panel._voiceOff = null;
+    }
+    panel.innerHTML = `<h3>\u2699 ${t("settings")}</h3>
+    <div class="set-row"><span>${t("theme")}</span><div class="seg">
+      <button data-th="light" class="${s.theme === "light" ? "active" : ""}">${t("themeLight")}</button>
+      <button data-th="sepia" class="${s.theme === "sepia" ? "active" : ""}">${t("themeSepia")}</button>
+      <button data-th="dark" class="${s.theme === "dark" ? "active" : ""}">${t("themeDark")}</button>
+      <button data-th="black" class="${s.theme === "black" ? "active" : ""}">${t("themeBlack")}</button></div></div>
+    <div style="margin-bottom:.6rem"><div style="font-size:.9rem;margin-bottom:.3rem">${t("fontFamily")}</div><div id="rFontHost"></div></div>
+    <div class="set-row"><span>${t("fontSize")}</span><input type="range" id="rFs" min="15" max="28" value="${s.fontSize}"><span id="rFsV">${s.fontSize}</span></div>
+    <div class="set-row"><span>${t("lineHeight")}</span><input type="range" id="rLh" min="14" max="26" value="${Math.round(s.lineHeight * 10)}"></div>
+    <div class="set-row"><span>${t("readingMode")}</span><div class="seg">
+      <button data-flow="paginated" class="${s.flow === "paginated" ? "active" : ""}">${t("paginated")}</button>
+      <button data-flow="scrolled" class="${s.flow === "scrolled" ? "active" : ""}">${t("scrolled")}</button></div></div>
+    <div class="set-row" style="align-items:flex-start;flex-direction:column;gap:.25rem"><span>${t("ttsVoice")} <span class="muted" id="rVoiceLang"></span></span>
+      <div style="display:flex;gap:.4rem;align-items:center;width:100%">
+        <select id="rVoice" style="flex:1;min-width:0"></select>
+        <button class="btn" id="rVoiceTest">\u25B6 ${t("ttsTest")}</button>
+      </div>
+      <div class="muted" id="rVoiceHint" style="font-size:.78rem"></div></div>
+    <div class="set-row"><span>${t("ttsSpeed")}</span><input type="range" id="rRate" min="5" max="20" value="${Math.round((s.ttsRate || 1) * 10)}"><span id="rRateV">${s.ttsRate || 1}x</span></div>`;
+    const upd = (patch) => {
+      Object.assign(getState().settings, patch);
+      save();
+    };
+    panel.querySelector("#rFontHost").appendChild(fontPicker(s.fontFamily, (id) => {
+      upd({ fontFamily: id });
+      if (R && R.rendition) applyEpubTheme();
+      if (R && R.txtPages) renderTxtPage();
+    }));
+    panel.querySelectorAll("[data-th]").forEach((b) => b.onclick = () => {
+      upd({ theme: b.dataset.th });
+      document.body.dataset.theme = b.dataset.th;
+      panel.querySelectorAll("[data-th]").forEach((x) => x.classList.toggle("active", x === b));
+      if (R && R.rendition) applyEpubTheme();
+      if (R && R.txtPages) renderTxtPage();
+    });
+    panel.querySelectorAll("[data-flow]").forEach((b) => b.onclick = () => {
+      upd({ flow: b.dataset.flow });
+      if (R && R.rendition) {
+        const bk = R.book;
+        closeReader(false);
+        openReader(bk);
+      }
+    });
+    panel.querySelector("#rFs").oninput = (e) => {
+      upd({ fontSize: +e.target.value });
+      panel.querySelector("#rFsV").textContent = e.target.value;
+      if (R && R.rendition) applyEpubTheme();
+      if (R && R.txtPages) renderTxtPage();
+    };
+    panel.querySelector("#rLh").oninput = (e) => {
+      upd({ lineHeight: +e.target.value / 10 });
+      if (R && R.rendition) applyEpubTheme();
+      if (R && R.txtPages) renderTxtPage();
+    };
+    panel.querySelector("#rRate").oninput = (e) => {
+      upd({ ttsRate: +e.target.value / 10 });
+      panel.querySelector("#rRateV").textContent = +e.target.value / 10 + "x";
+    };
+    bindVoicePicker(panel);
+  }
+  function shortVoiceName(v) {
+    if (!v) return "";
+    return String(v.name || v.voiceURI || "").replace(/\s+[-–]\s+[^-–]*\([^)]*\)\s*$/, "").replace(/^Microsoft\s+/i, "").trim();
+  }
+  function bindVoicePicker(panel) {
+    const sel = panel.querySelector("#rVoice"), hint = panel.querySelector("#rVoiceHint"), langEl = panel.querySelector("#rVoiceLang");
+    if (!sel) return;
+    const stopSpeaking = () => {
+      if (R && R.ttsActive) {
+        R.ttsActive = false;
+        try {
+          speechSynthesis.cancel();
+        } catch {
+        }
+        const b = $4("#ttsBtn");
+        if (b) b.style.color = "";
+      }
+    };
+    const fill = () => {
+      const L = bookLangOf();
+      const list = voices().filter((v) => ["ar", "en"].includes(baseLang(v.lang)));
+      const saved = (getState().settings.ttsVoices || {})[L] || "";
+      const auto = pickVoice(L, saved);
+      if (langEl) langEl.textContent = "\xB7 " + (L === "ar" ? t("ttsLangAr") : t("ttsLangEn"));
+      const groups = /* @__PURE__ */ new Map();
+      list.forEach((v) => {
+        const k = baseLang(v.lang) || "?";
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(v);
+      });
+      const keys = [...groups.keys()].sort((a, b) => a === L ? -1 : b === L ? 1 : a.localeCompare(b));
+      let html = `<option value="">${esc(t("ttsAutoVoice"))}${auto ? " \u2014 " + esc(shortVoiceName(auto)) : ""}</option>`;
+      keys.forEach((k) => {
+        const arr = groups.get(k).slice().sort((a, b) => (isNatural(b) ? 1 : 0) - (isNatural(a) ? 1 : 0) || a.name.localeCompare(b.name));
+        html += `<optgroup label="${esc((k === L ? "\u2605 " : "") + langLabel(k))}">` + arr.map((v) => `<option value="${esc(v.voiceURI)}" title="${esc(v.name + " \u2014 " + v.lang)}"${saved === v.voiceURI ? " selected" : ""}>${esc(shortVoiceName(v))}${isNatural(v) ? " \u2605" : ""}</option>`).join("") + "</optgroup>";
+      });
+      sel.innerHTML = html;
+      sel.value = saved && list.some((v) => v.voiceURI === saved) ? saved : "";
+      const used = saved ? list.find((v) => v.voiceURI === saved) : auto;
+      if (hint) hint.textContent = !list.length ? t("ttsNoVoices") : isNatural(used) ? `${t("ttsNaturalOk")} \u2014 ${shortVoiceName(used)}` : t("ttsNaturalTip");
+    };
+    sel.onchange = () => {
+      const L = bookLangOf(), uri = sel.value, st = getState().settings;
+      st.ttsVoices = Object.assign({}, st.ttsVoices || {});
+      if (uri) st.ttsVoices[L] = uri;
+      else delete st.ttsVoices[L];
+      save();
+      fill();
+      stopSpeaking();
+      preview(uri ? voices().find((v) => v.voiceURI === uri) : pickVoice(L, ""), L, getState().settings.ttsRate || 1);
+    };
+    panel.querySelector("#rVoiceTest").onclick = () => {
+      const L = bookLangOf(), uri = sel.value;
+      stopSpeaking();
+      preview(uri ? voices().find((v) => v.voiceURI === uri) : pickVoice(L, ""), L, getState().settings.ttsRate || 1);
+    };
+    fill();
+    panel._voiceOff = onVoices(fill);
+  }
+  function showHighlightsPanel() {
+    const panel = $4("#readerPanel");
+    panel.classList.remove("hidden");
+    const hls = bookHighlights(R.book.id);
+    panel.innerHTML = `<h3>\u{1F58A} ${t("highlights")} (${hls.length})</h3>
+    <button id="expHl" class="btn" style="margin-bottom:.7rem">\u2B07 ${t("exportHighlights")} (Markdown)</button>
+    <div id="hlPanelList"></div>`;
+    const list = panel.querySelector("#hlPanelList");
+    list.innerHTML = hls.length ? "" : `<p class="muted">${t("noHighlights")}</p>`;
+    hls.forEach((h) => {
+      const row = document.createElement("div");
+      row.className = "comment";
+      row.innerHTML = `<div style="border-inline-start:3px solid ${esc(h.color)};padding-inline-start:.5rem">${esc(h.text)}${h.note ? `<div class="muted">\u{1F4DD} ${esc(h.note)}</div>` : ""}</div>
+      <div style="margin-top:.3rem"><button class="icon-btn" style="font-size:.8rem" data-act="jump">\u21A9</button><button class="icon-btn" style="font-size:.8rem" data-act="del">\u{1F5D1}</button></div>`;
+      row.querySelector("[data-act=jump]").onclick = () => {
+        if (h.cfi && R.rendition) R.rendition.display(h.cfi);
+        else if (h.page && R.txtPages) {
+          R.txtIdx = h.page - 1;
+          renderTxtPage();
+        } else if (h.page && R.pdf) {
+          R.pdfPage = h.page;
+          renderPdfPage();
+        }
+      };
+      row.querySelector("[data-act=del]").onclick = () => {
+        removeHighlight(h.id);
+        showHighlightsPanel();
+      };
+      list.appendChild(row);
+    });
+    panel.querySelector("#expHl").onclick = () => {
+      const md = `# ${R.book.title} \u2014 ${R.book.author}
+
+` + hls.map((h) => `> ${h.text}
+
+${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateString()}*
+`).join("\n---\n\n");
+      const blob = new Blob([md], { type: "text/markdown" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = (R.book.title || "highlights") + "-highlights.md";
+      a.click();
+      toast(t("exported"));
+    };
+  }
+  function closeReader(log = true) {
+    if (!R) return;
+    if (R.ttsActive) {
+      R.ttsActive = false;
+      speechSynthesis.cancel();
+    }
+    const pn = $4("#readerPanel");
+    if (pn && pn._voiceOff) {
+      pn._voiceOff();
+      pn._voiceOff = null;
+    }
+    clearInterval(R.timer);
+    const mins = (Date.now() - R.startedAt) / 6e4;
+    if (log) logSession(R.book.id, mins, R.pagesTurned);
+    savePosition();
+    if (R.book.progress >= 99.5 && R.book.shelf !== "finished") updateBook(R.book.id, { shelf: "finished" });
+    try {
+      R.rendition && R.rendition.destroy();
+    } catch {
+    }
+    try {
+      R.epub && R.epub.destroy();
+    } catch {
+    }
+    try {
+      R.pdf && R.pdf.destroy();
+    } catch {
+    }
+    R = null;
+    $4("#readerStage").innerHTML = "";
+    $4("#readerOverlay").classList.add("hidden");
+    document.body.style.overflow = "";
   }
 
   // src/series.js
