@@ -26891,6 +26891,10 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       location.hash = "#/";
       return;
     }
+    if ((name === "shelves" || name === "lists" || name === "stats") && !isLoggedIn()) {
+      location.hash = "#/account";
+      return;
+    }
     const fn = routes[name] || renderLibrary;
     $$2("#mainnav a").forEach((a) => a.classList.toggle("active", a.dataset.route === (name || "library")));
     const view = $9("#view");
@@ -26917,6 +26921,14 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const link = document.querySelector('#mainnav a[data-route="account"]');
     if (!link) return;
     link.textContent = isLoggedIn() ? getLang() === "ar" ? "\u062E\u0631\u0648\u062C" : "Sign out" : getLang() === "ar" ? "\u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062F\u062E\u0648\u0644" : "Sign in";
+    updatePrivateNavVisibility();
+  }
+  function updatePrivateNavVisibility() {
+    const loggedIn = isLoggedIn();
+    ["shelves", "lists", "stats"].forEach((r) => {
+      const link = document.querySelector(`#mainnav a[data-route="${r}"]`);
+      if (link) link.style.display = loggedIn ? "" : "none";
+    });
   }
   var SORT_MODES = ["year-desc", "year-asc", "rating-desc", "rating-asc"];
   function sortLabel(mode2) {
@@ -27599,7 +27611,8 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
       refreshAccountView();
       updateSettingsVisibility();
       updateAccountNav();
-      if (!isAdmin() && location.hash.replace(/^#\/?/, "").split("/")[0] === "settings") route();
+      const cur = location.hash.replace(/^#\/?/, "").split("/")[0];
+      if (!isLoggedIn() && ["shelves", "lists", "stats"].includes(cur) || !isAdmin() && cur === "settings") route();
     });
     $9("#addBookBtn").onclick = openAddModal;
     $$2("#addModal .modal-close").forEach((b) => b.onclick = closeAddModal);
