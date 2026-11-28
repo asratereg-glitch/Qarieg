@@ -136,6 +136,7 @@ function applySettings() {
   document.documentElement.dir = s.lang === 'ar' ? 'rtl' : 'ltr';
   setLang(s.lang);
   applyI18n();
+  updateAccountNav(); // applyI18n resets the account nav link to "الحساب"; re-apply the login/logout label
   $('#addBookBtn').firstChild.textContent = '＋ '; // keep icon before label
 }
 store.onChange(() => { /* live updates handled per-view */ });
@@ -150,12 +151,36 @@ const routes = {
 function route() {
   const hash = location.hash.replace(/^#\/?/, '');
   const [name, arg] = hash.split('/');
+  // Settings page is admin-only: non-admins (and logged-out users) go to the library
+  if (name === 'settings' && !auth.isAdmin()) { location.hash = '#/'; return; }
   const fn = routes[name] || renderLibrary;
   $$('#mainnav a').forEach(a => a.classList.toggle('active', a.dataset.route === (name || 'library')));
   const view = $('#view'); view.innerHTML = ''; window.scrollTo(0, 0);
   fn(view, arg);
 }
 window.addEventListener('hashchange', route);
+
+/* Settings page is admin-only: hide its nav link and the topbar chips that lead to it for non-admins. */
+function updateSettingsVisibility() {
+  const admin = auth.isAdmin();
+  const link = document.querySelector('#mainnav a[data-route="settings"]');
+  if (link) link.style.display = admin ? '' : 'none';
+  const db = $('#dbChip'); if (db) db.style.display = admin ? '' : 'none';
+  const sc = $('#syncChip');
+  if (sc) { if (admin) updateSyncUi(); else sc.style.display = 'none'; }
+}
+
+
+/* Account nav link doubles as Login/Logout: logged out it reads "تسجيل الدخول" (Sign in),
+   logged in it reads "خروج" (Sign out). Labels are literals: the i18n login/logout keys
+   ("تسجيل دخول" / "تسجيل الخروج") are not the exact words requested. */
+function updateAccountNav() {
+  const link = document.querySelector('#mainnav a[data-route="account"]');
+  if (!link) return;
+  link.textContent = auth.isLoggedIn()
+    ? (getLang() === 'ar' ? 'خروج' : 'Sign out')
+    : (getLang() === 'ar' ? 'تسجيل الدخول' : 'Sign in');
+}
 
 
 /* ---------- shared sorting (library / lists / discover) ---------- */
@@ -394,7 +419,7 @@ const syncText = () => {
 };
 function updateSyncUi() {
   const c = $('#syncChip'); const i = sync.info();
-  if (c) { c.style.display = i.connected ? '' : 'none'; c.textContent = ({ idle: '☁✓', syncing: '☁…', error: '☁✕', off: '☁' })[i.status] || '☁'; c.title = syncText(); c.dataset.s = i.status; }
+  if (c) { c.style.display = (i.connected && auth.isAdmin()) ? '' : 'none'; c.textContent = ({ idle: '☁✓', syncing: '☁…', error: '☁✕', off: '☁' })[i.status] || '☁'; c.title = syncText(); c.dataset.s = i.status; }
   const sb = $('#syncStatus'); if (sb) sb.textContent = syncText();
   const sn = $('#syncNote'); if (sn) sn.textContent = i.note || '';
   let bn = $('#syncBanner');
@@ -529,9 +554,20 @@ async function boot() {
   sync.init(); updateSyncUi();
   // Supabase Auth + cloud sync (optional: the app stays fully local when logged out)
   await auth.initAuth();
+  updateSettingsVisibility();
+  updateAccountNav();
+  // Account nav link is the logout button when logged in; logged out it navigates to #/account normally
+  const accLink = document.querySelector('#mainnav a[data-route="account"]');
+  if (accLink) accLink.addEventListener('click', async (e) => {
+    if (!auth.isLoggedIn()) return;
+    e.preventDefault();
+    await auth.signOut();
+    toast(getLang() === 'ar' ? '✓ تم تسجيل الخروج' : '✓ Signed out');
+    location.hash = '#/';
+  });
   cloudsync.configure({ lang: getLang, onApplied: () => { applySettings(); route(); } });
   cloudsync.init();
-  auth.onAuthChange(() => { cloudsync.onAuthChange(); refreshAccountView(); });
+  auth.onAuthChange(() => { cloudsync.onAuthChange(); refreshAccountView(); updateSettingsVisibility(); updateAccountNav(); if (!auth.isAdmin() && location.hash.replace(/^#\/?/, '').split('/')[0] === 'settings') route(); });
   $('#addBookBtn').onclick = openAddModal;
   $$('#addModal .modal-close').forEach(b => b.onclick = closeAddModal);
   $('#addModal').addEventListener('click', e => { if (e.target.id === 'addModal') closeAddModal(); });
