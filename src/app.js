@@ -569,7 +569,58 @@ function openAddModal() {
     $('#pane-online', m).classList.toggle('hidden', tabBtn.dataset.tab !== 'online');
   });
 }
-function closeAddModal() { $('#addModal').classList.add('hidden'); }
+function closeAddModal() { $('#addModal').classList.add('hidden'); if (pendingPublish) hideCoverStep(); }
+
+/* ---------- cover step (admin reviews / changes the cover before publishing) ---------- */
+let pendingPublish = null;
+function paintCoverPreview() {
+  const host = $('#coverPreview'); if (!host) return;
+  const c = pendingPublish ? pendingPublish.cover : '';
+  host.innerHTML = c
+    ? `<img src="${esc(c)}" alt="" style="width:100%;border-radius:10px;border:1px solid var(--border);display:block">`
+    : `<div style="width:100%;height:190px;border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2.5rem">📕</div>`;
+}
+function showCoverStep(pending) {
+  pendingPublish = { ...pending, cover: pending.meta.cover || '' };
+  const m = $('#addModal');
+  $('#coverBookTitle', m).textContent = pending.meta.title || '?';
+  $('#coverBookAuthor', m).textContent = pending.meta.author || '';
+  m.querySelector('.modal-head h2').textContent = t('coverStep');
+  m.querySelector('.modal-tabs').style.display = 'none';
+  $('#pane-file', m).classList.add('hidden');
+  $('#pane-online', m).classList.add('hidden');
+  $('#pane-cover', m).classList.remove('hidden');
+  paintCoverPreview();
+}
+function hideCoverStep() {
+  const m = $('#addModal');
+  $('#pane-cover', m).classList.add('hidden');
+  m.querySelector('.modal-tabs').style.display = '';
+  m.querySelector('.modal-head h2').textContent = t('addBook');
+  const origin = pendingPublish ? pendingPublish.origin : 'file';
+  $$('.modal-tabs .tab', m).forEach(x => x.classList.toggle('active', x.dataset.tab === origin));
+  $('#pane-file', m).classList.toggle('hidden', origin !== 'file');
+  $('#pane-online', m).classList.toggle('hidden', origin !== 'online');
+  pendingPublish = null;
+}
+/* Downscale an uploaded cover image to max 600px on the long side (keeps
+   public-books.json small); returns a JPEG data URL. */
+function downscaleCover(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 600 / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      res(cv.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('bad image')); };
+    img.src = url;
+  });
+}
 
 async function handleFile(file) {
   const ext = (file.name.split('.').pop() || '').toLowerCase();
@@ -604,12 +655,9 @@ async function handleFile(file) {
       }
     } catch (e) { console.warn('epub meta read failed', e); }
   }
-  try {
-    const categoryId = ($('#pubCatSel') || {}).value || '';
-    const pb = await pub.publishBook({ file, meta, format: ext, categoryId: categoryId || null });
-    pub.saveToMyLibrary(pb, file); // admin keeps a private copy; blob passed, no re-download
-    toast(t('published')); closeAddModal(); location.hash = '#/pub/' + pb.id;
-  } catch (e) { toast('⚠ ' + (e.message || e), 5000); }
+  // Cover step: the admin reviews / changes the cover before publishing.
+  const categoryId = ($('#pubCatSel') || {}).value || '';
+  showCoverStep({ file, meta, format: ext, categoryId: categoryId || null, origin: 'file' });
 }
 
 async function runOnlineSearch() {
@@ -625,17 +673,11 @@ async function runOnlineSearch() {
         <div class="r-info"><div class="r-title">${esc(it.title)}</div><div class="r-author">${esc(it.author)} ${it.year ? '· ' + it.year : ''}</div></div>
         <button class="btn btn-primary" style="padding:.3rem .8rem;font-size:.8rem">${t('addToLibrary')}</button>`;
       row.onclick = () => { if (it.olKey) { closeAddModal(); location.hash = '#/work/' + it.olKey; } };
-      row.querySelector('button').onclick = async (ev) => {
+      row.querySelector('button').onclick = (ev) => {
         ev.stopPropagation();
-        const btn = row.querySelector('button');
-        btn.disabled = true;
-        try {
-          const categoryId = ($('#pubCatSel') || {}).value || '';
-          const pb = await pub.publishBook({ file: null, meta: { title: it.title, author: it.author, cover: it.cover || '', subjects: it.subjects || [], isbn: it.isbn || '', olKey: it.olKey || '', year: it.year || '' }, format: 'web', categoryId: categoryId || null });
-          pub.saveToMyLibrary(pb);
-          btn.textContent = t('published');
-          setTimeout(() => { closeAddModal(); location.hash = '#/pub/' + pb.id; }, 500);
-        } catch (e) { btn.disabled = false; toast('⚠ ' + (e.message || e), 5000); }
+        const categoryId = ($('#pubCatSel') || {}).value || '';
+        // Cover step first: the admin reviews / changes the cover, then publishes.
+        showCoverStep({ file: null, meta: { title: it.title, author: it.author, cover: it.cover || '', subjects: it.subjects || [], isbn: it.isbn || '', olKey: it.olKey || '', year: it.year || '' }, format: 'web', categoryId: categoryId || null, origin: 'online' });
       };
       host.appendChild(row);
     });
@@ -681,6 +723,36 @@ async function boot() {
   auth.onAuthChange(() => { cloudsync.onAuthChange(); refreshAccountView(); updateSettingsVisibility(); updateAccountNav(); const cur = location.hash.replace(/^#\/?/, '').split('/')[0]; if ((!auth.isLoggedIn() && ['shelves', 'lists', 'stats'].includes(cur)) || (!auth.isAdmin() && cur === 'settings')) route(); });
   $('#addBookBtn').onclick = openAddModal;
   $$('#addModal .modal-close').forEach(b => b.onclick = closeAddModal);
+  // Cover step buttons (inside the add-book modal)
+  $('#coverChangeBtn').onclick = () => $('#coverInput').click();
+  $('#coverInput').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f || !pendingPublish) return;
+    try { pendingPublish.cover = await downscaleCover(f); paintCoverPreview(); }
+    catch { toast('⚠ ' + t('coverUrlInvalid'), 3500); }
+  };
+  $('#coverUrlBtn').onclick = () => {
+    if (!pendingPublish) return;
+    const cur = pendingPublish.cover && pendingPublish.cover.startsWith('http') ? pendingPublish.cover : '';
+    const url = prompt(t('coverUrlPh'), cur);
+    if (url == null) return;
+    const u = url.trim();
+    if (!/^https?:\/\//i.test(u)) { toast('⚠ ' + t('coverUrlInvalid'), 3500); return; }
+    pendingPublish.cover = u; paintCoverPreview();
+  };
+  $('#coverRemoveBtn').onclick = () => { if (!pendingPublish) return; pendingPublish.cover = ''; paintCoverPreview(); };
+  $('#coverBackBtn').onclick = hideCoverStep;
+  $('#coverPublishBtn').onclick = async () => {
+    if (!pendingPublish) return;
+    const btn = $('#coverPublishBtn'); btn.disabled = true;
+    try {
+      const p = pendingPublish;
+      const pb = await pub.publishBook({ file: p.file, fileName: p.file ? p.file.name : '', meta: { ...p.meta, cover: p.cover }, format: p.format, categoryId: p.categoryId });
+      pub.saveToMyLibrary(pb, p.file);
+      toast(t('published')); closeAddModal(); location.hash = '#/pub/' + pb.id;
+    } catch (e) { toast('⚠ ' + (e.message || e), 5000); }
+    btn.disabled = false;
+  };
   $('#addModal').addEventListener('click', e => { if (e.target.id === 'addModal') closeAddModal(); });
   $('#dropzone').onclick = () => $('#fileInput').click();
   $('#fileInput').onchange = e => { const f = e.target.files[0]; if (f) handleFile(f); e.target.value = ''; };
