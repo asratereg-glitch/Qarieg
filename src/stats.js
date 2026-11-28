@@ -1,10 +1,27 @@
 // stats.js — goals, streak, badges, charts, yearly summary
 import * as store from './store.js';
+import * as auth from './auth.js';
 import { t, getLang } from './i18n.js';
 import { esc, stars, coverHTML, toast } from './app.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* Display name for the greeting: an edited profile name wins; otherwise the
+   Google full name (profile falls back to the email prefix for Google users),
+   then the profile name / email prefix. Logged out -> no greeting. */
+function displayName() {
+  const user = auth.getUser();
+  if (!user) return '';
+  const profile = auth.getProfile();
+  const meta = user.user_metadata || {};
+  const emailPrefix = (user.email || '').split('@')[0];
+  const profileName = (profile && profile.display_name || '').trim();
+  const metaName = (meta.display_name || meta.full_name || meta.name || '').trim();
+  if (profileName && profileName !== emailPrefix) return profileName;
+  if (metaName) return metaName;
+  return profileName || emailPrefix;
+}
 
 export function renderStats(view) {
   const st = store.getState();
@@ -18,9 +35,11 @@ export function renderStats(view) {
   const todayMin = st.readingDays[new Date().toISOString().slice(0, 10)] || 0;
   const streak = store.currentStreak();
   const pph = totalMin > 0 ? Math.round(totalPages / (totalMin / 60)) : 0;
+  const name = displayName();
 
   view.innerHTML = `
     <div class="view-head"><h1>${t('navStats')}</h1><button id="editGoals" class="btn">✏ ${t('setGoals')}</button></div>
+    ${name ? `<p style="font-size:1.1rem;font-weight:600;margin-bottom:1rem">${t('helloUser').replace('{name}', esc(name))}</p>` : ''}
     <div class="stat-cards">
       <div class="stat-card"><div class="lbl">${t('yearlyGoal')} (${year})</div><div class="num">${doneYear.length} / ${s.goalYear}</div>
         <div class="goal-track"><div class="goal-fill" style="width:${Math.min(100, doneYear.length / Math.max(1, s.goalYear) * 100)}%"></div></div></div>
