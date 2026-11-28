@@ -22,6 +22,7 @@
     deleteList: () => deleteList,
     exportJSON: () => exportJSON,
     findBookByOl: () => findBookByOl,
+    findBookByPublicId: () => findBookByPublicId,
     finishedThisMonth: () => finishedThisMonth,
     finishedThisYear: () => finishedThisYear,
     getBook: () => getBook,
@@ -272,6 +273,9 @@
   function findBookByOl(olKey) {
     return state.books.find((b) => b.olKey === olKey);
   }
+  function findBookByPublicId(id) {
+    return state.books.find((b) => b.public_book_id === id);
+  }
   function getMeta(olKey, maxAgeMs = 30 * 864e5) {
     const m = state.metaCache[olKey];
     return m && Date.now() - m.ts < maxAgeMs ? m.meta : null;
@@ -488,7 +492,24 @@
       tabFile: "\u0645\u0646 \u062C\u0647\u0627\u0632\u0643",
       tabOnline: "\u0628\u062D\u062B \u0623\u0648\u0646\u0644\u0627\u064A\u0646",
       dropHint: "\u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 EPUB \u0623\u0648 PDF \u0623\u0648 TXT",
-      localNote: "\u0627\u0644\u0643\u062A\u0627\u0628 \u0628\u064A\u062A\u062D\u0641\u0638 \u0639\u0644\u0649 \u062C\u0647\u0627\u0632\u0643. \u0645\u0641\u064A\u0634 \u062D\u0627\u062C\u0629 \u0628\u062A\u062A\u0631\u0641\u0639 \u0625\u0644\u0627 \u0644\u0648 \u0634\u063A\u0651\u0644\u062A \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629 (\u0627\u062E\u062A\u064A\u0627\u0631\u064A\u0629) \u0645\u0646 \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A.",
+      localNote: "\u0627\u0644\u0643\u062A\u0627\u0628 \u0647\u064A\u062A\u0646\u0634\u0631 \u0641\u064A \u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0639\u0627\u0645\u0629 \u0639\u0644\u0649 \u062C\u064A\u062A \u0647\u0627\u0628\u060C \u0648\u0643\u0644 \u0627\u0644\u064A\u0648\u0632\u0631\u0632 \u0647\u064A\u0634\u0648\u0641\u0648\u0647. \u0646\u0633\u062E\u0629 \u0647\u062A\u062A\u062D\u0641\u0638 \u0641\u064A \u0645\u0643\u062A\u0628\u062A\u0643 \u0627\u0644\u062E\u0627\u0635\u0629 \u0643\u0645\u0627\u0646.",
+      addToMyLibrary: "\u0623\u0636\u0641 \u0625\u0644\u0649 \u0645\u0643\u062A\u0628\u062A\u064A",
+      inMyLibrary: "\u0641\u064A \u0645\u0643\u062A\u0628\u062A\u0643 \u2713",
+      categories: "\u0627\u0644\u062A\u0635\u0646\u064A\u0641\u0627\u062A",
+      allCategories: "\u0627\u0644\u0643\u0644",
+      addCategory: "\u062A\u0635\u0646\u064A\u0641 \u062C\u062F\u064A\u062F",
+      categoryNamePh: "\u0627\u0633\u0645 \u0627\u0644\u062A\u0635\u0646\u064A\u0641\u2026",
+      publishToPublic: "\u0627\u0646\u0634\u0631 \u0641\u064A \u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0639\u0627\u0645\u0629",
+      published: "\u0627\u062A\u0646\u0634\u0631 \u2713",
+      publishNeedsSync: "\u0639\u0634\u0627\u0646 \u062A\u0646\u0634\u0631 \u0644\u0627\u0632\u0645 \u062A\u0648\u0635\u0644 \u0645\u0632\u0627\u0645\u0646\u0629 GitHub \u0645\u0646 \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A \u0623\u0648\u0644\u064B\u0627.",
+      fileTooBig: "\u0627\u0644\u0645\u0644\u0641 \u0623\u0643\u0628\u0631 \u0645\u0646 40MB",
+      publishConflict: "\u062A\u0639\u0627\u0631\u0636 \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u0646\u0634\u0631\u060C \u062C\u0631\u0651\u0628 \u062A\u0627\u0646\u064A",
+      publicLibrary: "\u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0639\u0627\u0645\u0629",
+      emptyPublic: "\u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0639\u0627\u0645\u0629 \u0644\u0633\u0647 \u0641\u0627\u0636\u064A\u0629",
+      emptyPublicSub: "\u0627\u0644\u0623\u062F\u0645\u0646 \u0644\u0633\u0647 \u0645\u0636\u0627\u0641\u0634 \u0643\u062A\u0628 \u0644\u0644\u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0639\u0627\u0645\u0629.",
+      removeFromPublic: "\u0627\u062D\u0630\u0641 \u0645\u0646 \u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0639\u0627\u0645\u0629",
+      confirmDeletePublic: "\u0645\u062A\u0623\u0643\u062F\u061F \u0627\u0644\u0643\u062A\u0627\u0628 \u0647\u064A\u062A\u0645\u0633\u062D \u0645\u0646 \u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0639\u0627\u0645\u0629\u060C \u0628\u0633 \u0627\u0644\u0646\u0633\u062E \u0627\u0644\u0645\u062D\u0641\u0648\u0638\u0629 \u0639\u0646\u062F \u0627\u0644\u064A\u0648\u0632\u0631\u0632 \u0647\u062A\u0641\u0636\u0644 \u0634\u063A\u0627\u0644\u0629.",
+      removedFromPublic: "\u0627\u062A\u062D\u0630\u0641 \u0645\u0646 \u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0639\u0627\u0645\u0629 \u2713",
       searchPh: "\u0639\u0646\u0648\u0627\u0646 \u0627\u0644\u0643\u062A\u0627\u0628 \u0623\u0648 ISBN\u2026",
       search: "\u0628\u062D\u062B",
       emptyLib: "\u0645\u0643\u062A\u0628\u062A\u0643 \u0641\u0627\u0636\u064A\u0629 \u0644\u0633\u0647",
@@ -648,7 +669,24 @@
       tabFile: "From device",
       tabOnline: "Search online",
       dropHint: "Pick an EPUB, PDF or TXT file",
-      localNote: "Books are stored on your device. Nothing is uploaded unless you turn on the optional sync in Settings.",
+      localNote: "The book will be published to the public library on GitHub for all users to see. A copy will also be saved to your own library.",
+      addToMyLibrary: "Add to my library",
+      inMyLibrary: "In your library \u2713",
+      categories: "Categories",
+      allCategories: "All",
+      addCategory: "New category",
+      categoryNamePh: "Category name\u2026",
+      publishToPublic: "Publish to public library",
+      published: "Published \u2713",
+      publishNeedsSync: "Connect GitHub sync in Settings first to publish.",
+      fileTooBig: "File is larger than 40MB",
+      publishConflict: "Publish conflict, please retry",
+      publicLibrary: "Public library",
+      emptyPublic: "The public library is empty",
+      emptyPublicSub: "The admin has not added any public books yet.",
+      removeFromPublic: "Remove from public library",
+      confirmDeletePublic: "Sure? The book will be removed from the public library; saved copies keep working.",
+      removedFromPublic: "Removed from public library \u2713",
       searchPh: "Book title or ISBN\u2026",
       search: "Search",
       emptyLib: "Your library is empty",
@@ -811,9 +849,9 @@
     return Array.isArray(a) ? a.filter((x) => x && x.name && x.url) : [];
   }
   function buildUrl(tpl, title, author) {
-    const enc2 = (s) => encodeURIComponent(String(s || "").trim());
+    const enc3 = (s) => encodeURIComponent(String(s || "").trim());
     const q = [title, author].filter(Boolean).join(" ");
-    const out = String(tpl).replace(/\{title\}/gi, enc2(title)).replace(/\{author\}/gi, enc2(author)).replace(/\{query\}/gi, enc2(q));
+    const out = String(tpl).replace(/\{title\}/gi, enc3(title)).replace(/\{author\}/gi, enc3(author)).replace(/\{query\}/gi, enc3(q));
     try {
       const u = new URL(out);
       return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
@@ -1165,6 +1203,275 @@
       row.appendChild(stars(b.rating));
       host.appendChild(row);
     });
+  }
+
+  // src/public.js
+  var OWNER = "asratereg-glitch";
+  var REPO = "qari-public";
+  var BRANCH = "main";
+  var CATALOG_PATH = "public-books.json";
+  var API = "https://api.github.com";
+  var RAW = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}`;
+  var MAX_FILE = 40 * 1024 * 1024;
+  var CATALOG_TTL_MS = 60 * 1e3;
+  var TRANSLATIONS = { id: "cat-translations", name: "\u062A\u0631\u062C\u0645\u0627\u062A", sort_order: 0 };
+  var emptyCatalog = () => ({ format: "qari-public", version: 1, categories: [{ ...TRANSLATIONS }], books: [] });
+  var b64 = (str) => {
+    const bytes = new TextEncoder().encode(str);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(bin);
+  };
+  var unb64 = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, "")), (c) => c.charCodeAt(0)));
+  var blobToB64 = (blob) => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1]);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(blob);
+  });
+  var enc = (p) => p.split("/").map(encodeURIComponent).join("/");
+  function getSyncCreds() {
+    try {
+      const raw = JSON.parse(localStorage.getItem("qari.sync") || "{}");
+      return { token: raw.token || "", owner: raw.owner || "" };
+    } catch {
+      return { token: "", owner: "" };
+    }
+  }
+  function requireToken() {
+    const { token } = getSyncCreds();
+    if (!token) throw new Error(t("publishNeedsSync"));
+    return token;
+  }
+  async function errOf(r) {
+    let m = "";
+    try {
+      m = (await r.json()).message || "";
+    } catch {
+    }
+    return `GitHub ${r.status}${m ? ": " + m : ""}`;
+  }
+  function ghHeaders(token, extra) {
+    const h = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+    if (token) h.Authorization = "Bearer " + token;
+    return Object.assign(h, extra || {});
+  }
+  async function ghGet(path, token) {
+    const r = await fetch(`${API}/repos/${OWNER}/${REPO}/contents/${enc(path)}`, { headers: ghHeaders(token) });
+    if (r.status === 404) return { sha: null, doc: null };
+    if (!r.ok) throw new Error(await errOf(r));
+    const j = await r.json();
+    if (j.type === "file" && j.encoding === "base64" && j.content) {
+      let doc = null;
+      try {
+        doc = JSON.parse(unb64(j.content));
+      } catch {
+      }
+      return { sha: j.sha, doc };
+    }
+    return { sha: j.sha || null, doc: null };
+  }
+  async function ghPut(path, body, token) {
+    return fetch(`${API}/repos/${OWNER}/${REPO}/contents/${enc(path)}`, {
+      method: "PUT",
+      headers: ghHeaders(token, { "Content-Type": "application/json" }),
+      body: JSON.stringify(body)
+    });
+  }
+  async function ghDelete(path, sha, token) {
+    return fetch(`${API}/repos/${OWNER}/${REPO}/contents/${enc(path)}`, {
+      method: "DELETE",
+      headers: ghHeaders(token, { "Content-Type": "application/json" }),
+      body: JSON.stringify({ message: "Qari public library: delete " + path, sha })
+    });
+  }
+  var cache = null;
+  var cacheAt = 0;
+  async function readCatalog() {
+    const r = await fetch(`${RAW}/${CATALOG_PATH}`, { cache: "no-store" });
+    if (r.status === 404) return emptyCatalog();
+    if (!r.ok) throw new Error("GitHub " + r.status);
+    const doc = await r.json();
+    if (!doc || doc.format !== "qari-public") throw new Error("bad public catalog");
+    if (!Array.isArray(doc.categories) || !doc.categories.length) doc.categories = [{ ...TRANSLATIONS }];
+    if (!Array.isArray(doc.books)) doc.books = [];
+    return doc;
+  }
+  async function getCatalog(force = false) {
+    if (cache && !force && Date.now() - cacheAt < CATALOG_TTL_MS) return cache;
+    cache = await readCatalog();
+    cacheAt = Date.now();
+    return cache;
+  }
+  async function listCategories() {
+    const c = await getCatalog();
+    return (c.categories || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  }
+  async function getPublicBook(id) {
+    const c = await getCatalog();
+    return c.books.find((b) => b.id === id) || null;
+  }
+  function getCachedCategoryName(categoryId) {
+    if (!categoryId || !cache) return "";
+    const cat = (cache.categories || []).find((c) => c.id === categoryId);
+    return cat ? cat.name : "";
+  }
+  var publicFileUrl = (filePath) => `${RAW}/${filePath}`;
+  async function writeCatalog(mutator) {
+    const token = requireToken();
+    const apply = async () => {
+      const cur = await ghGet(CATALOG_PATH, token);
+      const doc = cur.doc && cur.doc.format === "qari-public" ? cur.doc : emptyCatalog();
+      if (!Array.isArray(doc.categories)) doc.categories = [{ ...TRANSLATIONS }];
+      if (!Array.isArray(doc.books)) doc.books = [];
+      const next2 = mutator(JSON.parse(JSON.stringify(doc)));
+      const body = { message: "Qari public library update", content: b64(JSON.stringify(next2)) };
+      if (cur.sha) body.sha = cur.sha;
+      const r = await ghPut(CATALOG_PATH, body, token);
+      if (r.status === 409 || r.status === 422) return "conflict";
+      if (!r.ok) throw new Error(await errOf(r));
+      cache = next2;
+      cacheAt = Date.now();
+      return "ok";
+    };
+    let res = await apply();
+    if (res === "conflict") res = await apply();
+    if (res === "conflict") throw new Error(t("publishConflict"));
+  }
+  async function addCategory(name) {
+    requireToken();
+    const n = (name || "").trim();
+    if (!n) throw new Error(t("categoryNamePh"));
+    let created = null;
+    await writeCatalog((doc) => {
+      const ex = doc.categories.find((c) => c.name === n);
+      if (ex) {
+        created = ex;
+        return doc;
+      }
+      created = { id: "cat-" + uid(), name: n, sort_order: Math.max(0, ...doc.categories.map((c) => c.sort_order || 0)) + 1 };
+      doc.categories.push(created);
+      return doc;
+    });
+    return created;
+  }
+  async function publishBook({ file, fileName = "", meta: meta3, format, categoryId }) {
+    const token = requireToken();
+    if (file && file.size > MAX_FILE) throw new Error(t("fileTooBig"));
+    const id = crypto.randomUUID();
+    let file_path = null, file_size = 0, file_name = "";
+    if (file) {
+      const fileKey = "file-" + uid();
+      const r = await ghPut(`files/${fileKey}`, { message: "Qari public book file " + fileKey, content: await blobToB64(file) }, token);
+      if (!r.ok && r.status !== 422) throw new Error(await errOf(r));
+      file_path = `files/${fileKey}`;
+      file_size = file.size;
+      file_name = fileName || file.name || "";
+    }
+    const row = {
+      id,
+      title: meta3.title || "?",
+      author: meta3.author || "",
+      cover: meta3.cover || "",
+      description: meta3.description || "",
+      format: format || "web",
+      category_id: categoryId || null,
+      file_path,
+      file_size,
+      file_name,
+      ol_key: meta3.olKey || "",
+      isbn: meta3.isbn || "",
+      year: meta3.year || "",
+      subjects: meta3.subjects || [],
+      created_by: "",
+      created_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    await writeCatalog((doc) => {
+      doc.books.unshift(row);
+      return doc;
+    });
+    return row;
+  }
+  async function publishExistingBook(localBook) {
+    requireToken();
+    const cats = await listCategories();
+    const catId = localBook.shelf === "translations" ? (cats.find((c) => c.name === "\u062A\u0631\u062C\u0645\u0627\u062A") || cats[0] || {}).id || null : null;
+    let fileBlob = null;
+    if (localBook.fileKey && localBook.format !== "web") fileBlob = await getFile(localBook.fileKey);
+    const row = await publishBook({
+      file: fileBlob,
+      fileName: localBook.fileName || "",
+      meta: { title: localBook.title, author: localBook.author, cover: localBook.cover, description: "", olKey: localBook.olKey, isbn: localBook.isbn, year: localBook.year, subjects: localBook.subjects },
+      format: fileBlob ? localBook.format : "web",
+      categoryId: catId
+    });
+    updateBook(localBook.id, { public_book_id: row.id, public_file_path: row.file_path || "" });
+    return row;
+  }
+  async function deletePublicBook(id) {
+    requireToken();
+    const token = getSyncCreds().token;
+    const cat = await getCatalog(true);
+    const row = cat.books.find((b) => b.id === id);
+    if (!row) return false;
+    await writeCatalog((doc) => {
+      doc.books = doc.books.filter((b) => b.id !== id);
+      return doc;
+    });
+    if (row.file_path) {
+      try {
+        const cur = await ghGet(row.file_path, token);
+        if (cur.sha) await ghDelete(row.file_path, cur.sha, token);
+      } catch {
+      }
+    }
+    return true;
+  }
+  function findSavedBook(input) {
+    const st = getState();
+    if (input.public_book_id) {
+      const b = st.books.find((x) => x.public_book_id === input.public_book_id);
+      if (b) return b;
+    }
+    if (input.olKey) {
+      const b = findBookByOl(input.olKey);
+      if (b) return b;
+    }
+    return st.books.find((x) => x.title === input.title && (x.author || "") === (input.author || "")) || null;
+  }
+  async function downloadPublicFile(book) {
+    try {
+      const r = await fetch(publicFileUrl(book.public_file_path), { cache: "no-store" });
+      if (!r.ok) return;
+      await putFile(book.fileKey, await r.blob());
+    } catch {
+    }
+  }
+  function saveToMyLibrary(input, fileBlob) {
+    const found = findSavedBook(input);
+    if (found) return found;
+    const catName = input.categoryName || getCachedCategoryName(input.category_id);
+    const shelf = catName === "\u062A\u0631\u062C\u0645\u0627\u062A" ? "translations" : "want";
+    const fileKey = input.public_file_path ? "file-" + uid() : "";
+    const b = addBook({
+      title: input.title,
+      author: input.author || "",
+      format: input.format || "web",
+      cover: input.cover || "",
+      source: input.public_book_id ? "public" : "openlibrary",
+      subjects: input.subjects || [],
+      isbn: input.isbn || "",
+      olKey: input.olKey || "",
+      year: input.year || "",
+      shelf,
+      fileKey,
+      public_book_id: input.public_book_id || "",
+      public_file_path: input.public_file_path || ""
+    });
+    if (fileBlob) putFile(fileKey, fileBlob).catch(() => {
+    });
+    else if (input.public_file_path) downloadPublicFile(b);
+    return b;
   }
 
   // src/meta.js
@@ -1869,7 +2176,7 @@
     c.className = "book-card";
     c.innerHTML = `<div class="cover">${coverImgHTML(it)}</div>
     <div class="book-meta"><div class="book-title">${esc(it.title)}</div><div class="book-author">${authorHTML(it.author)}</div>${it.rating ? `<div class="muted">\u2605 ${it.rating.toFixed(1)} (${it.ratingCount})</div>` : ""}
-    <button class="btn btn-primary" style="margin-top:.4rem;font-size:.75rem;padding:.25rem .7rem">${t("addToLibrary")}</button></div>`;
+    <button class="btn btn-primary" style="margin-top:.4rem;font-size:.75rem;padding:.25rem .7rem">${t("addToMyLibrary")}</button></div>`;
     c.onclick = async () => {
       if (it.olKey) {
         location.hash = "#/work/" + it.olKey;
@@ -1910,11 +2217,16 @@
     }
     c.querySelector("button").onclick = (e) => {
       e.stopPropagation();
-      addBook({ title: it.title, author: it.author, format: "web", cover: it.cover, source: "openlibrary", subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || "", year: it.year || "", shelf: "want" });
-      e.target.textContent = t("added");
+      saveToMyLibrary({ title: it.title, author: it.author, format: "web", cover: it.cover, source: "openlibrary", subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || "", year: it.year || "" });
+      e.target.textContent = t("inMyLibrary");
       e.target.disabled = true;
       toast(t("added"));
     };
+    if (findSavedBook({ title: it.title, author: it.author, olKey: it.olKey || "" })) {
+      const btn = c.querySelector("button");
+      btn.textContent = t("inMyLibrary");
+      btn.disabled = true;
+    }
     return c;
   }
   async function showResults(view, title, fetcher, saveable = false) {
@@ -1966,8 +2278,7 @@
           saveBtn.onclick = () => {
             const l = createList(title.replace(/^[^ ]+ /, "").split(" \xB7 ")[0], "Open Library");
             all.forEach((it) => {
-              let bk = it.olKey && findBookByOl(it.olKey) || getState().books.find((x) => x.title === it.title && x.author === it.author);
-              if (!bk) bk = addBook({ title: it.title, author: it.author, format: "web", cover: it.cover, source: "openlibrary", subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || "", year: it.year || "", shelf: "want" });
+              const bk = saveToMyLibrary({ title: it.title, author: it.author, format: "web", cover: it.cover, source: "openlibrary", subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || "", year: it.year || "" });
               listToggleBook(l.id, bk.id);
             });
             toast(t("added"));
@@ -3475,1346 +3786,6 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     $4("#readerStage").innerHTML = "";
     $4("#readerOverlay").classList.add("hidden");
     document.body.style.overflow = "";
-  }
-
-  // src/series.js
-  var OL2 = "https://openlibrary.org";
-  var WD = "https://query.wikidata.org/sparql";
-  async function getJSON2(url, ms = 3e4) {
-    const ctl = new AbortController();
-    const timer2 = setTimeout(() => ctl.abort(), ms);
-    try {
-      const r = await fetch(url, { signal: ctl.signal });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return await r.json();
-    } finally {
-      clearTimeout(timer2);
-    }
-  }
-  var normTitle = (s) => String(s || "").toLowerCase().replace(/\(.*?\)/g, " ").replace(/^(the|a|an)\s+/, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-  var normName = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-  var esc2 = (s) => String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  var qid = (u) => (u || "").split("/").pop();
-  async function sparql(q) {
-    let d;
-    try {
-      d = await getJSON2(WD + "?format=json&query=" + encodeURIComponent(q));
-    } catch (e) {
-      if (!/429|503/.test(e.message)) throw e;
-      await new Promise((r) => setTimeout(r, 6e3));
-      d = await getJSON2(WD + "?format=json&query=" + encodeURIComponent(q));
-    }
-    return d.results && d.results.bindings || [];
-  }
-  var memo = /* @__PURE__ */ new Map();
-  async function authorQid(name, olAuthorKey) {
-    const k = "a:" + (olAuthorKey || name);
-    if (memo.has(k)) return memo.get(k);
-    const p = (async () => {
-      if (olAuthorKey) {
-        try {
-          const a = await getJSON2(`${OL2}/authors/${String(olAuthorKey).replace("/authors/", "")}.json`, 9e3);
-          const w = a.remote_ids && a.remote_ids.wikidata;
-          if (w) return w;
-        } catch {
-        }
-      }
-      return "";
-    })();
-    memo.set(k, p);
-    return p;
-  }
-  function parseOrd(v) {
-    if (!v) return null;
-    const m = String(v).match(/\d+(\.\d+)?/);
-    return m ? parseFloat(m[0]) : null;
-  }
-  async function seriesByAuthor({ name, olAuthorKey }) {
-    const k = "s:" + normName(name);
-    if (memo.has(k)) return memo.get(k);
-    const ck = "qari.series." + normName(name);
-    try {
-      const c = JSON.parse(localStorage.getItem(ck) || "null");
-      if (c && Date.now() - c.t < 7 * 864e5) {
-        const r = Promise.resolve(c.v);
-        memo.set(k, r);
-        return r;
-      }
-    } catch {
-    }
-    const p = (async () => {
-      const q = await authorQid(name, olAuthorKey);
-      const who = q ? `VALUES ?au { wd:${q} }` : `?au rdfs:label "${esc2(name)}"@en. ?au wdt:P31 wd:Q5.`;
-      const own = await sparql(`SELECT DISTINCT ?series WHERE { ${who} ?b0 wdt:P50 ?au; wdt:P179 ?series. } LIMIT 40`);
-      const ids = own.map((r) => qid(r.series.value)).filter((x) => /^Q\d+$/.test(x));
-      if (!ids.length) return [];
-      const rows = await sparql(`SELECT ?series ?seriesLabel ?book ?bookLabel ?ord ?date ?authorLabel WHERE {
-      VALUES ?series { ${ids.map((i) => "wd:" + i).join(" ")} }
-      ?book p:P179 ?st. ?st ps:P179 ?series. OPTIONAL { ?st pq:P1545 ?ord } OPTIONAL { ?book wdt:P577 ?date } OPTIONAL { ?book wdt:P50 ?author }
-      SERVICE wikibase:label { bd:serviceParam wikibase:language "en,ar". } }`);
-      const by = /* @__PURE__ */ new Map();
-      for (const r of rows) {
-        const sid = qid(r.series.value);
-        if (/^Q\d+$/.test(r.seriesLabel.value)) continue;
-        const s = by.get(sid) || { id: sid, name: r.seriesLabel.value, books: /* @__PURE__ */ new Map() };
-        const bid = qid(r.book.value);
-        const cur = s.books.get(bid) || { id: bid, title: r.bookLabel.value, ord: null, year: "", author: "" };
-        const o = parseOrd(r.ord && r.ord.value);
-        if (o != null && cur.ord == null) cur.ord = o;
-        if (r.date && !cur.year) cur.year = (r.date.value.match(/^-?\d{1,4}/) || [""])[0];
-        if (r.authorLabel && !cur.author && !/^Q\d+$/.test(r.authorLabel.value)) cur.author = r.authorLabel.value;
-        s.books.set(bid, cur);
-        by.set(sid, s);
-      }
-      return [...by.values()].map((s) => {
-        let books = [...s.books.values()].filter((b) => !/^Q\d+$/.test(b.title));
-        const latin = (x) => /[A-Za-z]/.test(x);
-        const nLatin = books.filter((b) => latin(b.title)).length, preferLatin = nLatin * 2 >= books.length;
-        const seen = /* @__PURE__ */ new Map();
-        for (const b of books) {
-          if (b.ord == null) continue;
-          const prev2 = seen.get(b.ord);
-          if (!prev2 || latin(b.title) === preferLatin && latin(prev2.title) !== preferLatin) seen.set(b.ord, b);
-        }
-        books = books.filter((b) => b.ord == null || seen.get(b.ord) === b);
-        const anyOrd = books.some((b) => b.ord != null);
-        if (anyOrd) books = books.filter((b) => b.ord != null || !/\bseries\b|audiobook|omnibus|collection/i.test(b.title));
-        books.sort((a, b) => anyOrd ? (a.ord ?? 1e9) - (b.ord ?? 1e9) || (a.year || 9999) - (b.year || 9999) : (a.year || 9999) - (b.year || 9999));
-        return { id: s.id, name: s.name, books, ordered: anyOrd };
-      }).filter((s) => s.books.length > 1 && s.books.length <= 30).filter((s) => {
-        const lat = (x) => /[A-Za-z]/.test(x), authLat = lat(name);
-        return s.books.filter((b) => lat(b.title) === authLat).length * 2 >= s.books.length;
-      }).sort((a, b) => b.books.length - a.books.length);
-    })();
-    memo.set(k, p);
-    p.then((v) => {
-      try {
-        localStorage.setItem(ck, JSON.stringify({ t: Date.now(), v }));
-      } catch {
-      }
-    }, () => memo.delete(k));
-    return p;
-  }
-  async function seriesForBook({ title, author, olAuthorKey }) {
-    const list = await seriesByAuthor({ name: author, olAuthorKey });
-    const t2 = normTitle(title);
-    if (!t2) return null;
-    const sub = (x) => normTitle(String(x).split(/[:\u2014]| - /)[0]);
-    for (const eq of [(x) => normTitle(x) === t2, (x) => sub(x) === sub(title)]) {
-      for (const s of list) {
-        const i = s.books.findIndex((b) => eq(b.title));
-        if (i >= 0) return { series: s, index: i, position: s.books[i].ord, total: s.books.length };
-      }
-    }
-    return null;
-  }
-
-  // src/author.js
-  var OL3 = "https://openlibrary.org";
-  var $5 = (s, r = document) => r.querySelector(s);
-  var TOKEN = 0;
-  async function openBookByTitle(title, author) {
-    toast(t("loading"));
-    const f = await findCover(title, author).catch(() => null);
-    if (f && f.olKey) location.hash = "#/work/" + f.olKey;
-    else toast(tr("\u0645\u0634 \u0644\u0627\u0642\u064A \u0635\u0641\u062D\u0629 \u0644\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 \u0641\u064A Open Library", "No Open Library page found for this book"), 3e3);
-  }
-  function seriesBoxHTML(s, current, author) {
-    const cur = String(current || "").toLowerCase();
-    return `<div class="series-card"><h3>\u{1F4DA} ${esc(s.name)} <small class="muted">\xB7 ${s.books.length} ${tr("\u0643\u062A\u0628", "books")}</small></h3>
-    <ol class="series-list">${s.books.map((b, i) => `<li ${b.title.toLowerCase() === cur ? 'class="cur"' : ""}><a href="#" data-title="${esc(b.title)}" data-author="${esc(b.author || author || "")}"><span class="sn">${b.ord != null ? b.ord : i + 1}</span> ${esc(b.title)}${b.year ? ` <span class="muted">(${esc(b.year)})</span>` : ""}</a></li>`).join("")}</ol>
-    <div class="muted" style="font-size:.75rem">${s.ordered ? tr("\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u062D\u0633\u0628 \u0631\u0642\u0645 \u0627\u0644\u0643\u062A\u0627\u0628 \u0641\u064A Wikidata.", "Order = book number recorded on Wikidata.") : tr("\u0645\u0641\u064A\u0634 \u062A\u0631\u0642\u064A\u0645 \u0645\u0633\u062C\u0651\u0644\u060C \u0641\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u062D\u0633\u0628 \u0633\u0646\u0629 \u0627\u0644\u0646\u0634\u0631.", "No book numbers recorded, so ordered by publication year.")}</div></div>`;
-  }
-  function bindSeriesLinks(root) {
-    root.querySelectorAll(".series-list a").forEach((a) => a.onclick = (e) => {
-      e.preventDefault();
-      openBookByTitle(a.dataset.title, a.dataset.author);
-    });
-  }
-  async function renderAuthorPage(view, rawName) {
-    const name = decodeURIComponent(rawName || "").trim();
-    const tok = ++TOKEN;
-    view.innerHTML = `<div class="view-head"><button class="btn" id="auBack">\u2190 ${tr("\u0631\u062C\u0648\u0639", "Back")}</button><h1 dir="auto">${esc(name)}</h1></div>
-    <div class="chart-box" id="auBio" hidden></div>
-    <div id="auSeries"><p class="muted">${tr("\u0628\u062F\u0648\u0651\u0631 \u0639\u0644\u0649 \u0627\u0644\u0633\u0644\u0627\u0633\u0644\u2026", "Looking for series\u2026")}</p></div>
-    <h2 class="bp-h2">${tr("\u0643\u0644 \u0627\u0644\u0643\u062A\u0628", "All books")}</h2>
-    <div class="grid" id="auGrid"><p class="muted">${t("loading")}</p></div><div id="auMore"></div>`;
-    $5("#auBack", view).onclick = () => history.length > 1 ? history.back() : location.hash = "#/discover";
-    const key = await resolveAuthorKey(name);
-    if (tok !== TOKEN) return;
-    if (key) fetch(`${OL3}/authors/${String(key).replace("/authors/", "")}.json`).then((r) => r.json()).then((a) => {
-      if (tok !== TOKEN) return;
-      const bio = typeof a.bio === "string" ? a.bio : a.bio && a.bio.value || "";
-      const photo = a.photos && a.photos[0] > 0 ? `https://covers.openlibrary.org/a/id/${a.photos[0]}-M.jpg` : "";
-      if (!bio && !photo) return;
-      const box = $5("#auBio", view);
-      box.hidden = false;
-      box.innerHTML = `<div class="bp-author">${photo ? `<img src="${esc(photo)}" alt="">` : ""}<div><strong>${esc(a.name || name)}</strong><div class="muted">${esc([a.birth_date, a.death_date].filter(Boolean).join(" \u2013 "))}</div></div></div>${bio ? `<p class="bp-bio" dir="auto">${esc(bio.split("\n")[0].slice(0, 700))}</p>` : ""}`;
-    }).catch(() => {
-    });
-    seriesByAuthor({ name: firstAuthorName(name), olAuthorKey: key }).then((list) => {
-      if (tok !== TOKEN) return;
-      const host = $5("#auSeries", view);
-      host.innerHTML = list.length ? `<h2 class="bp-h2">${tr("\u0627\u0644\u0633\u0644\u0627\u0633\u0644", "Series")}</h2>` + list.map((s) => seriesBoxHTML(s, "", name)).join("") + `<p class="muted" style="font-size:.75rem">${tr("\u0627\u0644\u0645\u0635\u062F\u0631: Wikidata. \u0627\u0644\u062A\u063A\u0637\u064A\u0629 \u0645\u0634 \u0643\u0627\u0645\u0644\u0629\u060C \u062E\u0635\u0648\u0635\u064B\u0627 \u0644\u0644\u0643\u062A\u0628 \u0627\u0644\u0639\u0631\u0628\u064A\u0629 \u0648\u0627\u0644\u0623\u0642\u0644 \u0634\u0647\u0631\u0629.", "Source: Wikidata. Coverage is partial, especially for Arabic and lesser-known books.")}</p>` : `<p class="muted">${tr("\u0645\u0641\u064A\u0634 \u0628\u064A\u0627\u0646\u0627\u062A \u0633\u0644\u0627\u0633\u0644 \u0644\u0647\u0630\u0627 \u0627\u0644\u0645\u0624\u0644\u0641 \u0641\u064A Wikidata (\u0645\u0645\u0643\u0646 \u064A\u0643\u0648\u0646 \u0639\u0646\u062F\u0647 \u0633\u0644\u0633\u0644\u0629 \u0628\u0633 \u0645\u0634 \u0645\u062A\u0633\u062C\u0644\u0629).", "No series data for this author on Wikidata (a series may exist but not be recorded there).")}</p>`;
-      bindSeriesLinks(host);
-    }).catch(() => {
-      const host = $5("#auSeries", view);
-      if (host) host.innerHTML = `<p class="muted">${tr("\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u064A\u0644 \u0627\u0644\u0633\u0644\u0627\u0633\u0644 (\u0627\u0644\u0646\u062A \u0623\u0648 Wikidata \u0645\u0634 \u0645\u062A\u0627\u062D \u062F\u0644\u0648\u0642\u062A\u064A).", "Could not load series (offline, or Wikidata is busy right now).")}</p>`;
-    });
-    const grid = $5("#auGrid", view), more = $5("#auMore", view);
-    let page = 0, busy3 = false;
-    const seen = /* @__PURE__ */ new Set();
-    const load2 = async () => {
-      if (busy3) return;
-      busy3 = true;
-      try {
-        const r = await worksByAuthor(name, page, 24, key);
-        if (tok !== TOKEN) return;
-        if (!page) grid.innerHTML = "";
-        page++;
-        r.items.forEach((it) => {
-          const k = it.olKey || it.title;
-          if (seen.has(k)) return;
-          seen.add(k);
-          const c = document.createElement("div");
-          c.className = "book-card";
-          c.innerHTML = `<div class="cover">${coverImgHTML(it)}</div><div class="book-meta"><div class="book-title">${esc(it.title)}</div><div class="book-author">${it.year ? esc(it.year) : ""}${it.rating ? " \xB7 \u2605 " + it.rating.toFixed(1) : ""}</div></div>`;
-          c.onclick = () => it.olKey ? location.hash = "#/work/" + it.olKey : openBookByTitle(it.title, name);
-          grid.appendChild(c);
-        });
-        if (!seen.size) grid.innerHTML = `<p class="muted">${t("noResults")}</p>`;
-        more.innerHTML = r.more ? `<button class="btn" style="margin:1rem auto;display:block">${tr("\u0639\u0631\u0636 \u0627\u0644\u0645\u0632\u064A\u062F", "Load more")}</button>` : "";
-        const b = more.querySelector("button");
-        if (b) b.onclick = load2;
-      } catch (e) {
-        if (!page) grid.innerHTML = `<p class="muted">\u26A0 ${esc(e.message)}</p>`;
-      }
-      busy3 = false;
-    };
-    load2();
-  }
-
-  // src/bookpage.js
-  var $6 = (s, r = document) => r.querySelector(s);
-  var nf = (n) => (n || 0).toLocaleString(getLang() === "ar" ? "ar-EG" : "en-US");
-  var TOKEN2 = 0;
-  function basicMeta(b) {
-    return { olKey: b.olKey || "", title: b.title, author: b.author, cover: b.cover, subjects: b.subjects || [], isbn: b.isbn, pages: b.totalPages || 0, basic: true };
-  }
-  function ensureLib(meta3) {
-    const subj = cleanSubjects(meta3.subjects);
-    return addBook({
-      title: meta3.title || "?",
-      author: meta3.author || "",
-      format: "web",
-      cover: meta3.cover || "",
-      source: "openlibrary",
-      subjects: subj,
-      isbn: meta3.isbn || "",
-      olKey: meta3.olKey || "",
-      year: meta3.year || "",
-      shelf: "want",
-      totalPages: meta3.pages || 0
-    });
-  }
-  async function renderBookPage(view, arg2, kind2) {
-    let lib = null, olKey = "";
-    if (kind2 === "book") {
-      lib = getBook(arg2);
-      if (!lib) {
-        view.innerHTML = `<p class="muted">?</p>`;
-        return;
-      }
-      olKey = lib.olKey || "";
-    } else {
-      olKey = arg2;
-      lib = findBookByOl(arg2);
-      if (lib) {
-        location.replace("#/book/" + lib.id);
-        return;
-      }
-    }
-    const tok = ++TOKEN2;
-    let meta3 = olKey && getMeta(olKey) || null;
-    if (meta3) {
-      draw(view, lib, meta3, tok);
-      return;
-    }
-    draw(view, lib, lib ? basicMeta(lib) : { olKey, title: "\u2026", author: "", subjects: [], basic: true }, tok, true);
-    const fresh = await loadMeta(lib ? { olKey, title: lib.title, author: lib.author, isbn: lib.isbn, cover: lib.cover } : { olKey });
-    if (tok !== TOKEN2) return;
-    if (lib && fresh.olKey) {
-      const patch = {};
-      if (!lib.olKey) patch.olKey = fresh.olKey;
-      if (!lib.cover && fresh.cover) patch.cover = fresh.cover;
-      if (!(lib.subjects || []).length) patch.subjects = cleanSubjects(fresh.subjects);
-      if (!lib.isbn && fresh.isbn) patch.isbn = fresh.isbn;
-      if (Object.keys(patch).length) updateBook(lib.id, patch);
-    }
-    draw(view, lib, fresh, tok);
-  }
-  function chip(text) {
-    return `<span class="bp-chip">${esc(text)}</span>`;
-  }
-  function ratingBox(label, value, count, extra = "") {
-    if (!value) return `<div class="bp-rate muted-box"><div class="bp-rate-l">${label}</div><div class="bp-rate-v">\u2014</div><div class="muted">${tr("\u0645\u0641\u064A\u0634 \u062A\u0642\u064A\u064A\u0645\u0627\u062A", "no ratings")}</div></div>`;
-    return `<div class="bp-rate"><div class="bp-rate-l">${label}</div><div class="bp-rate-v">\u2605 ${value.toFixed(1)}<small>/5</small></div><div class="muted">${nf(count)} ${tr("\u062A\u0642\u064A\u064A\u0645", "ratings")}${extra}</div></div>`;
-  }
-  function draw(view, lib, meta3, tok, loading = false) {
-    const title = lib && lib.title || meta3.title || "?";
-    const author = lib && lib.author || meta3.author || "";
-    const cover = lib && lib.cover || meta3.cover || "";
-    const ol = meta3.olKey;
-    const subjects = cleanSubjects(meta3.subjects && meta3.subjects.length ? meta3.subjects : lib ? lib.subjects : []).slice(0, 8);
-    const gb = meta3.gb;
-    const hls = lib ? bookHighlights(lib.id) : [];
-    const comments = lib ? bookComments(lib.id) : [];
-    const myLists = lib ? listsOfBook(lib.id) : [];
-    const shelfOpts = lib ? [["translations", t("shelf_translations")], ["want", t("shelf_want")], ["reading", t("shelf_reading")], ["finished", t("shelf_finished")], ...getState().customShelves.map((s) => [s, s])] : [];
-    const details = [
-      [tr("\u0627\u0644\u0639\u0646\u0648\u0627\u0646", "Title"), title],
-      [tr("\u0627\u0644\u0645\u0624\u0644\u0641", "Author"), author],
-      [tr("\u0623\u0648\u0644 \u0646\u0634\u0631", "First published"), meta3.year],
-      [tr("\u0639\u062F\u062F \u0627\u0644\u0635\u0641\u062D\u0627\u062A", "Pages"), meta3.pages ? nf(meta3.pages) : ""],
-      [tr("\u0639\u062F\u062F \u0627\u0644\u0625\u0635\u062F\u0627\u0631\u0627\u062A", "Editions"), meta3.editions ? nf(meta3.editions) : ""],
-      [tr("\u0627\u0644\u0646\u0627\u0634\u0631", "Publisher"), meta3.publisher || gb && gb.publisher],
-      [tr("\u0627\u0644\u0644\u063A\u0627\u062A", "Languages"), (meta3.languages || []).join(", ")],
-      ["ISBN", meta3.isbn],
-      [tr("\u0627\u0644\u0635\u064A\u063A\u0629", "Format"), lib && lib.format !== "web" ? lib.format.toUpperCase() : ""]
-    ].filter((r) => r[1]);
-    view.innerHTML = `
-  <section class="bp-hero">
-    <div class="bp-backdrop" style="${cover ? `background-image:url('${esc(cover)}')` : ""}"></div>
-    <div class="bp-hero-inner">
-      <div class="bp-poster"><div class="cover">${cover ? `<img src="${esc(cover)}" alt="">` : coverHTML({ title, format: lib ? lib.format : "web" })}</div></div>
-      <div class="bp-info">
-        <h1>${esc(title)} ${meta3.year ? `<span class="bp-year">(${esc(meta3.year)})</span>` : ""}</h1>
-        <div class="bp-sub">${author ? `<a href="#/discover" id="bpAuthor" class="bp-alink" title="${tr("\u0643\u0644 \u0643\u062A\u0628 \u0627\u0644\u0645\u0624\u0644\u0641", "All books by this author")}">${esc(author)}</a>` : ""}${meta3.pages ? ` \xB7 ${nf(meta3.pages)} ${t("pages")}` : ""}${meta3.editions ? ` \xB7 ${nf(meta3.editions)} ${tr("\u0625\u0635\u062F\u0627\u0631", "editions")}` : ""}</div>
-        <div class="bp-chips">${subjects.map(chip).join("")}${loading ? `<span class="muted">${t("loading")}</span>` : ""}</div>
-        <div class="bp-ratings">
-          ${ratingBox("Open Library", meta3.rating, meta3.ratingCount)}
-          ${gb ? ratingBox("Google Books", gb.rating, gb.count) : ""}
-          <div class="bp-rate bp-mine"><div class="bp-rate-l">${tr("\u062A\u0642\u064A\u064A\u0645\u0643", "Your rating")}</div><div id="ratingHost"></div><div class="muted">${tr("\u0627\u0636\u063A\u0637 \u0627\u0644\u0646\u062C\u0648\u0645", "tap the stars")}</div></div>
-        </div>
-        ${meta3.wantToRead || meta3.alreadyRead || meta3.currentlyReading ? `<div class="bp-community">\u{1F516} ${nf(meta3.wantToRead)} ${tr("\u0639\u0627\u064A\u0632\u064A\u0646 \u064A\u0642\u0631\u0648\u0647", "want to read")} \xB7 \u{1F4D6} ${nf(meta3.currentlyReading)} ${tr("\u0628\u064A\u0642\u0631\u0648\u0647", "reading")} \xB7 \u2705 ${nf(meta3.alreadyRead)} ${tr("\u0642\u0631\u0648\u0647", "have read")}</div>` : ""}
-        <div class="bp-actions">
-          ${lib ? `<button id="readBtn" class="btn btn-primary">\u25B6 ${t("startReading")}</button><button id="attachBtn" class="btn" title="${tr("\u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628 \u0645\u0646 \u062C\u0647\u0627\u0632\u0643", "Choose the book file from your device")}">\u{1F4CE} ${lib.fileKey ? tr("\u063A\u064A\u0651\u0631 \u0627\u0644\u0645\u0644\u0641", "Change file") : tr("\u0627\u0631\u0628\u0637 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628", "Link book file")}</button>` : ""}
-          ${!lib ? `<button id="addLibBtn" class="btn btn-primary">\uFF0B ${t("addToLibrary")}</button>` : ""}
-          <button id="favBtn" class="btn ${lib && lib.favorite ? "btn-fav on" : "btn-fav"}">${lib && lib.favorite ? "\u2764" : "\u{1F90D}"} ${tr("\u0627\u0644\u0645\u0641\u0636\u0644\u0629", "Favorite")}</button>
-          <button id="listsBtn" class="btn">\u{1F4CB} ${tr("\u0627\u0644\u0642\u0648\u0627\u0626\u0645", "Lists")}${myLists.length ? ` (${myLists.length})` : ""}</button>
-          ${lib ? `<select id="shelfSel" title="${tr("\u0627\u0644\u0631\u0641", "Shelf")}">${shelfOpts.map(([v, l]) => `<option value="${esc(v)}" ${lib.shelf === v || (lib.customShelves || []).includes(v) ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>` : ""}
-          ${lib && lib.shelf !== "finished" ? `<button id="finishBtn" class="btn">\u2713 ${t("markFinished")}</button>` : ""}
-        </div>
-        ${myLists.length ? `<div class="bp-chips" style="margin-top:.6rem">${myLists.map((l) => `<a class="bp-chip link" href="#/lists/${l.id}">\u{1F4CB} ${esc(l.name)}</a>`).join("")}</div>` : ""}
-      </div>
-    </div>
-  </section>
-
-  ${lib ? `<div class="bp-progress"><div class="muted">${lib.format.toUpperCase()} \xB7 ${t("addedOn")} ${fmtDate(lib.addedAt)} ${lib.finishedAt ? "\xB7 " + t("finishedOn") + " " + fmtDate(lib.finishedAt) : ""}</div>
-    <div class="prog-track" style="height:8px"><div class="prog-fill" style="width:${Math.round(lib.progress)}%"></div></div>
-    <div class="muted" style="margin-top:.3rem">${t("progress")}: ${Math.round(lib.progress)}%</div></div>` : ""}
-
-  <div class="bp-cols">
-    <div class="bp-main">
-      <div class="chart-box"><h3>${tr("\u0646\u0628\u0630\u0629", "Overview")}</h3>
-        ${meta3.description ? `<p class="bp-desc" id="descP" dir="auto">${esc(meta3.description)}</p><button class="btn bp-more" id="moreDesc">${tr("\u0627\u0642\u0631\u0623 \u0627\u0644\u0645\u0632\u064A\u062F", "Read more")}</button>` : `<p class="muted">${loading ? t("loading") : meta3.notFound ? tr("\u0645\u0641\u064A\u0634 \u0628\u064A\u0627\u0646\u0627\u062A \u0623\u0648\u0646\u0644\u0627\u064A\u0646 \u0644\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 (\u0623\u0648 \u0645\u0641\u064A\u0634 \u0646\u062A).", "No online data found for this book (or you are offline).") : tr("\u0645\u0641\u064A\u0634 \u0648\u0635\u0641 \u0645\u062A\u0627\u062D.", "No description available.")}</p>`}
-        ${meta3.firstSentence ? `<blockquote class="bp-quote" dir="auto">\u201C${esc(meta3.firstSentence)}\u201D<div class="muted">${tr("\u0623\u0648\u0644 \u062C\u0645\u0644\u0629", "First sentence")}</div></blockquote>` : ""}
-      </div>
-
-      <div id="seriesBox"></div>
-
-      ${findBookHTML(title, author)}
-
-      <div class="chart-box"><h3>\u{1F4AC} ${tr("\u062A\u0639\u0644\u064A\u0642\u0627\u062A\u064A", "My comments")} (${comments.length})</h3>
-        <div class="bp-composer">
-          <textarea id="cmText" rows="2" placeholder="${tr("\u0627\u0643\u062A\u0628 \u062A\u0639\u0644\u064A\u0642\u0643 \u0639\u0644\u0649 \u0627\u0644\u0643\u062A\u0627\u0628 \u0623\u0648 \u0641\u0635\u0644\u2026", "Write a comment on the book or a chapter\u2026")}"></textarea>
-          <div class="bp-composer-row"><input id="cmChapter" placeholder="${tr("\u0627\u0644\u0641\u0635\u0644 / \u0627\u0644\u0635\u0641\u062D\u0629 (\u0627\u062E\u062A\u064A\u0627\u0631\u064A)", "Chapter / page (optional)")}"><button id="cmAdd" class="btn btn-primary">${t("send")}</button></div>
-        </div>
-        <div id="cmList"></div>
-      </div>
-
-      ${lib ? `<div class="chart-box"><h3>\u270D\uFE0F ${t("writeReview")}</h3>
-        <textarea id="reviewBox" rows="3" style="width:100%">${esc(lib.review || "")}</textarea>
-        <button id="saveReview" class="btn" style="margin-top:.4rem">${t("save")}</button></div>
-      <div class="chart-box"><h3>\u{1F58A} ${t("highlights")} (${hls.length})</h3><div id="hlList"></div></div>` : ""}
-
-      <h2 class="bp-h2" id="authorRowT" ${author ? "" : "hidden"}>${tr("\u0643\u0645\u0627\u0646 \u0644\u0644\u0645\u0624\u0644\u0641", "More by this author")}</h2><div class="award-row" id="authorRow"></div>
-      <h2 class="bp-h2" id="simRowT">${tr("\u0643\u062A\u0628 \u0645\u0634\u0627\u0628\u0647\u0629", "More like this")}</h2><div class="award-row" id="simRow"></div>
-    </div>
-    <aside class="bp-side">
-      <div class="chart-box"><h3>${tr("\u0627\u0644\u062A\u0641\u0627\u0635\u064A\u0644", "Details")}</h3>
-        <table class="bp-table">${details.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</table>
-        <div class="bp-links">${ol ? `<a href="https://openlibrary.org/works/${esc(ol)}" target="_blank" rel="noopener">Open Library \u2197</a>` : ""}${gb && gb.link ? `<a href="${esc(gb.link)}" target="_blank" rel="noopener">Google Books \u2197</a>` : ""}</div>
-      </div>
-      ${meta3.authorKey && (meta3.authorBio || meta3.authorPhoto) ? `<div class="chart-box"><h3>${tr("\u0639\u0646 \u0627\u0644\u0645\u0624\u0644\u0641", "About the author")}</h3>
-        <div class="bp-author">${meta3.authorPhoto ? `<img src="${esc(meta3.authorPhoto)}" alt="">` : ""}<div><strong>${esc(author)}</strong>
-        <div class="muted">${esc([meta3.authorBorn, meta3.authorDied].filter(Boolean).join(" \u2013 "))}</div></div></div>
-        ${meta3.authorBio ? `<p class="bp-bio" dir="auto">${esc(meta3.authorBio)}</p>` : ""}</div>` : ""}
-      ${lib ? `<button id="delBtn" class="btn btn-danger" style="width:100%">\u{1F5D1} ${t("removeBook")}</button>` : ""}
-    </aside>
-  </div>`;
-    const redraw = () => draw(view, lib, meta3, tok, false);
-    const need = () => {
-      if (!lib) {
-        lib = ensureLib(meta3);
-        toast(t("added"));
-      }
-      return lib;
-    };
-    const after = (created) => {
-      if (created) location.hash = "#/book/" + lib.id;
-      else redraw();
-    };
-    $6("#ratingHost", view).appendChild(stars(lib ? lib.rating : 0, true, (v) => {
-      const c = !lib;
-      need();
-      updateBook(lib.id, { rating: v });
-      after(c);
-    }));
-    const rb = $6("#readBtn", view);
-    if (rb) rb.onclick = () => startReadingBook(lib);
-    const ab = $6("#attachBtn", view);
-    if (ab) ab.onclick = async () => {
-      if (await pickBookFile(lib)) renderBookPage(view, arg, kind);
-    };
-    const ab2 = $6("#addLibBtn", view);
-    if (ab2) ab2.onclick = () => {
-      need();
-      after(true);
-    };
-    $6("#favBtn", view).onclick = () => {
-      const c = !lib;
-      need();
-      const on = toggleFavorite(lib.id);
-      toast(on ? "\u2764 " + tr("\u0627\u062A\u0636\u0627\u0641 \u0644\u0644\u0645\u0641\u0636\u0644\u0629", "Added to favorites") : tr("\u0627\u062A\u0634\u0627\u0644 \u0645\u0646 \u0627\u0644\u0645\u0641\u0636\u0644\u0629", "Removed from favorites"));
-      after(c);
-    };
-    $6("#listsBtn", view).onclick = () => openListsPicker(() => {
-      const c = !lib;
-      need();
-      return { lib, created: c };
-    }, () => lib, () => {
-      if (lib) redraw();
-    });
-    const sel = $6("#shelfSel", view);
-    if (sel) sel.onchange = (e) => {
-      const v = e.target.value;
-      if (["want", "reading", "finished", "translations"].includes(v)) updateBook(lib.id, { shelf: v });
-      else {
-        const cs = new Set(lib.customShelves || []);
-        cs.has(v) ? cs.delete(v) : cs.add(v);
-        updateBook(lib.id, { customShelves: [...cs] });
-      }
-      redraw();
-    };
-    const fb = $6("#finishBtn", view);
-    if (fb) fb.onclick = () => {
-      updateBook(lib.id, { shelf: "finished" });
-      redraw();
-    };
-    const dl = $6("#delBtn", view);
-    if (dl) dl.onclick = async () => {
-      if (!confirm(t("confirmDelete"))) return;
-      if (lib.fileKey) await deleteFile(lib.fileKey).catch(() => {
-      });
-      removeBook(lib.id);
-      location.hash = "#/";
-    };
-    const sr = $6("#saveReview", view);
-    if (sr) sr.onclick = () => {
-      updateBook(lib.id, { review: $6("#reviewBox", view).value });
-      toast(t("added"));
-    };
-    const md = $6("#moreDesc", view);
-    if (md) {
-      const p = $6("#descP", view);
-      md.onclick = () => {
-        const open2 = p.classList.toggle("open");
-        md.textContent = open2 ? tr("\u0623\u0642\u0644", "Show less") : tr("\u0627\u0642\u0631\u0623 \u0627\u0644\u0645\u0632\u064A\u062F", "Read more");
-      };
-      if (meta3.description.length < 480) md.remove();
-    }
-    $6("#cmAdd", view).onclick = () => {
-      const text = $6("#cmText", view).value.trim();
-      if (!text) return;
-      const c = !lib;
-      need();
-      addComment({ bookId: lib.id, chapter: $6("#cmChapter", view).value.trim(), author: tr("\u0623\u0646\u0627", "Me"), text, origin: "me" });
-      after(c);
-    };
-    const cmHost = $6("#cmList", view);
-    cmHost.innerHTML = comments.length ? "" : `<p class="muted">${tr("\u0644\u0633\u0647 \u0645\u0641\u064A\u0634 \u062A\u0639\u0644\u064A\u0642\u0627\u062A.", "No comments yet.")}</p>`;
-    comments.forEach((c) => {
-      const row = document.createElement("div");
-      row.className = "comment";
-      row.innerHTML = `<div class="c-meta">${c.origin === "buddy" ? "\u{1F464}" : "\u{1F642}"} ${esc(c.author)} ${c.chapter ? "\xB7 " + esc(c.chapter) : ""} \xB7 ${fmtDate(c.createdAt)}${c.editedAt ? " \xB7 " + tr("\u0645\u0639\u062F\u0651\u0644", "edited") : ""}
-      <span class="c-actions"><button class="icon-btn" data-a="edit" title="${t("edit")}">\u270E</button><button class="icon-btn" data-a="del" title="${t("delete")}">\u{1F5D1}</button></span></div><div dir="auto" style="white-space:pre-wrap">${esc(c.text)}</div>`;
-      row.querySelector("[data-a=del]").onclick = () => {
-        if (confirm(tr("\u062A\u062D\u0630\u0641 \u0627\u0644\u062A\u0639\u0644\u064A\u0642\u061F", "Delete this comment?"))) {
-          removeComment(c.id);
-          redraw();
-        }
-      };
-      row.querySelector("[data-a=edit]").onclick = () => {
-        const txt = prompt(t("edit"), c.text);
-        if (txt !== null && txt.trim()) {
-          updateComment(c.id, { text: txt.trim() });
-          redraw();
-        }
-      };
-      cmHost.appendChild(row);
-    });
-    const hlHost = $6("#hlList", view);
-    if (hlHost) {
-      hlHost.innerHTML = hls.length ? "" : `<p class="muted">${t("noHighlights")}</p>`;
-      hls.forEach((h) => {
-        const row = document.createElement("div");
-        row.className = "review-card";
-        row.innerHTML = `<div style="border-inline-start:4px solid ${esc(h.color)};padding-inline-start:.7rem">
-        <div style="font-family:var(--font-read-ar)">${esc(h.text)}</div>
-        ${h.note ? `<div class="muted" style="margin-top:.3rem">\u{1F4DD} ${esc(h.note)}</div>` : ""}
-        <div class="muted" style="font-size:.72rem;margin-top:.3rem">${fmtDate(h.createdAt)} <button class="icon-btn" style="font-size:.8rem">\u{1F5D1}</button></div></div>`;
-        row.querySelector("button").onclick = () => {
-          removeHighlight(h.id);
-          redraw();
-        };
-        hlHost.appendChild(row);
-      });
-    }
-    const aLink = view.querySelector("#bpAuthor");
-    if (aLink) aLink.onclick = (e) => {
-      e.preventDefault();
-      openAuthor(author);
-    };
-    if (!loading) {
-      const mini = (it) => {
-        const c = document.createElement("div");
-        c.className = "book-card bp-mini";
-        c.innerHTML = `<div class="cover">${it.cover ? `<img src="${esc(it.cover)}" loading="lazy" alt="">` : `<div class="cover-fallback">\u{1F4D5}<small>${esc(it.title)}</small></div>`}</div>
-        <div class="book-meta"><div class="book-title">${esc(it.title)}</div><div class="book-author">${authorHTML(it.author)}${it.rating ? " \xB7 \u2605 " + it.rating.toFixed(1) : ""}</div></div>`;
-        c.onclick = async () => {
-          if (it.olKey) {
-            location.hash = "#/work/" + it.olKey;
-            return;
-          }
-          const f = await findCover(it.title, it.author).catch(() => null);
-          if (f && f.olKey) location.hash = "#/work/" + f.olKey;
-          else {
-            try {
-              sessionStorage.setItem("qari.pendingSearch", JSON.stringify({ q: it.title, scope: "title" }));
-            } catch {
-            }
-            location.hash = "#/discover";
-            if (window.__qariDiscoverPending) window.__qariDiscoverPending();
-          }
-        };
-        return c;
-      };
-      const fill = (id, titleId, p) => p.then((items) => {
-        if (tok !== TOKEN2) return;
-        const host = document.getElementById(id);
-        if (!host) return;
-        const ti = document.getElementById(titleId);
-        if (!items.length) {
-          if (ti) ti.hidden = true;
-          return;
-        }
-        if (ti) ti.hidden = false;
-        items.forEach((i) => host.appendChild(mini(i)));
-      }).catch(() => {
-        const ti = document.getElementById(titleId);
-        if (ti) ti.hidden = true;
-      });
-      const curTitle = lib && lib.title || meta3.title;
-      const sb = document.getElementById("seriesBox");
-      if (sb && author) {
-        sb.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}</h3><p class="muted">${tr("\u0628\u062F\u0648\u0651\u0631 \u0639\u0644\u0649 \u0627\u0644\u0633\u0644\u0633\u0644\u0629\u2026", "Checking for a series\u2026")}</p></div>`;
-        seriesForBook({ title: curTitle, author, olAuthorKey: meta3.authorKey }).then((r) => {
-          if (tok !== TOKEN2) return;
-          const el = document.getElementById("seriesBox");
-          if (!el) return;
-          if (!r) {
-            el.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}</h3><p class="muted">${tr("\u0645\u0641\u064A\u0634 \u0645\u0639\u0644\u0648\u0645\u0627\u062A \u0633\u0644\u0633\u0644\u0629 \u0644\u0643\u062A\u0627\u0628 \u062F\u0647 \u0641\u064A Wikidata. \u0645\u0645\u0643\u0646 \u064A\u0643\u0648\u0646 \u0633\u062A\u0627\u0646\u062F \u0623\u0644\u0648\u0646\u060C \u0623\u0648 \u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u0645\u0634 \u0645\u062A\u0633\u062C\u0644\u0629 (\u0627\u0644\u062A\u063A\u0637\u064A\u0629 \u0636\u0639\u064A\u0641\u0629 \u0644\u0644\u0643\u062A\u0628 \u0627\u0644\u0639\u0631\u0628\u064A\u0629).", "No series info for this book on Wikidata. It may be a standalone, or the series just is not recorded there (coverage is weak for Arabic books).")} <a href="#" id="seriesAuthorLink">${tr("\u0643\u0644 \u0643\u062A\u0628 \u0627\u0644\u0645\u0624\u0644\u0641", "All books by this author")}</a></p></div>`;
-            const l = el.querySelector("#seriesAuthorLink");
-            if (l) l.onclick = (e) => {
-              e.preventDefault();
-              openAuthor(author);
-            };
-            return;
-          }
-          const pos = r.position != null ? `${tr("\u0627\u0644\u0643\u062A\u0627\u0628 \u0631\u0642\u0645", "Book")} ${r.position} ${tr("\u0645\u0646", "of")} ${r.total}` : `${tr("\u0627\u0644\u0643\u062A\u0627\u0628", "Book")} ${r.index + 1} ${tr("\u0645\u0646", "of")} ${r.total}`;
-          el.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}: ${esc(r.series.name)}</h3><p class="muted" style="margin-bottom:.4rem">${pos} \xB7 ${tr("\u0627\u0644\u0645\u0635\u062F\u0631: Wikidata", "Source: Wikidata")}</p>${seriesBoxHTML(r.series, curTitle, author).replace(/^<div class="series-card"><h3>.*?<\/h3>/, '<div class="series-card">')}</div>`;
-          bindSeriesLinks(el);
-        }).catch(() => {
-          const el = document.getElementById("seriesBox");
-          if (el) el.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}</h3><p class="muted">${tr("\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u064A\u0644 \u0645\u0639\u0644\u0648\u0645\u0627\u062A \u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u062F\u0644\u0648\u0642\u062A\u064A.", "Could not load series info right now.")}</p></div>`;
-        });
-      }
-      const authorItems = (async () => {
-        let items = meta3.authorKey ? await moreByAuthor(meta3.authorKey, meta3.olKey).catch(() => []) : [];
-        if (!items.length && author) items = (await worksByAuthor(author, 0, 14).catch(() => ({ items: [] }))).items.filter((x) => x.olKey !== meta3.olKey && x.title !== curTitle).slice(0, 12);
-        return items;
-      })();
-      fill("authorRow", "authorRowT", authorItems);
-      fill("simRow", "simRowT", relatedBooks({ subjects: meta3.subjects || lib && lib.subjects || [], olKey: meta3.olKey, authorKey: meta3.authorKey, title: curTitle, author }));
-    }
-  }
-  function openListsPicker(getBook2, peekBook, onDone) {
-    const m = document.createElement("div");
-    m.className = "modal";
-    const render = () => {
-      const lists = getState().lists;
-      m.innerHTML = `<div class="modal-card" style="max-width:420px"><div class="modal-head"><h2>\u{1F4CB} ${tr("\u0623\u0636\u0641 \u0644\u0642\u0627\u0626\u0645\u0629", "Add to list")}</h2><button class="icon-btn" id="lpClose">\u2715</button></div>
-      <div id="lpRows">${lists.length ? "" : `<p class="muted">${tr("\u0645\u0639\u0646\u062F\u0643\u0634 \u0642\u0648\u0627\u0626\u0645 \u0644\u0633\u0647. \u0627\u0639\u0645\u0644 \u0623\u0648\u0644 \u0648\u0627\u062D\u062F\u0629:", "No lists yet. Create your first:")}</p>`}</div>
-      <div class="search-row" style="margin-top:.8rem"><input id="lpName" placeholder="${tr("\u0627\u0633\u0645 \u0642\u0627\u0626\u0645\u0629 \u062C\u062F\u064A\u062F\u0629\u2026", "New list name\u2026")}"><button id="lpNew" class="btn btn-primary">\uFF0B</button></div></div>`;
-      const host = m.querySelector("#lpRows");
-      lists.forEach((l) => {
-        const lab = document.createElement("label");
-        lab.className = "lp-row";
-        const pb = peekBook();
-        const cur = !!pb && listHas(l.id, pb.id);
-        lab.innerHTML = `<input type="checkbox" ${cur ? "checked" : ""}><span>${esc(l.name)}</span><span class="muted">${l.bookIds.length}</span>`;
-        lab.querySelector("input").onchange = () => {
-          const { lib, created } = getBook2();
-          listToggleBook(l.id, lib.id);
-          if (created) {
-            m.remove();
-            location.hash = "#/book/" + lib.id;
-          } else {
-            onDone();
-            render();
-          }
-        };
-        host.appendChild(lab);
-      });
-      m.querySelector("#lpClose").onclick = () => {
-        m.remove();
-        onDone();
-      };
-      const mk = () => {
-        const name = m.querySelector("#lpName").value.trim();
-        if (!name) return;
-        const l = createList(name);
-        const { lib, created } = getBook2();
-        listToggleBook(l.id, lib.id);
-        if (created) {
-          m.remove();
-          location.hash = "#/book/" + lib.id;
-        } else {
-          onDone();
-          render();
-        }
-      };
-      m.querySelector("#lpNew").onclick = mk;
-      m.querySelector("#lpName").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") mk();
-      });
-    };
-    m.addEventListener("click", (e) => {
-      if (e.target === m) {
-        m.remove();
-        onDone();
-      }
-    });
-    document.body.appendChild(m);
-    render();
-  }
-
-  // src/lists.js
-  var $7 = (s, r = document) => r.querySelector(s);
-  function smart() {
-    const bs = getState().books;
-    return [
-      { id: "fav", icon: "\u2764", name: tr("\u0627\u0644\u0645\u0641\u0636\u0644\u0629", "Favorites"), books: bs.filter((b) => b.favorite) },
-      { id: "reading", icon: "\u{1F4D6}", name: t("shelf_reading"), books: bs.filter((b) => b.shelf === "reading") },
-      { id: "want", icon: "\u{1F516}", name: t("shelf_want"), books: bs.filter((b) => b.shelf === "want") },
-      { id: "finished", icon: "\u2705", name: tr("\u0642\u0631\u0627\u064A\u062A\u0647\u0645", "Read"), books: bs.filter((b) => b.shelf === "finished") }
-    ];
-  }
-  function custom() {
-    return getState().lists.map((l) => ({ id: l.id, icon: "\u{1F4CB}", name: l.name, desc: l.desc, custom: true, books: l.bookIds.map(getBook).filter(Boolean) }));
-  }
-  var mosaic = (books) => `<div class="ls-mosaic">${[0, 1, 2, 3].map((i) => books[i] && books[i].cover ? `<img src="${esc(books[i].cover)}" alt="">` : `<span></span>`).join("")}</div>`;
-  function renderLists(view, id) {
-    if (id) return renderOne(view, id);
-    const all = [...smart(), ...custom()];
-    view.innerHTML = `<div class="view-head"><h1>\u{1F4CB} ${t("navLists")}</h1></div>
-    <div class="stat-card" style="margin-bottom:1.2rem"><h3 style="margin-bottom:.6rem">${tr("\u0642\u0627\u0626\u0645\u0629 \u0642\u0631\u0627\u0621\u0629 \u062C\u062F\u064A\u062F\u0629", "New reading list")}</h3>
-      <div class="search-row"><input id="nlName" placeholder="${tr("\u0627\u0633\u0645 \u0627\u0644\u0642\u0627\u0626\u0645\u0629 (\u0645\u062B\u0644\u064B\u0627: \u0631\u0648\u0627\u064A\u0627\u062A \u0627\u0644\u0635\u064A\u0641)", "List name (e.g. Summer reads)")}"><input id="nlDesc" placeholder="${tr("\u0648\u0635\u0641 (\u0627\u062E\u062A\u064A\u0627\u0631\u064A)", "Description (optional)")}"><button id="nlBtn" class="btn btn-primary">\uFF0B ${t("create")}</button></div></div>
-    <div class="stat-card" style="margin-bottom:1.2rem"><h3 style="margin-bottom:.4rem">\u{1F4E5} ${tr("\u0627\u0633\u062A\u064A\u0631\u0627\u062F \u0645\u0643\u062A\u0628\u062A\u0643 \u0645\u0646 Goodreads", "Import your Goodreads library")}</h3>
-      <p class="muted" style="margin-bottom:.6rem">${tr("\u0641\u064A Goodreads: My Books \u2190 Import and export \u2190 Export Library\u060C \u0648\u0628\u0639\u062F\u064A\u0646 \u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 CSV \u0647\u0646\u0627. \u0628\u064A\u062A\u0639\u0645\u0644 \u0644\u0643\u0644 \u0631\u0641 \u0642\u0627\u0626\u0645\u0629\u060C \u0648\u0627\u0644\u062A\u0642\u064A\u064A\u0645\u0627\u062A \u0648\u0627\u0644\u062A\u0648\u0627\u0631\u064A\u062E \u0628\u062A\u062A\u0646\u0642\u0644.", "On Goodreads: My Books > Import and export > Export Library, then choose the CSV here. Each shelf becomes a list; ratings and dates carry over.")}</p>
-      <button id="grBtn" class="btn">\u2B06 ${tr("\u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 CSV", "Choose CSV file")}</button><input type="file" id="grIn" accept=".csv,text/csv" hidden></div>
-    <div class="ls-grid" id="lsGrid"></div>`;
-    const host = $7("#lsGrid", view);
-    all.forEach((l) => {
-      const c = document.createElement("div");
-      c.className = "ls-card";
-      c.innerHTML = `${mosaic(l.books)}<div class="ls-info"><div class="ls-name">${l.icon} ${esc(l.name)}</div><div class="muted">${l.books.length} ${tr("\u0643\u062A\u0627\u0628", "books")}${l.custom ? "" : " \xB7 " + tr("\u062A\u0644\u0642\u0627\u0626\u064A\u0629", "auto")}</div>${l.desc ? `<div class="muted">${esc(l.desc)}</div>` : ""}</div>`;
-      c.onclick = () => {
-        location.hash = "#/lists/" + l.id;
-      };
-      host.appendChild(c);
-    });
-    const mk = () => {
-      const n = $7("#nlName", view).value.trim();
-      if (!n) return;
-      const l = createList(n, $7("#nlDesc", view).value.trim());
-      location.hash = "#/lists/" + l.id;
-    };
-    $7("#nlBtn", view).onclick = mk;
-    $7("#grBtn", view).onclick = () => $7("#grIn", view).click();
-    $7("#grIn", view).onchange = async (e) => {
-      const f = e.target.files[0];
-      if (!f) return;
-      try {
-        const r = importGoodreads(await f.text());
-        toast(`\u2713 ${r.added} ${tr("\u0643\u062A\u0627\u0628 \u0627\u062A\u0636\u0627\u0641\u0648\u0627", "books added")} \xB7 ${r.lists} ${tr("\u0642\u0648\u0627\u0626\u0645", "lists")}`, 4e3);
-        renderLists(view);
-      } catch (err) {
-        toast("\u26A0 " + err.message, 4e3);
-      }
-    };
-    $7("#nlName", view).addEventListener("keydown", (e) => {
-      if (e.key === "Enter") mk();
-    });
-  }
-  function renderOne(view, id) {
-    const l = [...smart(), ...custom()].find((x) => x.id === id);
-    if (!l) {
-      location.hash = "#/lists";
-      return;
-    }
-    let sort = "manual";
-    const draw2 = () => {
-      let books = l.custom ? l.books.map((b) => b) : l.books.slice();
-      if (l.custom) books = getList(id).bookIds.map(getBook).filter(Boolean);
-      if (sort === "title") books.sort((a, b) => a.title.localeCompare(b.title));
-      else if (sort === "added") books.sort((a, b) => b.addedAt.localeCompare(a.addedAt));
-      else books = sortBooks(books, sort);
-      view.innerHTML = `<div class="view-head"><div><a href="#/lists" class="muted">\u2039 ${t("navLists")}</a><h1>${l.icon} ${esc(l.name)} <span class="count muted">(${books.length})</span></h1>${l.desc ? `<div class="muted">${esc(l.desc)}</div>` : ""}</div>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-        <select id="lsSort"><option value="manual">${tr("\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u0623\u0635\u0644\u064A", "Original order")}</option><option value="added">${tr("\u0627\u0644\u0623\u062D\u062F\u062B \u0625\u0636\u0627\u0641\u0629", "Newest first")}</option><option value="title">${tr("\u0623\u0628\u062C\u062F\u064A\u064B\u0627", "A\u2013Z")}</option><option value="year-desc">${tr("\u0627\u0644\u0623\u062D\u062F\u062B \u0625\u0635\u062F\u0627\u0631\u064B\u0627", "Newest release")}</option><option value="year-asc">${tr("\u0627\u0644\u0623\u0642\u062F\u0645 \u0625\u0635\u062F\u0627\u0631\u064B\u0627", "Oldest release")}</option><option value="rating-desc">${tr("\u0627\u0644\u0623\u0639\u0644\u0649 \u062A\u0642\u064A\u064A\u0645\u064B\u0627", "Highest rated")}</option><option value="rating-asc">${tr("\u0627\u0644\u0623\u0642\u0644 \u062A\u0642\u064A\u064A\u0645\u064B\u0627", "Lowest rated")}</option></select>
-        <button id="lsCopy" class="btn">\u29C9 ${tr("\u0646\u0633\u062E \u0643\u0646\u0635", "Copy as text")}</button>
-        ${l.custom ? `<button id="lsRename" class="btn">${t("edit")}</button><button id="lsDel" class="btn btn-danger">${t("delete")}</button>` : ""}</div></div>
-      <div class="grid" id="lsBooks"></div>`;
-      $7("#lsSort", view).value = sort;
-      $7("#lsSort", view).onchange = (e) => {
-        sort = e.target.value;
-        draw2();
-      };
-      const g = $7("#lsBooks", view);
-      if (!books.length) g.innerHTML = `<p class="muted">${l.custom ? tr('\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0641\u0627\u0636\u064A\u0629. \u0627\u0641\u062A\u062D \u0623\u064A \u0643\u062A\u0627\u0628 \u0648\u0627\u0636\u063A\u0637 "\u0627\u0644\u0642\u0648\u0627\u0626\u0645" \u0639\u0634\u0627\u0646 \u062A\u0636\u064A\u0641\u0647 \u0647\u0646\u0627.', 'Empty list. Open any book and tap "Lists" to add it here.') : "\u2014"}</p>`;
-      books.forEach((b, i) => {
-        const el = document.createElement("div");
-        el.className = "book-card";
-        el.innerHTML = `<div class="cover">${coverHTML(b)}</div>${b.favorite ? '<span class="shelf-badge fav">\u2764</span>' : ""}
-        <div class="book-meta"><div class="book-title">${esc(b.title)}</div><div class="book-author">${authorHTML(b.author)}</div>
-        <div class="ls-read"><button class="btn btn-primary btn-sm" data-act="read">\u25B6 ${t("startReading")}</button><button class="icon-btn" data-act="attach" title="${b.fileKey ? tr("\u063A\u064A\u0651\u0631 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628", "Change book file") : tr("\u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628 \u0645\u0646 \u062C\u0647\u0627\u0632\u0643", "Choose the book file from your device")}">${b.fileKey ? "\u{1F4CE}\u2713" : "\u{1F4CE}"}</button></div>
-        ${l.custom && sort === "manual" ? `<div class="ls-ctrl"><button class="icon-btn" data-d="-1">\u2191</button><button class="icon-btn" data-d="1">\u2193</button><button class="icon-btn" data-d="x">\u2715</button></div>` : ""}</div>`;
-        el.onclick = () => {
-          location.hash = "#/book/" + b.id;
-        };
-        el.querySelector("[data-act=read]").onclick = (ev) => {
-          ev.stopPropagation();
-          startReadingBook(b);
-        };
-        el.querySelector("[data-act=attach]").onclick = async (ev) => {
-          ev.stopPropagation();
-          if (await pickBookFile(b)) draw2();
-        };
-        el.querySelectorAll(".ls-ctrl button").forEach((btn) => btn.onclick = (ev) => {
-          ev.stopPropagation();
-          if (btn.dataset.d === "x") listToggleBook(id, b.id);
-          else listMove(id, b.id, +btn.dataset.d);
-          draw2();
-        });
-        g.appendChild(el);
-      });
-      $7("#lsCopy", view).onclick = async () => {
-        const txt = `${l.name}
-` + books.map((b, i) => `${i + 1}. ${b.title}${b.author ? " \u2014 " + b.author : ""}`).join("\n");
-        try {
-          await navigator.clipboard.writeText(txt);
-          toast(t("copied"));
-        } catch {
-          prompt("", txt);
-        }
-      };
-      if (l.custom) {
-        $7("#lsRename", view).onclick = () => {
-          const n = prompt(tr("\u0627\u0633\u0645 \u0627\u0644\u0642\u0627\u0626\u0645\u0629", "List name"), l.name);
-          if (!n || !n.trim()) return;
-          const d = prompt(tr("\u0627\u0644\u0648\u0635\u0641", "Description"), l.desc || "");
-          updateList(id, { name: n.trim(), desc: d || "" });
-          l.name = n.trim();
-          l.desc = d || "";
-          draw2();
-        };
-        $7("#lsDel", view).onclick = () => {
-          if (confirm(tr("\u062A\u062D\u0630\u0641 \u0627\u0644\u0642\u0627\u0626\u0645\u0629\u061F \u0627\u0644\u0643\u062A\u0628 \u0647\u062A\u0641\u0636\u0644 \u0641\u064A \u0645\u0643\u062A\u0628\u062A\u0643.", "Delete this list? Books stay in your library."))) {
-            deleteList(id);
-            location.hash = "#/lists";
-          }
-        };
-      }
-    };
-    draw2();
-  }
-  function parseCSV(text) {
-    const rows = [];
-    let row = [], f = "", q = false;
-    text = text.replace(/^\uFEFF/, "");
-    for (let i = 0; i < text.length; i++) {
-      const c = text[i];
-      if (q) {
-        if (c === '"') {
-          if (text[i + 1] === '"') {
-            f += '"';
-            i++;
-          } else q = false;
-        } else f += c;
-      } else if (c === '"') q = true;
-      else if (c === ",") {
-        row.push(f);
-        f = "";
-      } else if (c === "\n") {
-        row.push(f);
-        rows.push(row);
-        row = [];
-        f = "";
-      } else if (c !== "\r") f += c;
-    }
-    if (f || row.length) {
-      row.push(f);
-      rows.push(row);
-    }
-    return rows;
-  }
-  var cleanIsbn = (v) => (v || "").replace(/[="\s]/g, "");
-  function importGoodreads(text) {
-    const rows = parseCSV(text);
-    if (rows.length < 2) throw new Error("CSV \u0641\u0627\u0636\u064A");
-    const h = rows[0].map((x) => x.trim());
-    const ix = (n) => h.indexOf(n);
-    if (ix("Title") < 0) throw new Error(tr("\u0627\u0644\u0645\u0644\u0641 \u0645\u0634 \u062A\u0635\u062F\u064A\u0631 Goodreads", "Not a Goodreads export"));
-    const g = (r, n) => ix(n) >= 0 ? (r[ix(n)] || "").trim() : "";
-    const books = getState().books;
-    let added = 0;
-    const listIds = {};
-    const listFor = (name) => {
-      if (!listIds[name]) {
-        const ex = getState().lists.find((l) => l.name === name);
-        listIds[name] = (ex || createList(name, "Goodreads")).id;
-      }
-      return listIds[name];
-    };
-    const shelfMap = { read: "finished", "currently-reading": "reading", "to-read": "want" };
-    rows.slice(1).forEach((r) => {
-      const title = g(r, "Title").replace(/\s*\([^)]*#\d+[^)]*\)\s*$/, "").trim();
-      if (!title) return;
-      const author = g(r, "Author");
-      const isbn = cleanIsbn(g(r, "ISBN13")) || cleanIsbn(g(r, "ISBN"));
-      const ex = g(r, "Exclusive Shelf");
-      const rating = +g(r, "My Rating") || 0;
-      const dr = g(r, "Date Read").replace(/\//g, "-");
-      let b = books.find((x) => x.title.toLowerCase() === title.toLowerCase() && (x.author || "").toLowerCase() === author.toLowerCase());
-      if (!b) {
-        b = addBook({
-          title,
-          author,
-          format: "web",
-          source: "goodreads-csv",
-          isbn,
-          cover: "",
-          shelf: shelfMap[ex] || "want",
-          rating,
-          totalPages: +g(r, "Number of Pages") || 0,
-          review: g(r, "My Review"),
-          finishedAt: ex === "read" ? dr ? new Date(dr).toISOString() : (/* @__PURE__ */ new Date()).toISOString() : null
-        });
-        if (isNaN(Date.parse(b.finishedAt || "2000"))) b.finishedAt = (/* @__PURE__ */ new Date()).toISOString();
-        added++;
-      }
-      const shelves = new Set(g(r, "Bookshelves").split(",").map((x) => x.trim()).filter(Boolean));
-      if (ex) shelves.add(ex);
-      shelves.forEach((s) => {
-        const lid = listFor("Goodreads: " + s);
-        if (!listHas(lid, b.id)) listToggleBook(lid, b.id);
-      });
-    });
-    save();
-    return { added, lists: Object.keys(listIds).length };
-  }
-
-  // src/dbfile.js
-  var FORMAT = "qari-db";
-  var handle = null;
-  var status = "none";
-  var lastSaved = null;
-  var lastError = "";
-  var timer = null;
-  var saving = false;
-  var again = false;
-  var subs = /* @__PURE__ */ new Set();
-  var set = (s, err = "") => {
-    status = s;
-    lastError = err;
-    subs.forEach((f) => {
-      try {
-        f();
-      } catch {
-      }
-    });
-  };
-  var supported = () => typeof window.showSaveFilePicker === "function";
-  var info = () => ({ status, name: handle ? handle.name : "", lastSaved, lastError, supported: supported() });
-  var onStatus = (fn) => subs.add(fn);
-  async function build() {
-    const zip = new JSZip();
-    zip.file("manifest.json", JSON.stringify({ format: FORMAT, version: 1, savedAt: (/* @__PURE__ */ new Date()).toISOString() }));
-    zip.file("data.json", JSON.stringify(snapshot()));
-    const keys = await allFileKeys();
-    const used = new Set(getState().books.map((b) => b.fileKey).concat((getState().images || []).map((i) => i.fileKey)).filter(Boolean));
-    for (const k of keys) {
-      if (!used.has(k)) continue;
-      const b = await getFile(k);
-      if (b) zip.file("files/" + k, b, { binary: true });
-    }
-    return zip.generateAsync({ type: "blob", compression: "STORE" });
-  }
-  async function writeTo(h) {
-    const blob = await build();
-    const w = await h.createWritable();
-    await w.write(blob);
-    await w.close();
-    lastSaved = /* @__PURE__ */ new Date();
-  }
-  async function saveNow() {
-    if (!handle) return false;
-    if (saving) {
-      again = true;
-      return false;
-    }
-    saving = true;
-    clearTimeout(timer);
-    try {
-      if (await handle.queryPermission({ mode: "readwrite" }) !== "granted") {
-        set("needs-permission");
-        return false;
-      }
-      set("saving");
-      await writeTo(handle);
-      set("ready");
-      return true;
-    } catch (e) {
-      console.error(e);
-      set("error", e.message || String(e));
-      return false;
-    } finally {
-      saving = false;
-      if (again) {
-        again = false;
-        schedule();
-      }
-    }
-  }
-  function schedule() {
-    if (!handle || status === "needs-permission") return;
-    clearTimeout(timer);
-    timer = setTimeout(saveNow, 2500);
-  }
-  async function grant() {
-    if (!handle) return;
-    if (await handle.requestPermission({ mode: "readwrite" }) === "granted") {
-      set("ready");
-      await saveNow();
-    }
-  }
-  async function createFile() {
-    const h = await showSaveFilePicker({ suggestedName: "qari-library.qari", types: [{ description: "Qari database", accept: { "application/zip": [".qari"] } }] });
-    handle = h;
-    await metaPut("handle", h).catch(() => {
-    });
-    set("ready");
-    await saveNow();
-  }
-  async function restoreFrom(file) {
-    const zip = await JSZip.loadAsync(await file.arrayBuffer());
-    const mf = zip.file("manifest.json"), dj = zip.file("data.json");
-    if (!mf || !dj) throw new Error("not a qari database");
-    const data = JSON.parse(await dj.async("text"));
-    await clearFiles();
-    const names = Object.keys(zip.files).filter((n) => n.startsWith("files/") && !zip.files[n].dir);
-    for (const n of names) await putFile(n.slice(6), await zip.files[n].async("blob"));
-    replaceState(data);
-    return { books: data.books.length, files: names.length };
-  }
-  async function openFile() {
-    const [h] = await showOpenFilePicker({ types: [{ description: "Qari database", accept: { "application/zip": [".qari"] } }] });
-    if (await h.requestPermission({ mode: "readwrite" }) !== "granted") throw new Error("permission denied");
-    const r = await restoreFrom(await h.getFile());
-    handle = h;
-    await metaPut("handle", h).catch(() => {
-    });
-    set("ready");
-    return r;
-  }
-  async function disconnect() {
-    handle = null;
-    clearTimeout(timer);
-    await metaDel("handle");
-    set("none");
-  }
-  async function downloadBackup() {
-    const blob = await build();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "qari-library-" + (/* @__PURE__ */ new Date()).toISOString().slice(0, 10) + ".qari";
-    a.click();
-    lastSaved = /* @__PURE__ */ new Date();
-    set(status);
-  }
-  async function init() {
-    if (!supported()) {
-      set("unsupported");
-    } else {
-      try {
-        handle = await metaGet("handle");
-        if (handle) set(await handle.queryPermission({ mode: "readwrite" }) === "granted" ? "ready" : "needs-permission");
-      } catch (e) {
-        handle = null;
-      }
-    }
-    onChange(schedule);
-    onFilesChange(schedule);
-    window.addEventListener("beforeunload", () => {
-      if (handle && timer) saveNow();
-    });
-  }
-
-  // src/sync.js
-  var KEY2 = "qari.sync";
-  var API = "https://api.github.com";
-  var DATA_PATH = "data.json";
-  var MAX_FILE = 40 * 1024 * 1024;
-  var PUSH_DELAY = 12e3;
-  var POLL_MS = 9e4;
-  var meta = { token: "", owner: "", repo: "qari-data", sha: null, hash: null, changedAt: 0, lastSync: 0 };
-  var status2 = "off";
-  var lastError2 = "";
-  var lastNote = "";
-  var conflictNote = "";
-  var conflictBackup = null;
-  var busy = false;
-  var rerun = false;
-  var applying = false;
-  var pushTimer = null;
-  var pollTimer = null;
-  var subs2 = /* @__PURE__ */ new Set();
-  var hooks = { onApplied: () => {
-  }, confirm: (msg) => window.confirm(msg), lang: () => "ar" };
-  var emit = () => subs2.forEach((f) => {
-    try {
-      f();
-    } catch {
-    }
-  });
-  var setStatus = (s, err = "") => {
-    status2 = s;
-    lastError2 = err;
-    emit();
-  };
-  var saveMeta = () => localStorage.setItem(KEY2, JSON.stringify(meta));
-  var tt = (ar2, en) => hooks.lang() === "ar" ? ar2 : en;
-  var onStatus2 = (fn) => subs2.add(fn);
-  var configure = (h) => Object.assign(hooks, h);
-  var info2 = () => ({
-    status: status2,
-    error: lastError2,
-    note: lastNote,
-    conflictNote,
-    connected: !!meta.token,
-    owner: meta.owner,
-    repo: meta.repo,
-    lastSync: meta.lastSync,
-    hasConflictBackup: !!conflictBackup
-  });
-  function canon(v) {
-    if (Array.isArray(v)) return "[" + v.map(canon).join(",") + "]";
-    if (v && typeof v === "object") return "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + canon(v[k])).join(",") + "}";
-    return JSON.stringify(v);
-  }
-  function syncState(s) {
-    const c = JSON.parse(JSON.stringify(s));
-    delete c.metaCache;
-    if (c.settings) delete c.settings.gbKey;
-    return c;
-  }
-  var hashNow = () => canon(syncState(getState()));
-  var isEmptyLib = () => {
-    const s = getState();
-    return !s.books.length && !s.lists.length && !s.highlights.length && !s.comments.length;
-  };
-  var b64 = (str) => {
-    const bytes = new TextEncoder().encode(str);
-    let bin = "";
-    for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
-    return btoa(bin);
-  };
-  var unb64 = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, "")), (c) => c.charCodeAt(0)));
-  var blobToB64 = (blob) => new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(String(r.result).split(",")[1]);
-    r.onerror = () => rej(r.error);
-    r.readAsDataURL(blob);
-  });
-  var enc = (p) => p.split("/").map(encodeURIComponent).join("/");
-  async function gh(method, path, body, accept) {
-    const r = await fetch(API + path + (method === "GET" ? (path.includes("?") ? "&" : "?") + "_=" + Date.now() : ""), {
-      method,
-      cache: "no-store",
-      headers: Object.assign({ Authorization: "Bearer " + meta.token, Accept: accept || "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }, body ? { "Content-Type": "application/json" } : {}),
-      body: body ? JSON.stringify(body) : void 0
-    });
-    return r;
-  }
-  var repoPath = () => `/repos/${encodeURIComponent(meta.owner)}/${encodeURIComponent(meta.repo)}`;
-  async function errOf(r) {
-    let m = "";
-    try {
-      m = (await r.json()).message || "";
-    } catch {
-    }
-    return `GitHub ${r.status}${m ? ": " + m : ""}`;
-  }
-  async function getRemote() {
-    const r = await gh("GET", `${repoPath()}/contents/${DATA_PATH}`);
-    if (r.status === 404) return null;
-    if (!r.ok) throw new Error(await errOf(r));
-    const j = await r.json();
-    let text;
-    if (j.encoding === "base64" && j.content) text = unb64(j.content);
-    else {
-      const rr = await gh("GET", `${repoPath()}/contents/${DATA_PATH}`, null, "application/vnd.github.raw");
-      if (!rr.ok) throw new Error(await errOf(rr));
-      text = await rr.text();
-    }
-    const doc = JSON.parse(text);
-    if (!doc || doc.format !== "qari-sync" || !doc.state || !Array.isArray(doc.state.books)) throw new Error(tt("\u0627\u0644\u0645\u0644\u0641 \u0641\u064A \u0627\u0644\u0631\u064A\u0628\u0648 \u0645\u0634 \u0628\u062A\u0627\u0639 \u0642\u0627\u0631\u0626", "data.json in the repo is not a Qari file"));
-    return { sha: j.sha, doc };
-  }
-  async function pushData(sha) {
-    const doc = { format: "qari-sync", version: 1, savedAt: (/* @__PURE__ */ new Date()).toISOString(), state: syncState(getState()) };
-    const hash = canon(doc.state);
-    const body = { message: "Qari sync " + doc.savedAt, content: b64(JSON.stringify(doc)) };
-    if (sha) body.sha = sha;
-    const r = await gh("PUT", `${repoPath()}/contents/${DATA_PATH}`, body);
-    if (r.status === 409 || r.status === 422) return { conflict: true };
-    if (!r.ok) throw new Error(await errOf(r));
-    const j = await r.json();
-    meta.sha = j.content.sha;
-    meta.hash = hash;
-    meta.lastSync = Date.now();
-    saveMeta();
-    return { ok: true };
-  }
-  async function applyRemote(remote, why) {
-    if (!isEmptyLib() && canon(syncState(remote.doc.state)) !== hashNow()) {
-      conflictBackup = JSON.stringify({ format: "qari-sync", savedAt: (/* @__PURE__ */ new Date()).toISOString(), state: syncState(getState()) });
-    }
-    const local = getState();
-    const data = Object.assign({}, remote.doc.state, { metaCache: local.metaCache || {} });
-    data.settings = Object.assign({}, data.settings || {}, { gbKey: local.settings && local.settings.gbKey || "" });
-    applying = true;
-    try {
-      replaceState(data);
-    } finally {
-      applying = false;
-    }
-    meta.sha = remote.sha;
-    meta.hash = hashNow();
-    meta.lastSync = Date.now();
-    meta.changedAt = 0;
-    saveMeta();
-    try {
-      hooks.onApplied();
-    } catch {
-    }
-    lastNote = why || "";
-  }
-  async function syncFiles() {
-    const st = getState();
-    const books = st.books.filter((b) => b.fileKey && b.format !== "web").concat((st.images || []).filter((i) => i.fileKey));
-    if (!books.length) return;
-    const r = await gh("GET", `${repoPath()}/contents/files`);
-    let remote = /* @__PURE__ */ new Set();
-    if (r.ok) (await r.json()).forEach((f) => remote.add(f.name));
-    else if (r.status !== 404) throw new Error(await errOf(r));
-    const local = new Set(await allFileKeys());
-    let skipped = 0;
-    for (const b of books) {
-      const k = b.fileKey;
-      if (local.has(k) && !remote.has(k)) {
-        const blob = await getFile(k);
-        if (!blob) continue;
-        if (blob.size > MAX_FILE) {
-          skipped++;
-          continue;
-        }
-        const pr = await gh("PUT", `${repoPath()}/contents/files/${enc(k)}`, { message: "Qari book file " + k, content: await blobToB64(blob) });
-        if (!pr.ok && pr.status !== 422) throw new Error(await errOf(pr));
-      } else if (!local.has(k) && remote.has(k)) {
-        const dr = await gh("GET", `${repoPath()}/contents/files/${enc(k)}`, null, "application/vnd.github.raw");
-        if (!dr.ok) throw new Error(await errOf(dr));
-        await putFile(k, await dr.blob());
-      }
-    }
-    if (skipped) lastNote = tt(`${skipped} \u0643\u062A\u0627\u0628 \u0623\u0643\u0628\u0631 \u0645\u0646 40MB \u0645\u0627 \u0627\u062A\u0631\u0641\u0639\u0634`, `${skipped} book file(s) over 40MB were not uploaded`);
-  }
-  async function syncNow(reason = "manual") {
-    if (!meta.token) return false;
-    if (busy) {
-      rerun = true;
-      return false;
-    }
-    busy = true;
-    clearTimeout(pushTimer);
-    lastNote = "";
-    setStatus("syncing");
-    try {
-      const remote = await getRemote();
-      const h = hashNow();
-      if (!remote) {
-        if (!isEmptyLib()) {
-          const p = await pushData(null);
-          if (p.conflict) {
-            rerun = true;
-          }
-        }
-      } else if (!meta.sha) {
-        if (isEmptyLib() || canon(syncState(remote.doc.state)) === h) await applyRemote(remote, "");
-        else if (hooks.confirm(tt("\u0627\u0644\u0631\u064A\u0628\u0648 \u0641\u064A\u0647 \u0628\u064A\u0627\u0646\u0627\u062A \u0648\u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647 \u0643\u0645\u0627\u0646 \u0641\u064A\u0647 \u0628\u064A\u0627\u0646\u0627\u062A.\nOK = \u0627\u0633\u062A\u062E\u062F\u0645 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0631\u064A\u0628\u0648 (\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u062C\u0647\u0627\u0632 \u0628\u062A\u062A\u062D\u0641\u0638 \u0646\u0633\u062E\u0629 \u062A\u0642\u062F\u0631 \u062A\u0646\u0632\u0644\u0647\u0627).\nCancel = \u0627\u0631\u0641\u0639 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u062C\u0647\u0627\u0632 \u0641\u0648\u0642 \u0627\u0644\u0631\u064A\u0628\u0648.", "The repo has data and this device has data too.\nOK = use the repo data (this device's data is kept as a downloadable copy).\nCancel = upload this device's data over the repo."))) {
-          await applyRemote(remote, tt("\u0627\u062A\u0633\u062A\u062E\u062F\u0645\u062A \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0631\u064A\u0628\u0648", "Repo data was used"));
-        } else {
-          const p = await pushData(remote.sha);
-          if (p.conflict) rerun = true;
-        }
-      } else if (remote.sha === meta.sha) {
-        if (h !== meta.hash) {
-          const p = await pushData(meta.sha);
-          if (p.conflict) rerun = true;
-        }
-      } else {
-        const dirty = h !== meta.hash;
-        if (canon(syncState(remote.doc.state)) === h) {
-          meta.sha = remote.sha;
-          meta.hash = h;
-          meta.lastSync = Date.now();
-          saveMeta();
-        } else if (!dirty) await applyRemote(remote, "");
-        else {
-          const remoteAt = Date.parse(remote.doc.savedAt) || 0;
-          if (remoteAt >= (meta.changedAt || 0)) {
-            await applyRemote(remote, "");
-            conflictNote = tt("\u26A0 \u062A\u0639\u0627\u0631\u0636: \u0627\u062A\u0639\u062F\u0651\u0644 \u0645\u0646 \u062C\u0647\u0627\u0632\u064A\u0646. \u0627\u062A\u0627\u062E\u062F\u062A \u0627\u0644\u0646\u0633\u062E\u0629 \u0627\u0644\u0623\u062D\u062F\u062B (\u0645\u0646 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u062A\u0627\u0646\u064A) \u0648\u0646\u0633\u062E\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647 \u0627\u062A\u062D\u0641\u0638\u062A \u0648\u062A\u0642\u062F\u0631 \u062A\u0646\u0632\u0644\u0647\u0627.", "\u26A0 Conflict: edited on two devices. The newer version (from the other device) was kept; this device's copy was saved and can be downloaded.");
-          } else {
-            const p = await pushData(remote.sha);
-            if (p.conflict) rerun = true;
-            conflictNote = tt("\u26A0 \u062A\u0639\u0627\u0631\u0636: \u0627\u062A\u0639\u062F\u0651\u0644 \u0645\u0646 \u062C\u0647\u0627\u0632\u064A\u0646. \u0627\u062A\u0627\u062E\u062F\u062A \u0627\u0644\u0646\u0633\u062E\u0629 \u0627\u0644\u0623\u062D\u062F\u062B (\u0628\u062A\u0627\u0639\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647) \u0648\u0627\u062A\u062D\u0641\u0638\u062A \u0641\u064A \u0627\u0644\u0631\u064A\u0628\u0648. \u0627\u0644\u0642\u062F\u064A\u0645\u0629 \u0645\u0648\u062C\u0648\u062F\u0629 \u0641\u064A \u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0631\u064A\u0628\u0648 (commits).", "\u26A0 Conflict: edited on two devices. The newer version (this device) was kept and pushed. The older one is in the repo history (commits).");
-          }
-          conflictNote = conflictNote + " (" + (/* @__PURE__ */ new Date()).toLocaleTimeString() + ")";
-        }
-      }
-      if (!rerun) await syncFiles();
-      setStatus("idle");
-      return true;
-    } catch (e) {
-      console.error(e);
-      setStatus("error", e.message || String(e));
-      return false;
-    } finally {
-      busy = false;
-      if (rerun) {
-        rerun = false;
-        setTimeout(() => syncNow("rerun"), 500);
-      }
-    }
-  }
-  function onLocalChange() {
-    if (applying || !meta.token) return;
-    if (hashNow() === meta.hash) return;
-    meta.changedAt = Date.now();
-    saveMeta();
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => syncNow("auto"), PUSH_DELAY);
-  }
-  async function connect(owner, repo, token) {
-    owner = (owner || "").trim();
-    repo = (repo || "").trim();
-    token = (token || "").trim();
-    if (!owner || !repo || !token) throw new Error(tt("\u0627\u0645\u0644\u0627 \u0627\u0644\u062E\u0627\u0646\u0627\u062A \u0627\u0644\u062A\u0644\u0627\u062A\u0629", "Fill all three fields"));
-    const prev2 = meta;
-    meta = { token, owner, repo, sha: null, hash: null, changedAt: 0, lastSync: 0 };
-    try {
-      const r = await gh("GET", repoPath());
-      if (r.status === 404 || r.status === 403 || r.status === 401) throw new Error(tt("\u0645\u0634 \u0642\u0627\u062F\u0631 \u0623\u062F\u062E\u0644 \u0639\u0644\u0649 \u0627\u0644\u0631\u064A\u0628\u0648. \u0627\u062A\u0623\u0643\u062F \u0645\u0646 \u0627\u0644\u0627\u0633\u0645 \u0648\u0627\u0644\u062A\u0648\u0643\u0646 \u0648\u0625\u0646\u0647 \u0645\u062F\u0651\u064A Contents \u0642\u0631\u0627\u0621\u0629 \u0648\u0643\u062A\u0627\u0628\u0629 \u0644\u0644\u0631\u064A\u0628\u0648 \u062F\u0647.", "Cannot reach the repo. Check the name, and that the token has Contents read and write on it."));
-      if (!r.ok) throw new Error(await errOf(r));
-      const j = await r.json();
-      if (!j.private) throw new Error(tt("\u0627\u0644\u0631\u064A\u0628\u0648 \u062F\u0647 \u0639\u0627\u0645 (Public). \u0628\u064A\u0627\u0646\u0627\u062A\u0643 \u0644\u0627\u0632\u0645 \u062A\u062A\u062D\u0641\u0638 \u0641\u064A \u0631\u064A\u0628\u0648 \u062E\u0627\u0635 (Private).", "This repo is public. Your data must go to a private repo."));
-      if (j.permissions && j.permissions.push === false) throw new Error(tt("\u0627\u0644\u062A\u0648\u0643\u0646 \u0645\u0641\u064A\u0647\u0648\u0634 \u0635\u0644\u0627\u062D\u064A\u0629 \u0643\u062A\u0627\u0628\u0629 \u0639\u0644\u0649 \u0627\u0644\u0631\u064A\u0628\u0648.", "The token has no write access to the repo."));
-    } catch (e) {
-      meta = prev2;
-      throw e;
-    }
-    saveMeta();
-    setStatus("idle");
-    startPolling();
-    return syncNow("connect");
-  }
-  function disconnect2() {
-    meta = { token: "", owner: "", repo: "qari-data", sha: null, hash: null, changedAt: 0, lastSync: 0 };
-    localStorage.removeItem(KEY2);
-    clearTimeout(pushTimer);
-    clearInterval(pollTimer);
-    conflictBackup = null;
-    lastNote = "";
-    conflictNote = "";
-    setStatus("off");
-  }
-  function dismissConflict() {
-    conflictNote = "";
-    emit();
-  }
-  function downloadConflictBackup() {
-    if (!conflictBackup) return;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([conflictBackup], { type: "application/json" }));
-    a.download = "qari-local-copy-" + (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace(/[:T]/g, "-") + ".json";
-    a.click();
-  }
-  var savedDefaults = () => ({ owner: meta.owner, repo: meta.repo });
-  function startPolling() {
-    clearInterval(pollTimer);
-    pollTimer = setInterval(() => {
-      if (document.visibilityState === "visible" && !busy) syncNow("poll");
-    }, POLL_MS);
-  }
-  function init2() {
-    try {
-      const raw = localStorage.getItem(KEY2);
-      if (raw) Object.assign(meta, JSON.parse(raw));
-    } catch {
-    }
-    onChange(onLocalChange);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") syncNow("visible");
-    });
-    window.addEventListener("online", () => syncNow("online"));
-    if (meta.token) {
-      setStatus("idle");
-      startPolling();
-      syncNow("start");
-    }
   }
 
   // node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
@@ -25799,14 +24770,14 @@ ${suffix}`;
   var profile = null;
   var profileError = "";
   var banned = false;
-  var subs3 = /* @__PURE__ */ new Set();
-  var emit2 = () => subs3.forEach((f) => {
+  var subs = /* @__PURE__ */ new Set();
+  var emit = () => subs.forEach((f) => {
     try {
       f();
     } catch {
     }
   });
-  var onAuthChange = (fn) => subs3.add(fn);
+  var onAuthChange = (fn) => subs.add(fn);
   var getUser = () => user;
   var getProfile = () => profile;
   var getProfileError = () => profileError;
@@ -25826,13 +24797,13 @@ ${suffix}`;
     profileError = "";
     banned = false;
     if (!user) {
-      emit2();
+      emit();
       return null;
     }
     const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
     if (error) {
       profileError = error.message;
-      emit2();
+      emit();
       return null;
     }
     profile = data || null;
@@ -25841,10 +24812,10 @@ ${suffix}`;
       await supabase.auth.signOut();
       user = null;
       profile = null;
-      emit2();
+      emit();
       return null;
     }
-    emit2();
+    emit();
     return profile;
   }
   async function signUp(email, password, displayName) {
@@ -25881,14 +24852,14 @@ ${suffix}`;
     user = null;
     profile = null;
     banned = false;
-    emit2();
+    emit();
   }
   async function updateDisplayName(name) {
     if (!user) return null;
     const { data, error } = await supabase.from("profiles").update({ display_name: (name || "").trim() }).eq("id", user.id).select().single();
     if (error) throw new Error(error.message);
     profile = data;
-    emit2();
+    emit();
     return profile;
   }
   async function listUsers() {
@@ -25916,11 +24887,1395 @@ ${suffix}`;
         else {
           profile = null;
           banned = false;
-          emit2();
+          emit();
         }
       }
     });
+    emit();
+  }
+
+  // src/series.js
+  var OL2 = "https://openlibrary.org";
+  var WD = "https://query.wikidata.org/sparql";
+  async function getJSON2(url, ms = 3e4) {
+    const ctl = new AbortController();
+    const timer2 = setTimeout(() => ctl.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: ctl.signal });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } finally {
+      clearTimeout(timer2);
+    }
+  }
+  var normTitle = (s) => String(s || "").toLowerCase().replace(/\(.*?\)/g, " ").replace(/^(the|a|an)\s+/, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  var normName = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  var esc2 = (s) => String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  var qid = (u) => (u || "").split("/").pop();
+  async function sparql(q) {
+    let d;
+    try {
+      d = await getJSON2(WD + "?format=json&query=" + encodeURIComponent(q));
+    } catch (e) {
+      if (!/429|503/.test(e.message)) throw e;
+      await new Promise((r) => setTimeout(r, 6e3));
+      d = await getJSON2(WD + "?format=json&query=" + encodeURIComponent(q));
+    }
+    return d.results && d.results.bindings || [];
+  }
+  var memo = /* @__PURE__ */ new Map();
+  async function authorQid(name, olAuthorKey) {
+    const k = "a:" + (olAuthorKey || name);
+    if (memo.has(k)) return memo.get(k);
+    const p = (async () => {
+      if (olAuthorKey) {
+        try {
+          const a = await getJSON2(`${OL2}/authors/${String(olAuthorKey).replace("/authors/", "")}.json`, 9e3);
+          const w = a.remote_ids && a.remote_ids.wikidata;
+          if (w) return w;
+        } catch {
+        }
+      }
+      return "";
+    })();
+    memo.set(k, p);
+    return p;
+  }
+  function parseOrd(v) {
+    if (!v) return null;
+    const m = String(v).match(/\d+(\.\d+)?/);
+    return m ? parseFloat(m[0]) : null;
+  }
+  async function seriesByAuthor({ name, olAuthorKey }) {
+    const k = "s:" + normName(name);
+    if (memo.has(k)) return memo.get(k);
+    const ck = "qari.series." + normName(name);
+    try {
+      const c = JSON.parse(localStorage.getItem(ck) || "null");
+      if (c && Date.now() - c.t < 7 * 864e5) {
+        const r = Promise.resolve(c.v);
+        memo.set(k, r);
+        return r;
+      }
+    } catch {
+    }
+    const p = (async () => {
+      const q = await authorQid(name, olAuthorKey);
+      const who = q ? `VALUES ?au { wd:${q} }` : `?au rdfs:label "${esc2(name)}"@en. ?au wdt:P31 wd:Q5.`;
+      const own = await sparql(`SELECT DISTINCT ?series WHERE { ${who} ?b0 wdt:P50 ?au; wdt:P179 ?series. } LIMIT 40`);
+      const ids = own.map((r) => qid(r.series.value)).filter((x) => /^Q\d+$/.test(x));
+      if (!ids.length) return [];
+      const rows = await sparql(`SELECT ?series ?seriesLabel ?book ?bookLabel ?ord ?date ?authorLabel WHERE {
+      VALUES ?series { ${ids.map((i) => "wd:" + i).join(" ")} }
+      ?book p:P179 ?st. ?st ps:P179 ?series. OPTIONAL { ?st pq:P1545 ?ord } OPTIONAL { ?book wdt:P577 ?date } OPTIONAL { ?book wdt:P50 ?author }
+      SERVICE wikibase:label { bd:serviceParam wikibase:language "en,ar". } }`);
+      const by = /* @__PURE__ */ new Map();
+      for (const r of rows) {
+        const sid = qid(r.series.value);
+        if (/^Q\d+$/.test(r.seriesLabel.value)) continue;
+        const s = by.get(sid) || { id: sid, name: r.seriesLabel.value, books: /* @__PURE__ */ new Map() };
+        const bid = qid(r.book.value);
+        const cur = s.books.get(bid) || { id: bid, title: r.bookLabel.value, ord: null, year: "", author: "" };
+        const o = parseOrd(r.ord && r.ord.value);
+        if (o != null && cur.ord == null) cur.ord = o;
+        if (r.date && !cur.year) cur.year = (r.date.value.match(/^-?\d{1,4}/) || [""])[0];
+        if (r.authorLabel && !cur.author && !/^Q\d+$/.test(r.authorLabel.value)) cur.author = r.authorLabel.value;
+        s.books.set(bid, cur);
+        by.set(sid, s);
+      }
+      return [...by.values()].map((s) => {
+        let books = [...s.books.values()].filter((b) => !/^Q\d+$/.test(b.title));
+        const latin = (x) => /[A-Za-z]/.test(x);
+        const nLatin = books.filter((b) => latin(b.title)).length, preferLatin = nLatin * 2 >= books.length;
+        const seen = /* @__PURE__ */ new Map();
+        for (const b of books) {
+          if (b.ord == null) continue;
+          const prev2 = seen.get(b.ord);
+          if (!prev2 || latin(b.title) === preferLatin && latin(prev2.title) !== preferLatin) seen.set(b.ord, b);
+        }
+        books = books.filter((b) => b.ord == null || seen.get(b.ord) === b);
+        const anyOrd = books.some((b) => b.ord != null);
+        if (anyOrd) books = books.filter((b) => b.ord != null || !/\bseries\b|audiobook|omnibus|collection/i.test(b.title));
+        books.sort((a, b) => anyOrd ? (a.ord ?? 1e9) - (b.ord ?? 1e9) || (a.year || 9999) - (b.year || 9999) : (a.year || 9999) - (b.year || 9999));
+        return { id: s.id, name: s.name, books, ordered: anyOrd };
+      }).filter((s) => s.books.length > 1 && s.books.length <= 30).filter((s) => {
+        const lat = (x) => /[A-Za-z]/.test(x), authLat = lat(name);
+        return s.books.filter((b) => lat(b.title) === authLat).length * 2 >= s.books.length;
+      }).sort((a, b) => b.books.length - a.books.length);
+    })();
+    memo.set(k, p);
+    p.then((v) => {
+      try {
+        localStorage.setItem(ck, JSON.stringify({ t: Date.now(), v }));
+      } catch {
+      }
+    }, () => memo.delete(k));
+    return p;
+  }
+  async function seriesForBook({ title, author, olAuthorKey }) {
+    const list = await seriesByAuthor({ name: author, olAuthorKey });
+    const t2 = normTitle(title);
+    if (!t2) return null;
+    const sub = (x) => normTitle(String(x).split(/[:\u2014]| - /)[0]);
+    for (const eq of [(x) => normTitle(x) === t2, (x) => sub(x) === sub(title)]) {
+      for (const s of list) {
+        const i = s.books.findIndex((b) => eq(b.title));
+        if (i >= 0) return { series: s, index: i, position: s.books[i].ord, total: s.books.length };
+      }
+    }
+    return null;
+  }
+
+  // src/author.js
+  var OL3 = "https://openlibrary.org";
+  var $5 = (s, r = document) => r.querySelector(s);
+  var TOKEN = 0;
+  async function openBookByTitle(title, author) {
+    toast(t("loading"));
+    const f = await findCover(title, author).catch(() => null);
+    if (f && f.olKey) location.hash = "#/work/" + f.olKey;
+    else toast(tr("\u0645\u0634 \u0644\u0627\u0642\u064A \u0635\u0641\u062D\u0629 \u0644\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 \u0641\u064A Open Library", "No Open Library page found for this book"), 3e3);
+  }
+  function seriesBoxHTML(s, current, author) {
+    const cur = String(current || "").toLowerCase();
+    return `<div class="series-card"><h3>\u{1F4DA} ${esc(s.name)} <small class="muted">\xB7 ${s.books.length} ${tr("\u0643\u062A\u0628", "books")}</small></h3>
+    <ol class="series-list">${s.books.map((b, i) => `<li ${b.title.toLowerCase() === cur ? 'class="cur"' : ""}><a href="#" data-title="${esc(b.title)}" data-author="${esc(b.author || author || "")}"><span class="sn">${b.ord != null ? b.ord : i + 1}</span> ${esc(b.title)}${b.year ? ` <span class="muted">(${esc(b.year)})</span>` : ""}</a></li>`).join("")}</ol>
+    <div class="muted" style="font-size:.75rem">${s.ordered ? tr("\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u062D\u0633\u0628 \u0631\u0642\u0645 \u0627\u0644\u0643\u062A\u0627\u0628 \u0641\u064A Wikidata.", "Order = book number recorded on Wikidata.") : tr("\u0645\u0641\u064A\u0634 \u062A\u0631\u0642\u064A\u0645 \u0645\u0633\u062C\u0651\u0644\u060C \u0641\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u062D\u0633\u0628 \u0633\u0646\u0629 \u0627\u0644\u0646\u0634\u0631.", "No book numbers recorded, so ordered by publication year.")}</div></div>`;
+  }
+  function bindSeriesLinks(root) {
+    root.querySelectorAll(".series-list a").forEach((a) => a.onclick = (e) => {
+      e.preventDefault();
+      openBookByTitle(a.dataset.title, a.dataset.author);
+    });
+  }
+  async function renderAuthorPage(view, rawName) {
+    const name = decodeURIComponent(rawName || "").trim();
+    const tok = ++TOKEN;
+    view.innerHTML = `<div class="view-head"><button class="btn" id="auBack">\u2190 ${tr("\u0631\u062C\u0648\u0639", "Back")}</button><h1 dir="auto">${esc(name)}</h1></div>
+    <div class="chart-box" id="auBio" hidden></div>
+    <div id="auSeries"><p class="muted">${tr("\u0628\u062F\u0648\u0651\u0631 \u0639\u0644\u0649 \u0627\u0644\u0633\u0644\u0627\u0633\u0644\u2026", "Looking for series\u2026")}</p></div>
+    <h2 class="bp-h2">${tr("\u0643\u0644 \u0627\u0644\u0643\u062A\u0628", "All books")}</h2>
+    <div class="grid" id="auGrid"><p class="muted">${t("loading")}</p></div><div id="auMore"></div>`;
+    $5("#auBack", view).onclick = () => history.length > 1 ? history.back() : location.hash = "#/discover";
+    const key = await resolveAuthorKey(name);
+    if (tok !== TOKEN) return;
+    if (key) fetch(`${OL3}/authors/${String(key).replace("/authors/", "")}.json`).then((r) => r.json()).then((a) => {
+      if (tok !== TOKEN) return;
+      const bio = typeof a.bio === "string" ? a.bio : a.bio && a.bio.value || "";
+      const photo = a.photos && a.photos[0] > 0 ? `https://covers.openlibrary.org/a/id/${a.photos[0]}-M.jpg` : "";
+      if (!bio && !photo) return;
+      const box = $5("#auBio", view);
+      box.hidden = false;
+      box.innerHTML = `<div class="bp-author">${photo ? `<img src="${esc(photo)}" alt="">` : ""}<div><strong>${esc(a.name || name)}</strong><div class="muted">${esc([a.birth_date, a.death_date].filter(Boolean).join(" \u2013 "))}</div></div></div>${bio ? `<p class="bp-bio" dir="auto">${esc(bio.split("\n")[0].slice(0, 700))}</p>` : ""}`;
+    }).catch(() => {
+    });
+    seriesByAuthor({ name: firstAuthorName(name), olAuthorKey: key }).then((list) => {
+      if (tok !== TOKEN) return;
+      const host = $5("#auSeries", view);
+      host.innerHTML = list.length ? `<h2 class="bp-h2">${tr("\u0627\u0644\u0633\u0644\u0627\u0633\u0644", "Series")}</h2>` + list.map((s) => seriesBoxHTML(s, "", name)).join("") + `<p class="muted" style="font-size:.75rem">${tr("\u0627\u0644\u0645\u0635\u062F\u0631: Wikidata. \u0627\u0644\u062A\u063A\u0637\u064A\u0629 \u0645\u0634 \u0643\u0627\u0645\u0644\u0629\u060C \u062E\u0635\u0648\u0635\u064B\u0627 \u0644\u0644\u0643\u062A\u0628 \u0627\u0644\u0639\u0631\u0628\u064A\u0629 \u0648\u0627\u0644\u0623\u0642\u0644 \u0634\u0647\u0631\u0629.", "Source: Wikidata. Coverage is partial, especially for Arabic and lesser-known books.")}</p>` : `<p class="muted">${tr("\u0645\u0641\u064A\u0634 \u0628\u064A\u0627\u0646\u0627\u062A \u0633\u0644\u0627\u0633\u0644 \u0644\u0647\u0630\u0627 \u0627\u0644\u0645\u0624\u0644\u0641 \u0641\u064A Wikidata (\u0645\u0645\u0643\u0646 \u064A\u0643\u0648\u0646 \u0639\u0646\u062F\u0647 \u0633\u0644\u0633\u0644\u0629 \u0628\u0633 \u0645\u0634 \u0645\u062A\u0633\u062C\u0644\u0629).", "No series data for this author on Wikidata (a series may exist but not be recorded there).")}</p>`;
+      bindSeriesLinks(host);
+    }).catch(() => {
+      const host = $5("#auSeries", view);
+      if (host) host.innerHTML = `<p class="muted">${tr("\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u064A\u0644 \u0627\u0644\u0633\u0644\u0627\u0633\u0644 (\u0627\u0644\u0646\u062A \u0623\u0648 Wikidata \u0645\u0634 \u0645\u062A\u0627\u062D \u062F\u0644\u0648\u0642\u062A\u064A).", "Could not load series (offline, or Wikidata is busy right now).")}</p>`;
+    });
+    const grid = $5("#auGrid", view), more = $5("#auMore", view);
+    let page = 0, busy3 = false;
+    const seen = /* @__PURE__ */ new Set();
+    const load2 = async () => {
+      if (busy3) return;
+      busy3 = true;
+      try {
+        const r = await worksByAuthor(name, page, 24, key);
+        if (tok !== TOKEN) return;
+        if (!page) grid.innerHTML = "";
+        page++;
+        r.items.forEach((it) => {
+          const k = it.olKey || it.title;
+          if (seen.has(k)) return;
+          seen.add(k);
+          const c = document.createElement("div");
+          c.className = "book-card";
+          c.innerHTML = `<div class="cover">${coverImgHTML(it)}</div><div class="book-meta"><div class="book-title">${esc(it.title)}</div><div class="book-author">${it.year ? esc(it.year) : ""}${it.rating ? " \xB7 \u2605 " + it.rating.toFixed(1) : ""}</div></div>`;
+          c.onclick = () => it.olKey ? location.hash = "#/work/" + it.olKey : openBookByTitle(it.title, name);
+          grid.appendChild(c);
+        });
+        if (!seen.size) grid.innerHTML = `<p class="muted">${t("noResults")}</p>`;
+        more.innerHTML = r.more ? `<button class="btn" style="margin:1rem auto;display:block">${tr("\u0639\u0631\u0636 \u0627\u0644\u0645\u0632\u064A\u062F", "Load more")}</button>` : "";
+        const b = more.querySelector("button");
+        if (b) b.onclick = load2;
+      } catch (e) {
+        if (!page) grid.innerHTML = `<p class="muted">\u26A0 ${esc(e.message)}</p>`;
+      }
+      busy3 = false;
+    };
+    load2();
+  }
+
+  // src/bookpage.js
+  var $6 = (s, r = document) => r.querySelector(s);
+  var nf = (n) => (n || 0).toLocaleString(getLang() === "ar" ? "ar-EG" : "en-US");
+  var TOKEN2 = 0;
+  function basicMeta(b) {
+    return { olKey: b.olKey || "", title: b.title, author: b.author, cover: b.cover, subjects: b.subjects || [], isbn: b.isbn, pages: b.totalPages || 0, basic: true };
+  }
+  function ensureLib(meta3) {
+    const subj = cleanSubjects(meta3.subjects);
+    return addBook({
+      title: meta3.title || "?",
+      author: meta3.author || "",
+      format: "web",
+      cover: meta3.cover || "",
+      source: "openlibrary",
+      subjects: subj,
+      isbn: meta3.isbn || "",
+      olKey: meta3.olKey || "",
+      year: meta3.year || "",
+      shelf: "want",
+      totalPages: meta3.pages || 0
+    });
+  }
+  async function renderBookPage(view, arg2, kind2) {
+    let lib = null, olKey = "";
+    if (kind2 === "pub") {
+      let pb = null;
+      try {
+        pb = await getPublicBook(arg2);
+      } catch (e) {
+        view.innerHTML = `<p class="muted">\u26A0 ${esc(e.message || e)}</p>`;
+        return;
+      }
+      if (!pb) {
+        view.innerHTML = `<p class="muted">?</p>`;
+        return;
+      }
+      lib = findBookByPublicId(pb.id);
+      const meta4 = { olKey: pb.ol_key || "", title: pb.title, author: pb.author, cover: pb.cover, subjects: pb.subjects || [], isbn: pb.isbn || "", year: pb.year || "", description: pb.description || "", pages: 0 };
+      draw(view, lib, meta4, ++TOKEN2, false, pb);
+      return;
+    }
+    if (kind2 === "book") {
+      lib = getBook(arg2);
+      if (!lib) {
+        view.innerHTML = `<p class="muted">?</p>`;
+        return;
+      }
+      olKey = lib.olKey || "";
+    } else {
+      olKey = arg2;
+      lib = findBookByOl(arg2);
+      if (lib) {
+        location.replace("#/book/" + lib.id);
+        return;
+      }
+    }
+    const tok = ++TOKEN2;
+    let meta3 = olKey && getMeta(olKey) || null;
+    if (meta3) {
+      draw(view, lib, meta3, tok);
+      return;
+    }
+    draw(view, lib, lib ? basicMeta(lib) : { olKey, title: "\u2026", author: "", subjects: [], basic: true }, tok, true);
+    const fresh = await loadMeta(lib ? { olKey, title: lib.title, author: lib.author, isbn: lib.isbn, cover: lib.cover } : { olKey });
+    if (tok !== TOKEN2) return;
+    if (lib && fresh.olKey) {
+      const patch = {};
+      if (!lib.olKey) patch.olKey = fresh.olKey;
+      if (!lib.cover && fresh.cover) patch.cover = fresh.cover;
+      if (!(lib.subjects || []).length) patch.subjects = cleanSubjects(fresh.subjects);
+      if (!lib.isbn && fresh.isbn) patch.isbn = fresh.isbn;
+      if (Object.keys(patch).length) updateBook(lib.id, patch);
+    }
+    draw(view, lib, fresh, tok);
+  }
+  function chip(text) {
+    return `<span class="bp-chip">${esc(text)}</span>`;
+  }
+  function ratingBox(label, value, count, extra = "") {
+    if (!value) return `<div class="bp-rate muted-box"><div class="bp-rate-l">${label}</div><div class="bp-rate-v">\u2014</div><div class="muted">${tr("\u0645\u0641\u064A\u0634 \u062A\u0642\u064A\u064A\u0645\u0627\u062A", "no ratings")}</div></div>`;
+    return `<div class="bp-rate"><div class="bp-rate-l">${label}</div><div class="bp-rate-v">\u2605 ${value.toFixed(1)}<small>/5</small></div><div class="muted">${nf(count)} ${tr("\u062A\u0642\u064A\u064A\u0645", "ratings")}${extra}</div></div>`;
+  }
+  function draw(view, lib, meta3, tok, loading = false, pub = null) {
+    const title = lib && lib.title || meta3.title || "?";
+    const author = lib && lib.author || meta3.author || "";
+    const cover = lib && lib.cover || meta3.cover || "";
+    const ol = meta3.olKey;
+    const subjects = cleanSubjects(meta3.subjects && meta3.subjects.length ? meta3.subjects : lib ? lib.subjects : []).slice(0, 8);
+    const gb = meta3.gb;
+    const hls = lib ? bookHighlights(lib.id) : [];
+    const comments = lib ? bookComments(lib.id) : [];
+    const myLists = lib ? listsOfBook(lib.id) : [];
+    const shelfOpts = lib ? [["translations", t("shelf_translations")], ["want", t("shelf_want")], ["reading", t("shelf_reading")], ["finished", t("shelf_finished")], ...getState().customShelves.map((s) => [s, s])] : [];
+    const details = [
+      [tr("\u0627\u0644\u0639\u0646\u0648\u0627\u0646", "Title"), title],
+      [tr("\u0627\u0644\u0645\u0624\u0644\u0641", "Author"), author],
+      [tr("\u0623\u0648\u0644 \u0646\u0634\u0631", "First published"), meta3.year],
+      [tr("\u0639\u062F\u062F \u0627\u0644\u0635\u0641\u062D\u0627\u062A", "Pages"), meta3.pages ? nf(meta3.pages) : ""],
+      [tr("\u0639\u062F\u062F \u0627\u0644\u0625\u0635\u062F\u0627\u0631\u0627\u062A", "Editions"), meta3.editions ? nf(meta3.editions) : ""],
+      [tr("\u0627\u0644\u0646\u0627\u0634\u0631", "Publisher"), meta3.publisher || gb && gb.publisher],
+      [tr("\u0627\u0644\u0644\u063A\u0627\u062A", "Languages"), (meta3.languages || []).join(", ")],
+      ["ISBN", meta3.isbn],
+      [tr("\u0627\u0644\u0635\u064A\u063A\u0629", "Format"), lib && lib.format !== "web" ? lib.format.toUpperCase() : ""]
+    ].filter((r) => r[1]);
+    view.innerHTML = `
+  <section class="bp-hero">
+    <div class="bp-backdrop" style="${cover ? `background-image:url('${esc(cover)}')` : ""}"></div>
+    <div class="bp-hero-inner">
+      <div class="bp-poster"><div class="cover">${cover ? `<img src="${esc(cover)}" alt="">` : coverHTML({ title, format: lib ? lib.format : "web" })}</div></div>
+      <div class="bp-info">
+        <h1>${esc(title)} ${meta3.year ? `<span class="bp-year">(${esc(meta3.year)})</span>` : ""}</h1>
+        <div class="bp-sub">${author ? `<a href="#/discover" id="bpAuthor" class="bp-alink" title="${tr("\u0643\u0644 \u0643\u062A\u0628 \u0627\u0644\u0645\u0624\u0644\u0641", "All books by this author")}">${esc(author)}</a>` : ""}${meta3.pages ? ` \xB7 ${nf(meta3.pages)} ${t("pages")}` : ""}${meta3.editions ? ` \xB7 ${nf(meta3.editions)} ${tr("\u0625\u0635\u062F\u0627\u0631", "editions")}` : ""}</div>
+        <div class="bp-chips">${subjects.map(chip).join("")}${loading ? `<span class="muted">${t("loading")}</span>` : ""}</div>
+        <div class="bp-ratings">
+          ${ratingBox("Open Library", meta3.rating, meta3.ratingCount)}
+          ${gb ? ratingBox("Google Books", gb.rating, gb.count) : ""}
+          <div class="bp-rate bp-mine"><div class="bp-rate-l">${tr("\u062A\u0642\u064A\u064A\u0645\u0643", "Your rating")}</div><div id="ratingHost"></div><div class="muted">${tr("\u0627\u0636\u063A\u0637 \u0627\u0644\u0646\u062C\u0648\u0645", "tap the stars")}</div></div>
+        </div>
+        ${meta3.wantToRead || meta3.alreadyRead || meta3.currentlyReading ? `<div class="bp-community">\u{1F516} ${nf(meta3.wantToRead)} ${tr("\u0639\u0627\u064A\u0632\u064A\u0646 \u064A\u0642\u0631\u0648\u0647", "want to read")} \xB7 \u{1F4D6} ${nf(meta3.currentlyReading)} ${tr("\u0628\u064A\u0642\u0631\u0648\u0647", "reading")} \xB7 \u2705 ${nf(meta3.alreadyRead)} ${tr("\u0642\u0631\u0648\u0647", "have read")}</div>` : ""}
+        <div class="bp-actions">
+          ${lib ? `<button id="readBtn" class="btn btn-primary">\u25B6 ${t("startReading")}</button><button id="attachBtn" class="btn" title="${tr("\u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628 \u0645\u0646 \u062C\u0647\u0627\u0632\u0643", "Choose the book file from your device")}">\u{1F4CE} ${lib.fileKey ? tr("\u063A\u064A\u0651\u0631 \u0627\u0644\u0645\u0644\u0641", "Change file") : tr("\u0627\u0631\u0628\u0637 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628", "Link book file")}</button>` : ""}
+          ${!lib ? `<button id="addLibBtn" class="btn btn-primary">\uFF0B ${t(pub ? "addToMyLibrary" : "addToLibrary")}</button>` : ""}
+          <button id="favBtn" class="btn ${lib && lib.favorite ? "btn-fav on" : "btn-fav"}">${lib && lib.favorite ? "\u2764" : "\u{1F90D}"} ${tr("\u0627\u0644\u0645\u0641\u0636\u0644\u0629", "Favorite")}</button>
+          <button id="listsBtn" class="btn">\u{1F4CB} ${tr("\u0627\u0644\u0642\u0648\u0627\u0626\u0645", "Lists")}${myLists.length ? ` (${myLists.length})` : ""}</button>
+          ${lib ? `<select id="shelfSel" title="${tr("\u0627\u0644\u0631\u0641", "Shelf")}">${shelfOpts.map(([v, l]) => `<option value="${esc(v)}" ${lib.shelf === v || (lib.customShelves || []).includes(v) ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>` : ""}
+          ${lib && lib.shelf !== "finished" ? `<button id="finishBtn" class="btn">\u2713 ${t("markFinished")}</button>` : ""}
+        </div>
+        ${myLists.length ? `<div class="bp-chips" style="margin-top:.6rem">${myLists.map((l) => `<a class="bp-chip link" href="#/lists/${l.id}">\u{1F4CB} ${esc(l.name)}</a>`).join("")}</div>` : ""}
+      </div>
+    </div>
+  </section>
+
+  ${lib ? `<div class="bp-progress"><div class="muted">${lib.format.toUpperCase()} \xB7 ${t("addedOn")} ${fmtDate(lib.addedAt)} ${lib.finishedAt ? "\xB7 " + t("finishedOn") + " " + fmtDate(lib.finishedAt) : ""}</div>
+    <div class="prog-track" style="height:8px"><div class="prog-fill" style="width:${Math.round(lib.progress)}%"></div></div>
+    <div class="muted" style="margin-top:.3rem">${t("progress")}: ${Math.round(lib.progress)}%</div></div>` : ""}
+
+  <div class="bp-cols">
+    <div class="bp-main">
+      <div class="chart-box"><h3>${tr("\u0646\u0628\u0630\u0629", "Overview")}</h3>
+        ${meta3.description ? `<p class="bp-desc" id="descP" dir="auto">${esc(meta3.description)}</p><button class="btn bp-more" id="moreDesc">${tr("\u0627\u0642\u0631\u0623 \u0627\u0644\u0645\u0632\u064A\u062F", "Read more")}</button>` : `<p class="muted">${loading ? t("loading") : meta3.notFound ? tr("\u0645\u0641\u064A\u0634 \u0628\u064A\u0627\u0646\u0627\u062A \u0623\u0648\u0646\u0644\u0627\u064A\u0646 \u0644\u0644\u0643\u062A\u0627\u0628 \u062F\u0647 (\u0623\u0648 \u0645\u0641\u064A\u0634 \u0646\u062A).", "No online data found for this book (or you are offline).") : tr("\u0645\u0641\u064A\u0634 \u0648\u0635\u0641 \u0645\u062A\u0627\u062D.", "No description available.")}</p>`}
+        ${meta3.firstSentence ? `<blockquote class="bp-quote" dir="auto">\u201C${esc(meta3.firstSentence)}\u201D<div class="muted">${tr("\u0623\u0648\u0644 \u062C\u0645\u0644\u0629", "First sentence")}</div></blockquote>` : ""}
+      </div>
+
+      <div id="seriesBox"></div>
+
+      ${findBookHTML(title, author)}
+
+      <div class="chart-box"><h3>\u{1F4AC} ${tr("\u062A\u0639\u0644\u064A\u0642\u0627\u062A\u064A", "My comments")} (${comments.length})</h3>
+        <div class="bp-composer">
+          <textarea id="cmText" rows="2" placeholder="${tr("\u0627\u0643\u062A\u0628 \u062A\u0639\u0644\u064A\u0642\u0643 \u0639\u0644\u0649 \u0627\u0644\u0643\u062A\u0627\u0628 \u0623\u0648 \u0641\u0635\u0644\u2026", "Write a comment on the book or a chapter\u2026")}"></textarea>
+          <div class="bp-composer-row"><input id="cmChapter" placeholder="${tr("\u0627\u0644\u0641\u0635\u0644 / \u0627\u0644\u0635\u0641\u062D\u0629 (\u0627\u062E\u062A\u064A\u0627\u0631\u064A)", "Chapter / page (optional)")}"><button id="cmAdd" class="btn btn-primary">${t("send")}</button></div>
+        </div>
+        <div id="cmList"></div>
+      </div>
+
+      ${lib ? `<div class="chart-box"><h3>\u270D\uFE0F ${t("writeReview")}</h3>
+        <textarea id="reviewBox" rows="3" style="width:100%">${esc(lib.review || "")}</textarea>
+        <button id="saveReview" class="btn" style="margin-top:.4rem">${t("save")}</button></div>
+      <div class="chart-box"><h3>\u{1F58A} ${t("highlights")} (${hls.length})</h3><div id="hlList"></div></div>` : ""}
+
+      <h2 class="bp-h2" id="authorRowT" ${author ? "" : "hidden"}>${tr("\u0643\u0645\u0627\u0646 \u0644\u0644\u0645\u0624\u0644\u0641", "More by this author")}</h2><div class="award-row" id="authorRow"></div>
+      <h2 class="bp-h2" id="simRowT">${tr("\u0643\u062A\u0628 \u0645\u0634\u0627\u0628\u0647\u0629", "More like this")}</h2><div class="award-row" id="simRow"></div>
+    </div>
+    <aside class="bp-side">
+      <div class="chart-box"><h3>${tr("\u0627\u0644\u062A\u0641\u0627\u0635\u064A\u0644", "Details")}</h3>
+        <table class="bp-table">${details.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</table>
+        <div class="bp-links">${ol ? `<a href="https://openlibrary.org/works/${esc(ol)}" target="_blank" rel="noopener">Open Library \u2197</a>` : ""}${gb && gb.link ? `<a href="${esc(gb.link)}" target="_blank" rel="noopener">Google Books \u2197</a>` : ""}</div>
+      </div>
+      ${meta3.authorKey && (meta3.authorBio || meta3.authorPhoto) ? `<div class="chart-box"><h3>${tr("\u0639\u0646 \u0627\u0644\u0645\u0624\u0644\u0641", "About the author")}</h3>
+        <div class="bp-author">${meta3.authorPhoto ? `<img src="${esc(meta3.authorPhoto)}" alt="">` : ""}<div><strong>${esc(author)}</strong>
+        <div class="muted">${esc([meta3.authorBorn, meta3.authorDied].filter(Boolean).join(" \u2013 "))}</div></div></div>
+        ${meta3.authorBio ? `<p class="bp-bio" dir="auto">${esc(meta3.authorBio)}</p>` : ""}</div>` : ""}
+      ${lib ? `<button id="delBtn" class="btn btn-danger" style="width:100%">\u{1F5D1} ${t("removeBook")}</button>` : ""}
+      ${lib && isAdmin() && !lib.public_book_id ? `<button id="pubBtn" class="btn" style="width:100%;margin-top:.5rem">\u{1F4E2} ${t("publishToPublic")}</button>` : ""}
+      ${pub && isAdmin() ? `<button id="delPubBtn" class="btn btn-danger" style="width:100%;margin-top:.5rem">\u{1F5D1} ${t("removeFromPublic")}</button>` : ""}
+    </aside>
+  </div>`;
+    const redraw = () => draw(view, lib, meta3, tok, false, pub);
+    const need = () => {
+      if (!lib) {
+        lib = pub ? saveToMyLibrary(pub) : ensureLib(meta3);
+        toast(t("added"));
+      }
+      return lib;
+    };
+    const after = (created) => {
+      if (created) location.hash = "#/book/" + lib.id;
+      else redraw();
+    };
+    $6("#ratingHost", view).appendChild(stars(lib ? lib.rating : 0, true, (v) => {
+      const c = !lib;
+      need();
+      updateBook(lib.id, { rating: v });
+      after(c);
+    }));
+    const rb = $6("#readBtn", view);
+    if (rb) rb.onclick = () => startReadingBook(lib);
+    const ab = $6("#attachBtn", view);
+    if (ab) ab.onclick = async () => {
+      if (await pickBookFile(lib)) renderBookPage(view, arg, kind);
+    };
+    const ab2 = $6("#addLibBtn", view);
+    if (ab2) ab2.onclick = () => {
+      need();
+      after(true);
+    };
+    $6("#favBtn", view).onclick = () => {
+      const c = !lib;
+      need();
+      const on = toggleFavorite(lib.id);
+      toast(on ? "\u2764 " + tr("\u0627\u062A\u0636\u0627\u0641 \u0644\u0644\u0645\u0641\u0636\u0644\u0629", "Added to favorites") : tr("\u0627\u062A\u0634\u0627\u0644 \u0645\u0646 \u0627\u0644\u0645\u0641\u0636\u0644\u0629", "Removed from favorites"));
+      after(c);
+    };
+    $6("#listsBtn", view).onclick = () => openListsPicker(() => {
+      const c = !lib;
+      need();
+      return { lib, created: c };
+    }, () => lib, () => {
+      if (lib) redraw();
+    });
+    const sel = $6("#shelfSel", view);
+    if (sel) sel.onchange = (e) => {
+      const v = e.target.value;
+      if (["want", "reading", "finished", "translations"].includes(v)) updateBook(lib.id, { shelf: v });
+      else {
+        const cs = new Set(lib.customShelves || []);
+        cs.has(v) ? cs.delete(v) : cs.add(v);
+        updateBook(lib.id, { customShelves: [...cs] });
+      }
+      redraw();
+    };
+    const fb = $6("#finishBtn", view);
+    if (fb) fb.onclick = () => {
+      updateBook(lib.id, { shelf: "finished" });
+      redraw();
+    };
+    const dl = $6("#delBtn", view);
+    if (dl) dl.onclick = async () => {
+      if (!confirm(t("confirmDelete"))) return;
+      if (lib.fileKey) await deleteFile(lib.fileKey).catch(() => {
+      });
+      removeBook(lib.id);
+      location.hash = "#/";
+    };
+    const pbBtn = $6("#pubBtn", view);
+    if (pbBtn) pbBtn.onclick = async () => {
+      pbBtn.disabled = true;
+      try {
+        const pb = await publishExistingBook(lib);
+        toast(t("published"));
+        location.hash = "#/pub/" + pb.id;
+      } catch (e) {
+        toast("\u26A0 " + (e.message || e), 5e3);
+        pbBtn.disabled = false;
+      }
+    };
+    const dpb = $6("#delPubBtn", view);
+    if (dpb) dpb.onclick = async () => {
+      if (!confirm(t("confirmDeletePublic"))) return;
+      dpb.disabled = true;
+      try {
+        await deletePublicBook(pub.id);
+        toast(t("removedFromPublic"));
+        location.hash = "#/";
+      } catch (e) {
+        toast("\u26A0 " + (e.message || e), 5e3);
+        dpb.disabled = false;
+      }
+    };
+    const sr = $6("#saveReview", view);
+    if (sr) sr.onclick = () => {
+      updateBook(lib.id, { review: $6("#reviewBox", view).value });
+      toast(t("added"));
+    };
+    const md = $6("#moreDesc", view);
+    if (md) {
+      const p = $6("#descP", view);
+      md.onclick = () => {
+        const open2 = p.classList.toggle("open");
+        md.textContent = open2 ? tr("\u0623\u0642\u0644", "Show less") : tr("\u0627\u0642\u0631\u0623 \u0627\u0644\u0645\u0632\u064A\u062F", "Read more");
+      };
+      if (meta3.description.length < 480) md.remove();
+    }
+    $6("#cmAdd", view).onclick = () => {
+      const text = $6("#cmText", view).value.trim();
+      if (!text) return;
+      const c = !lib;
+      need();
+      addComment({ bookId: lib.id, chapter: $6("#cmChapter", view).value.trim(), author: tr("\u0623\u0646\u0627", "Me"), text, origin: "me" });
+      after(c);
+    };
+    const cmHost = $6("#cmList", view);
+    cmHost.innerHTML = comments.length ? "" : `<p class="muted">${tr("\u0644\u0633\u0647 \u0645\u0641\u064A\u0634 \u062A\u0639\u0644\u064A\u0642\u0627\u062A.", "No comments yet.")}</p>`;
+    comments.forEach((c) => {
+      const row = document.createElement("div");
+      row.className = "comment";
+      row.innerHTML = `<div class="c-meta">${c.origin === "buddy" ? "\u{1F464}" : "\u{1F642}"} ${esc(c.author)} ${c.chapter ? "\xB7 " + esc(c.chapter) : ""} \xB7 ${fmtDate(c.createdAt)}${c.editedAt ? " \xB7 " + tr("\u0645\u0639\u062F\u0651\u0644", "edited") : ""}
+      <span class="c-actions"><button class="icon-btn" data-a="edit" title="${t("edit")}">\u270E</button><button class="icon-btn" data-a="del" title="${t("delete")}">\u{1F5D1}</button></span></div><div dir="auto" style="white-space:pre-wrap">${esc(c.text)}</div>`;
+      row.querySelector("[data-a=del]").onclick = () => {
+        if (confirm(tr("\u062A\u062D\u0630\u0641 \u0627\u0644\u062A\u0639\u0644\u064A\u0642\u061F", "Delete this comment?"))) {
+          removeComment(c.id);
+          redraw();
+        }
+      };
+      row.querySelector("[data-a=edit]").onclick = () => {
+        const txt = prompt(t("edit"), c.text);
+        if (txt !== null && txt.trim()) {
+          updateComment(c.id, { text: txt.trim() });
+          redraw();
+        }
+      };
+      cmHost.appendChild(row);
+    });
+    const hlHost = $6("#hlList", view);
+    if (hlHost) {
+      hlHost.innerHTML = hls.length ? "" : `<p class="muted">${t("noHighlights")}</p>`;
+      hls.forEach((h) => {
+        const row = document.createElement("div");
+        row.className = "review-card";
+        row.innerHTML = `<div style="border-inline-start:4px solid ${esc(h.color)};padding-inline-start:.7rem">
+        <div style="font-family:var(--font-read-ar)">${esc(h.text)}</div>
+        ${h.note ? `<div class="muted" style="margin-top:.3rem">\u{1F4DD} ${esc(h.note)}</div>` : ""}
+        <div class="muted" style="font-size:.72rem;margin-top:.3rem">${fmtDate(h.createdAt)} <button class="icon-btn" style="font-size:.8rem">\u{1F5D1}</button></div></div>`;
+        row.querySelector("button").onclick = () => {
+          removeHighlight(h.id);
+          redraw();
+        };
+        hlHost.appendChild(row);
+      });
+    }
+    const aLink = view.querySelector("#bpAuthor");
+    if (aLink) aLink.onclick = (e) => {
+      e.preventDefault();
+      openAuthor(author);
+    };
+    if (!loading) {
+      const mini = (it) => {
+        const c = document.createElement("div");
+        c.className = "book-card bp-mini";
+        c.innerHTML = `<div class="cover">${it.cover ? `<img src="${esc(it.cover)}" loading="lazy" alt="">` : `<div class="cover-fallback">\u{1F4D5}<small>${esc(it.title)}</small></div>`}</div>
+        <div class="book-meta"><div class="book-title">${esc(it.title)}</div><div class="book-author">${authorHTML(it.author)}${it.rating ? " \xB7 \u2605 " + it.rating.toFixed(1) : ""}</div></div>`;
+        c.onclick = async () => {
+          if (it.olKey) {
+            location.hash = "#/work/" + it.olKey;
+            return;
+          }
+          const f = await findCover(it.title, it.author).catch(() => null);
+          if (f && f.olKey) location.hash = "#/work/" + f.olKey;
+          else {
+            try {
+              sessionStorage.setItem("qari.pendingSearch", JSON.stringify({ q: it.title, scope: "title" }));
+            } catch {
+            }
+            location.hash = "#/discover";
+            if (window.__qariDiscoverPending) window.__qariDiscoverPending();
+          }
+        };
+        return c;
+      };
+      const fill = (id, titleId, p) => p.then((items) => {
+        if (tok !== TOKEN2) return;
+        const host = document.getElementById(id);
+        if (!host) return;
+        const ti = document.getElementById(titleId);
+        if (!items.length) {
+          if (ti) ti.hidden = true;
+          return;
+        }
+        if (ti) ti.hidden = false;
+        items.forEach((i) => host.appendChild(mini(i)));
+      }).catch(() => {
+        const ti = document.getElementById(titleId);
+        if (ti) ti.hidden = true;
+      });
+      const curTitle = lib && lib.title || meta3.title;
+      const sb = document.getElementById("seriesBox");
+      if (sb && author) {
+        sb.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}</h3><p class="muted">${tr("\u0628\u062F\u0648\u0651\u0631 \u0639\u0644\u0649 \u0627\u0644\u0633\u0644\u0633\u0644\u0629\u2026", "Checking for a series\u2026")}</p></div>`;
+        seriesForBook({ title: curTitle, author, olAuthorKey: meta3.authorKey }).then((r) => {
+          if (tok !== TOKEN2) return;
+          const el = document.getElementById("seriesBox");
+          if (!el) return;
+          if (!r) {
+            el.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}</h3><p class="muted">${tr("\u0645\u0641\u064A\u0634 \u0645\u0639\u0644\u0648\u0645\u0627\u062A \u0633\u0644\u0633\u0644\u0629 \u0644\u0643\u062A\u0627\u0628 \u062F\u0647 \u0641\u064A Wikidata. \u0645\u0645\u0643\u0646 \u064A\u0643\u0648\u0646 \u0633\u062A\u0627\u0646\u062F \u0623\u0644\u0648\u0646\u060C \u0623\u0648 \u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u0645\u0634 \u0645\u062A\u0633\u062C\u0644\u0629 (\u0627\u0644\u062A\u063A\u0637\u064A\u0629 \u0636\u0639\u064A\u0641\u0629 \u0644\u0644\u0643\u062A\u0628 \u0627\u0644\u0639\u0631\u0628\u064A\u0629).", "No series info for this book on Wikidata. It may be a standalone, or the series just is not recorded there (coverage is weak for Arabic books).")} <a href="#" id="seriesAuthorLink">${tr("\u0643\u0644 \u0643\u062A\u0628 \u0627\u0644\u0645\u0624\u0644\u0641", "All books by this author")}</a></p></div>`;
+            const l = el.querySelector("#seriesAuthorLink");
+            if (l) l.onclick = (e) => {
+              e.preventDefault();
+              openAuthor(author);
+            };
+            return;
+          }
+          const pos = r.position != null ? `${tr("\u0627\u0644\u0643\u062A\u0627\u0628 \u0631\u0642\u0645", "Book")} ${r.position} ${tr("\u0645\u0646", "of")} ${r.total}` : `${tr("\u0627\u0644\u0643\u062A\u0627\u0628", "Book")} ${r.index + 1} ${tr("\u0645\u0646", "of")} ${r.total}`;
+          el.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}: ${esc(r.series.name)}</h3><p class="muted" style="margin-bottom:.4rem">${pos} \xB7 ${tr("\u0627\u0644\u0645\u0635\u062F\u0631: Wikidata", "Source: Wikidata")}</p>${seriesBoxHTML(r.series, curTitle, author).replace(/^<div class="series-card"><h3>.*?<\/h3>/, '<div class="series-card">')}</div>`;
+          bindSeriesLinks(el);
+        }).catch(() => {
+          const el = document.getElementById("seriesBox");
+          if (el) el.innerHTML = `<div class="chart-box"><h3>\u{1F4DA} ${tr("\u0627\u0644\u0633\u0644\u0633\u0644\u0629", "Series")}</h3><p class="muted">${tr("\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u064A\u0644 \u0645\u0639\u0644\u0648\u0645\u0627\u062A \u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u062F\u0644\u0648\u0642\u062A\u064A.", "Could not load series info right now.")}</p></div>`;
+        });
+      }
+      const authorItems = (async () => {
+        let items = meta3.authorKey ? await moreByAuthor(meta3.authorKey, meta3.olKey).catch(() => []) : [];
+        if (!items.length && author) items = (await worksByAuthor(author, 0, 14).catch(() => ({ items: [] }))).items.filter((x) => x.olKey !== meta3.olKey && x.title !== curTitle).slice(0, 12);
+        return items;
+      })();
+      fill("authorRow", "authorRowT", authorItems);
+      fill("simRow", "simRowT", relatedBooks({ subjects: meta3.subjects || lib && lib.subjects || [], olKey: meta3.olKey, authorKey: meta3.authorKey, title: curTitle, author }));
+    }
+  }
+  function openListsPicker(getBook2, peekBook, onDone) {
+    const m = document.createElement("div");
+    m.className = "modal";
+    const render = () => {
+      const lists = getState().lists;
+      m.innerHTML = `<div class="modal-card" style="max-width:420px"><div class="modal-head"><h2>\u{1F4CB} ${tr("\u0623\u0636\u0641 \u0644\u0642\u0627\u0626\u0645\u0629", "Add to list")}</h2><button class="icon-btn" id="lpClose">\u2715</button></div>
+      <div id="lpRows">${lists.length ? "" : `<p class="muted">${tr("\u0645\u0639\u0646\u062F\u0643\u0634 \u0642\u0648\u0627\u0626\u0645 \u0644\u0633\u0647. \u0627\u0639\u0645\u0644 \u0623\u0648\u0644 \u0648\u0627\u062D\u062F\u0629:", "No lists yet. Create your first:")}</p>`}</div>
+      <div class="search-row" style="margin-top:.8rem"><input id="lpName" placeholder="${tr("\u0627\u0633\u0645 \u0642\u0627\u0626\u0645\u0629 \u062C\u062F\u064A\u062F\u0629\u2026", "New list name\u2026")}"><button id="lpNew" class="btn btn-primary">\uFF0B</button></div></div>`;
+      const host = m.querySelector("#lpRows");
+      lists.forEach((l) => {
+        const lab = document.createElement("label");
+        lab.className = "lp-row";
+        const pb = peekBook();
+        const cur = !!pb && listHas(l.id, pb.id);
+        lab.innerHTML = `<input type="checkbox" ${cur ? "checked" : ""}><span>${esc(l.name)}</span><span class="muted">${l.bookIds.length}</span>`;
+        lab.querySelector("input").onchange = () => {
+          const { lib, created } = getBook2();
+          listToggleBook(l.id, lib.id);
+          if (created) {
+            m.remove();
+            location.hash = "#/book/" + lib.id;
+          } else {
+            onDone();
+            render();
+          }
+        };
+        host.appendChild(lab);
+      });
+      m.querySelector("#lpClose").onclick = () => {
+        m.remove();
+        onDone();
+      };
+      const mk = () => {
+        const name = m.querySelector("#lpName").value.trim();
+        if (!name) return;
+        const l = createList(name);
+        const { lib, created } = getBook2();
+        listToggleBook(l.id, lib.id);
+        if (created) {
+          m.remove();
+          location.hash = "#/book/" + lib.id;
+        } else {
+          onDone();
+          render();
+        }
+      };
+      m.querySelector("#lpNew").onclick = mk;
+      m.querySelector("#lpName").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") mk();
+      });
+    };
+    m.addEventListener("click", (e) => {
+      if (e.target === m) {
+        m.remove();
+        onDone();
+      }
+    });
+    document.body.appendChild(m);
+    render();
+  }
+
+  // src/lists.js
+  var $7 = (s, r = document) => r.querySelector(s);
+  function smart() {
+    const bs = getState().books;
+    return [
+      { id: "fav", icon: "\u2764", name: tr("\u0627\u0644\u0645\u0641\u0636\u0644\u0629", "Favorites"), books: bs.filter((b) => b.favorite) },
+      { id: "reading", icon: "\u{1F4D6}", name: t("shelf_reading"), books: bs.filter((b) => b.shelf === "reading") },
+      { id: "want", icon: "\u{1F516}", name: t("shelf_want"), books: bs.filter((b) => b.shelf === "want") },
+      { id: "finished", icon: "\u2705", name: tr("\u0642\u0631\u0627\u064A\u062A\u0647\u0645", "Read"), books: bs.filter((b) => b.shelf === "finished") }
+    ];
+  }
+  function custom() {
+    return getState().lists.map((l) => ({ id: l.id, icon: "\u{1F4CB}", name: l.name, desc: l.desc, custom: true, books: l.bookIds.map(getBook).filter(Boolean) }));
+  }
+  var mosaic = (books) => `<div class="ls-mosaic">${[0, 1, 2, 3].map((i) => books[i] && books[i].cover ? `<img src="${esc(books[i].cover)}" alt="">` : `<span></span>`).join("")}</div>`;
+  function renderLists(view, id) {
+    if (id) return renderOne(view, id);
+    const all = [...smart(), ...custom()];
+    view.innerHTML = `<div class="view-head"><h1>\u{1F4CB} ${t("navLists")}</h1></div>
+    <div class="stat-card" style="margin-bottom:1.2rem"><h3 style="margin-bottom:.6rem">${tr("\u0642\u0627\u0626\u0645\u0629 \u0642\u0631\u0627\u0621\u0629 \u062C\u062F\u064A\u062F\u0629", "New reading list")}</h3>
+      <div class="search-row"><input id="nlName" placeholder="${tr("\u0627\u0633\u0645 \u0627\u0644\u0642\u0627\u0626\u0645\u0629 (\u0645\u062B\u0644\u064B\u0627: \u0631\u0648\u0627\u064A\u0627\u062A \u0627\u0644\u0635\u064A\u0641)", "List name (e.g. Summer reads)")}"><input id="nlDesc" placeholder="${tr("\u0648\u0635\u0641 (\u0627\u062E\u062A\u064A\u0627\u0631\u064A)", "Description (optional)")}"><button id="nlBtn" class="btn btn-primary">\uFF0B ${t("create")}</button></div></div>
+    <div class="stat-card" style="margin-bottom:1.2rem"><h3 style="margin-bottom:.4rem">\u{1F4E5} ${tr("\u0627\u0633\u062A\u064A\u0631\u0627\u062F \u0645\u0643\u062A\u0628\u062A\u0643 \u0645\u0646 Goodreads", "Import your Goodreads library")}</h3>
+      <p class="muted" style="margin-bottom:.6rem">${tr("\u0641\u064A Goodreads: My Books \u2190 Import and export \u2190 Export Library\u060C \u0648\u0628\u0639\u062F\u064A\u0646 \u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 CSV \u0647\u0646\u0627. \u0628\u064A\u062A\u0639\u0645\u0644 \u0644\u0643\u0644 \u0631\u0641 \u0642\u0627\u0626\u0645\u0629\u060C \u0648\u0627\u0644\u062A\u0642\u064A\u064A\u0645\u0627\u062A \u0648\u0627\u0644\u062A\u0648\u0627\u0631\u064A\u062E \u0628\u062A\u062A\u0646\u0642\u0644.", "On Goodreads: My Books > Import and export > Export Library, then choose the CSV here. Each shelf becomes a list; ratings and dates carry over.")}</p>
+      <button id="grBtn" class="btn">\u2B06 ${tr("\u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 CSV", "Choose CSV file")}</button><input type="file" id="grIn" accept=".csv,text/csv" hidden></div>
+    <div class="ls-grid" id="lsGrid"></div>`;
+    const host = $7("#lsGrid", view);
+    all.forEach((l) => {
+      const c = document.createElement("div");
+      c.className = "ls-card";
+      c.innerHTML = `${mosaic(l.books)}<div class="ls-info"><div class="ls-name">${l.icon} ${esc(l.name)}</div><div class="muted">${l.books.length} ${tr("\u0643\u062A\u0627\u0628", "books")}${l.custom ? "" : " \xB7 " + tr("\u062A\u0644\u0642\u0627\u0626\u064A\u0629", "auto")}</div>${l.desc ? `<div class="muted">${esc(l.desc)}</div>` : ""}</div>`;
+      c.onclick = () => {
+        location.hash = "#/lists/" + l.id;
+      };
+      host.appendChild(c);
+    });
+    const mk = () => {
+      const n = $7("#nlName", view).value.trim();
+      if (!n) return;
+      const l = createList(n, $7("#nlDesc", view).value.trim());
+      location.hash = "#/lists/" + l.id;
+    };
+    $7("#nlBtn", view).onclick = mk;
+    $7("#grBtn", view).onclick = () => $7("#grIn", view).click();
+    $7("#grIn", view).onchange = async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      try {
+        const r = importGoodreads(await f.text());
+        toast(`\u2713 ${r.added} ${tr("\u0643\u062A\u0627\u0628 \u0627\u062A\u0636\u0627\u0641\u0648\u0627", "books added")} \xB7 ${r.lists} ${tr("\u0642\u0648\u0627\u0626\u0645", "lists")}`, 4e3);
+        renderLists(view);
+      } catch (err) {
+        toast("\u26A0 " + err.message, 4e3);
+      }
+    };
+    $7("#nlName", view).addEventListener("keydown", (e) => {
+      if (e.key === "Enter") mk();
+    });
+  }
+  function renderOne(view, id) {
+    const l = [...smart(), ...custom()].find((x) => x.id === id);
+    if (!l) {
+      location.hash = "#/lists";
+      return;
+    }
+    let sort = "manual";
+    const draw2 = () => {
+      let books = l.custom ? l.books.map((b) => b) : l.books.slice();
+      if (l.custom) books = getList(id).bookIds.map(getBook).filter(Boolean);
+      if (sort === "title") books.sort((a, b) => a.title.localeCompare(b.title));
+      else if (sort === "added") books.sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+      else books = sortBooks(books, sort);
+      view.innerHTML = `<div class="view-head"><div><a href="#/lists" class="muted">\u2039 ${t("navLists")}</a><h1>${l.icon} ${esc(l.name)} <span class="count muted">(${books.length})</span></h1>${l.desc ? `<div class="muted">${esc(l.desc)}</div>` : ""}</div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+        <select id="lsSort"><option value="manual">${tr("\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u0623\u0635\u0644\u064A", "Original order")}</option><option value="added">${tr("\u0627\u0644\u0623\u062D\u062F\u062B \u0625\u0636\u0627\u0641\u0629", "Newest first")}</option><option value="title">${tr("\u0623\u0628\u062C\u062F\u064A\u064B\u0627", "A\u2013Z")}</option><option value="year-desc">${tr("\u0627\u0644\u0623\u062D\u062F\u062B \u0625\u0635\u062F\u0627\u0631\u064B\u0627", "Newest release")}</option><option value="year-asc">${tr("\u0627\u0644\u0623\u0642\u062F\u0645 \u0625\u0635\u062F\u0627\u0631\u064B\u0627", "Oldest release")}</option><option value="rating-desc">${tr("\u0627\u0644\u0623\u0639\u0644\u0649 \u062A\u0642\u064A\u064A\u0645\u064B\u0627", "Highest rated")}</option><option value="rating-asc">${tr("\u0627\u0644\u0623\u0642\u0644 \u062A\u0642\u064A\u064A\u0645\u064B\u0627", "Lowest rated")}</option></select>
+        <button id="lsCopy" class="btn">\u29C9 ${tr("\u0646\u0633\u062E \u0643\u0646\u0635", "Copy as text")}</button>
+        ${l.custom ? `<button id="lsRename" class="btn">${t("edit")}</button><button id="lsDel" class="btn btn-danger">${t("delete")}</button>` : ""}</div></div>
+      <div class="grid" id="lsBooks"></div>`;
+      $7("#lsSort", view).value = sort;
+      $7("#lsSort", view).onchange = (e) => {
+        sort = e.target.value;
+        draw2();
+      };
+      const g = $7("#lsBooks", view);
+      if (!books.length) g.innerHTML = `<p class="muted">${l.custom ? tr('\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0641\u0627\u0636\u064A\u0629. \u0627\u0641\u062A\u062D \u0623\u064A \u0643\u062A\u0627\u0628 \u0648\u0627\u0636\u063A\u0637 "\u0627\u0644\u0642\u0648\u0627\u0626\u0645" \u0639\u0634\u0627\u0646 \u062A\u0636\u064A\u0641\u0647 \u0647\u0646\u0627.', 'Empty list. Open any book and tap "Lists" to add it here.') : "\u2014"}</p>`;
+      books.forEach((b, i) => {
+        const el = document.createElement("div");
+        el.className = "book-card";
+        el.innerHTML = `<div class="cover">${coverHTML(b)}</div>${b.favorite ? '<span class="shelf-badge fav">\u2764</span>' : ""}
+        <div class="book-meta"><div class="book-title">${esc(b.title)}</div><div class="book-author">${authorHTML(b.author)}</div>
+        <div class="ls-read"><button class="btn btn-primary btn-sm" data-act="read">\u25B6 ${t("startReading")}</button><button class="icon-btn" data-act="attach" title="${b.fileKey ? tr("\u063A\u064A\u0651\u0631 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628", "Change book file") : tr("\u0627\u062E\u062A\u0627\u0631 \u0645\u0644\u0641 \u0627\u0644\u0643\u062A\u0627\u0628 \u0645\u0646 \u062C\u0647\u0627\u0632\u0643", "Choose the book file from your device")}">${b.fileKey ? "\u{1F4CE}\u2713" : "\u{1F4CE}"}</button></div>
+        ${l.custom && sort === "manual" ? `<div class="ls-ctrl"><button class="icon-btn" data-d="-1">\u2191</button><button class="icon-btn" data-d="1">\u2193</button><button class="icon-btn" data-d="x">\u2715</button></div>` : ""}</div>`;
+        el.onclick = () => {
+          location.hash = "#/book/" + b.id;
+        };
+        el.querySelector("[data-act=read]").onclick = (ev) => {
+          ev.stopPropagation();
+          startReadingBook(b);
+        };
+        el.querySelector("[data-act=attach]").onclick = async (ev) => {
+          ev.stopPropagation();
+          if (await pickBookFile(b)) draw2();
+        };
+        el.querySelectorAll(".ls-ctrl button").forEach((btn) => btn.onclick = (ev) => {
+          ev.stopPropagation();
+          if (btn.dataset.d === "x") listToggleBook(id, b.id);
+          else listMove(id, b.id, +btn.dataset.d);
+          draw2();
+        });
+        g.appendChild(el);
+      });
+      $7("#lsCopy", view).onclick = async () => {
+        const txt = `${l.name}
+` + books.map((b, i) => `${i + 1}. ${b.title}${b.author ? " \u2014 " + b.author : ""}`).join("\n");
+        try {
+          await navigator.clipboard.writeText(txt);
+          toast(t("copied"));
+        } catch {
+          prompt("", txt);
+        }
+      };
+      if (l.custom) {
+        $7("#lsRename", view).onclick = () => {
+          const n = prompt(tr("\u0627\u0633\u0645 \u0627\u0644\u0642\u0627\u0626\u0645\u0629", "List name"), l.name);
+          if (!n || !n.trim()) return;
+          const d = prompt(tr("\u0627\u0644\u0648\u0635\u0641", "Description"), l.desc || "");
+          updateList(id, { name: n.trim(), desc: d || "" });
+          l.name = n.trim();
+          l.desc = d || "";
+          draw2();
+        };
+        $7("#lsDel", view).onclick = () => {
+          if (confirm(tr("\u062A\u062D\u0630\u0641 \u0627\u0644\u0642\u0627\u0626\u0645\u0629\u061F \u0627\u0644\u0643\u062A\u0628 \u0647\u062A\u0641\u0636\u0644 \u0641\u064A \u0645\u0643\u062A\u0628\u062A\u0643.", "Delete this list? Books stay in your library."))) {
+            deleteList(id);
+            location.hash = "#/lists";
+          }
+        };
+      }
+    };
+    draw2();
+  }
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], f = "", q = false;
+    text = text.replace(/^\uFEFF/, "");
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"') {
+          if (text[i + 1] === '"') {
+            f += '"';
+            i++;
+          } else q = false;
+        } else f += c;
+      } else if (c === '"') q = true;
+      else if (c === ",") {
+        row.push(f);
+        f = "";
+      } else if (c === "\n") {
+        row.push(f);
+        rows.push(row);
+        row = [];
+        f = "";
+      } else if (c !== "\r") f += c;
+    }
+    if (f || row.length) {
+      row.push(f);
+      rows.push(row);
+    }
+    return rows;
+  }
+  var cleanIsbn = (v) => (v || "").replace(/[="\s]/g, "");
+  function importGoodreads(text) {
+    const rows = parseCSV(text);
+    if (rows.length < 2) throw new Error("CSV \u0641\u0627\u0636\u064A");
+    const h = rows[0].map((x) => x.trim());
+    const ix = (n) => h.indexOf(n);
+    if (ix("Title") < 0) throw new Error(tr("\u0627\u0644\u0645\u0644\u0641 \u0645\u0634 \u062A\u0635\u062F\u064A\u0631 Goodreads", "Not a Goodreads export"));
+    const g = (r, n) => ix(n) >= 0 ? (r[ix(n)] || "").trim() : "";
+    const books = getState().books;
+    let added = 0;
+    const listIds = {};
+    const listFor = (name) => {
+      if (!listIds[name]) {
+        const ex = getState().lists.find((l) => l.name === name);
+        listIds[name] = (ex || createList(name, "Goodreads")).id;
+      }
+      return listIds[name];
+    };
+    const shelfMap = { read: "finished", "currently-reading": "reading", "to-read": "want" };
+    rows.slice(1).forEach((r) => {
+      const title = g(r, "Title").replace(/\s*\([^)]*#\d+[^)]*\)\s*$/, "").trim();
+      if (!title) return;
+      const author = g(r, "Author");
+      const isbn = cleanIsbn(g(r, "ISBN13")) || cleanIsbn(g(r, "ISBN"));
+      const ex = g(r, "Exclusive Shelf");
+      const rating = +g(r, "My Rating") || 0;
+      const dr = g(r, "Date Read").replace(/\//g, "-");
+      let b = books.find((x) => x.title.toLowerCase() === title.toLowerCase() && (x.author || "").toLowerCase() === author.toLowerCase());
+      if (!b) {
+        b = addBook({
+          title,
+          author,
+          format: "web",
+          source: "goodreads-csv",
+          isbn,
+          cover: "",
+          shelf: shelfMap[ex] || "want",
+          rating,
+          totalPages: +g(r, "Number of Pages") || 0,
+          review: g(r, "My Review"),
+          finishedAt: ex === "read" ? dr ? new Date(dr).toISOString() : (/* @__PURE__ */ new Date()).toISOString() : null
+        });
+        if (isNaN(Date.parse(b.finishedAt || "2000"))) b.finishedAt = (/* @__PURE__ */ new Date()).toISOString();
+        added++;
+      }
+      const shelves = new Set(g(r, "Bookshelves").split(",").map((x) => x.trim()).filter(Boolean));
+      if (ex) shelves.add(ex);
+      shelves.forEach((s) => {
+        const lid = listFor("Goodreads: " + s);
+        if (!listHas(lid, b.id)) listToggleBook(lid, b.id);
+      });
+    });
+    save();
+    return { added, lists: Object.keys(listIds).length };
+  }
+
+  // src/dbfile.js
+  var FORMAT = "qari-db";
+  var handle = null;
+  var status = "none";
+  var lastSaved = null;
+  var lastError = "";
+  var timer = null;
+  var saving = false;
+  var again = false;
+  var subs2 = /* @__PURE__ */ new Set();
+  var set = (s, err = "") => {
+    status = s;
+    lastError = err;
+    subs2.forEach((f) => {
+      try {
+        f();
+      } catch {
+      }
+    });
+  };
+  var supported = () => typeof window.showSaveFilePicker === "function";
+  var info = () => ({ status, name: handle ? handle.name : "", lastSaved, lastError, supported: supported() });
+  var onStatus = (fn) => subs2.add(fn);
+  async function build() {
+    const zip = new JSZip();
+    zip.file("manifest.json", JSON.stringify({ format: FORMAT, version: 1, savedAt: (/* @__PURE__ */ new Date()).toISOString() }));
+    zip.file("data.json", JSON.stringify(snapshot()));
+    const keys = await allFileKeys();
+    const used = new Set(getState().books.map((b) => b.fileKey).concat((getState().images || []).map((i) => i.fileKey)).filter(Boolean));
+    for (const k of keys) {
+      if (!used.has(k)) continue;
+      const b = await getFile(k);
+      if (b) zip.file("files/" + k, b, { binary: true });
+    }
+    return zip.generateAsync({ type: "blob", compression: "STORE" });
+  }
+  async function writeTo(h) {
+    const blob = await build();
+    const w = await h.createWritable();
+    await w.write(blob);
+    await w.close();
+    lastSaved = /* @__PURE__ */ new Date();
+  }
+  async function saveNow() {
+    if (!handle) return false;
+    if (saving) {
+      again = true;
+      return false;
+    }
+    saving = true;
+    clearTimeout(timer);
+    try {
+      if (await handle.queryPermission({ mode: "readwrite" }) !== "granted") {
+        set("needs-permission");
+        return false;
+      }
+      set("saving");
+      await writeTo(handle);
+      set("ready");
+      return true;
+    } catch (e) {
+      console.error(e);
+      set("error", e.message || String(e));
+      return false;
+    } finally {
+      saving = false;
+      if (again) {
+        again = false;
+        schedule();
+      }
+    }
+  }
+  function schedule() {
+    if (!handle || status === "needs-permission") return;
+    clearTimeout(timer);
+    timer = setTimeout(saveNow, 2500);
+  }
+  async function grant() {
+    if (!handle) return;
+    if (await handle.requestPermission({ mode: "readwrite" }) === "granted") {
+      set("ready");
+      await saveNow();
+    }
+  }
+  async function createFile() {
+    const h = await showSaveFilePicker({ suggestedName: "qari-library.qari", types: [{ description: "Qari database", accept: { "application/zip": [".qari"] } }] });
+    handle = h;
+    await metaPut("handle", h).catch(() => {
+    });
+    set("ready");
+    await saveNow();
+  }
+  async function restoreFrom(file) {
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
+    const mf = zip.file("manifest.json"), dj = zip.file("data.json");
+    if (!mf || !dj) throw new Error("not a qari database");
+    const data = JSON.parse(await dj.async("text"));
+    await clearFiles();
+    const names = Object.keys(zip.files).filter((n) => n.startsWith("files/") && !zip.files[n].dir);
+    for (const n of names) await putFile(n.slice(6), await zip.files[n].async("blob"));
+    replaceState(data);
+    return { books: data.books.length, files: names.length };
+  }
+  async function openFile() {
+    const [h] = await showOpenFilePicker({ types: [{ description: "Qari database", accept: { "application/zip": [".qari"] } }] });
+    if (await h.requestPermission({ mode: "readwrite" }) !== "granted") throw new Error("permission denied");
+    const r = await restoreFrom(await h.getFile());
+    handle = h;
+    await metaPut("handle", h).catch(() => {
+    });
+    set("ready");
+    return r;
+  }
+  async function disconnect() {
+    handle = null;
+    clearTimeout(timer);
+    await metaDel("handle");
+    set("none");
+  }
+  async function downloadBackup() {
+    const blob = await build();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "qari-library-" + (/* @__PURE__ */ new Date()).toISOString().slice(0, 10) + ".qari";
+    a.click();
+    lastSaved = /* @__PURE__ */ new Date();
+    set(status);
+  }
+  async function init() {
+    if (!supported()) {
+      set("unsupported");
+    } else {
+      try {
+        handle = await metaGet("handle");
+        if (handle) set(await handle.queryPermission({ mode: "readwrite" }) === "granted" ? "ready" : "needs-permission");
+      } catch (e) {
+        handle = null;
+      }
+    }
+    onChange(schedule);
+    onFilesChange(schedule);
+    window.addEventListener("beforeunload", () => {
+      if (handle && timer) saveNow();
+    });
+  }
+
+  // src/sync.js
+  var KEY2 = "qari.sync";
+  var API2 = "https://api.github.com";
+  var DATA_PATH = "data.json";
+  var MAX_FILE2 = 40 * 1024 * 1024;
+  var PUSH_DELAY = 12e3;
+  var POLL_MS = 9e4;
+  var meta = { token: "", owner: "", repo: "qari-data", sha: null, hash: null, changedAt: 0, lastSync: 0 };
+  var status2 = "off";
+  var lastError2 = "";
+  var lastNote = "";
+  var conflictNote = "";
+  var conflictBackup = null;
+  var busy = false;
+  var rerun = false;
+  var applying = false;
+  var pushTimer = null;
+  var pollTimer = null;
+  var subs3 = /* @__PURE__ */ new Set();
+  var hooks = { onApplied: () => {
+  }, confirm: (msg) => window.confirm(msg), lang: () => "ar" };
+  var emit2 = () => subs3.forEach((f) => {
+    try {
+      f();
+    } catch {
+    }
+  });
+  var setStatus = (s, err = "") => {
+    status2 = s;
+    lastError2 = err;
     emit2();
+  };
+  var saveMeta = () => localStorage.setItem(KEY2, JSON.stringify(meta));
+  var tt = (ar2, en) => hooks.lang() === "ar" ? ar2 : en;
+  var onStatus2 = (fn) => subs3.add(fn);
+  var configure = (h) => Object.assign(hooks, h);
+  var info2 = () => ({
+    status: status2,
+    error: lastError2,
+    note: lastNote,
+    conflictNote,
+    connected: !!meta.token,
+    owner: meta.owner,
+    repo: meta.repo,
+    lastSync: meta.lastSync,
+    hasConflictBackup: !!conflictBackup
+  });
+  function canon(v) {
+    if (Array.isArray(v)) return "[" + v.map(canon).join(",") + "]";
+    if (v && typeof v === "object") return "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + canon(v[k])).join(",") + "}";
+    return JSON.stringify(v);
+  }
+  function syncState(s) {
+    const c = JSON.parse(JSON.stringify(s));
+    delete c.metaCache;
+    if (c.settings) delete c.settings.gbKey;
+    return c;
+  }
+  var hashNow = () => canon(syncState(getState()));
+  var isEmptyLib = () => {
+    const s = getState();
+    return !s.books.length && !s.lists.length && !s.highlights.length && !s.comments.length;
+  };
+  var b642 = (str) => {
+    const bytes = new TextEncoder().encode(str);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(bin);
+  };
+  var unb642 = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, "")), (c) => c.charCodeAt(0)));
+  var blobToB642 = (blob) => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1]);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(blob);
+  });
+  var enc2 = (p) => p.split("/").map(encodeURIComponent).join("/");
+  async function gh(method, path, body, accept) {
+    const r = await fetch(API2 + path + (method === "GET" ? (path.includes("?") ? "&" : "?") + "_=" + Date.now() : ""), {
+      method,
+      cache: "no-store",
+      headers: Object.assign({ Authorization: "Bearer " + meta.token, Accept: accept || "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }, body ? { "Content-Type": "application/json" } : {}),
+      body: body ? JSON.stringify(body) : void 0
+    });
+    return r;
+  }
+  var repoPath = () => `/repos/${encodeURIComponent(meta.owner)}/${encodeURIComponent(meta.repo)}`;
+  async function errOf2(r) {
+    let m = "";
+    try {
+      m = (await r.json()).message || "";
+    } catch {
+    }
+    return `GitHub ${r.status}${m ? ": " + m : ""}`;
+  }
+  async function getRemote() {
+    const r = await gh("GET", `${repoPath()}/contents/${DATA_PATH}`);
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(await errOf2(r));
+    const j = await r.json();
+    let text;
+    if (j.encoding === "base64" && j.content) text = unb642(j.content);
+    else {
+      const rr = await gh("GET", `${repoPath()}/contents/${DATA_PATH}`, null, "application/vnd.github.raw");
+      if (!rr.ok) throw new Error(await errOf2(rr));
+      text = await rr.text();
+    }
+    const doc = JSON.parse(text);
+    if (!doc || doc.format !== "qari-sync" || !doc.state || !Array.isArray(doc.state.books)) throw new Error(tt("\u0627\u0644\u0645\u0644\u0641 \u0641\u064A \u0627\u0644\u0631\u064A\u0628\u0648 \u0645\u0634 \u0628\u062A\u0627\u0639 \u0642\u0627\u0631\u0626", "data.json in the repo is not a Qari file"));
+    return { sha: j.sha, doc };
+  }
+  async function pushData(sha) {
+    const doc = { format: "qari-sync", version: 1, savedAt: (/* @__PURE__ */ new Date()).toISOString(), state: syncState(getState()) };
+    const hash = canon(doc.state);
+    const body = { message: "Qari sync " + doc.savedAt, content: b642(JSON.stringify(doc)) };
+    if (sha) body.sha = sha;
+    const r = await gh("PUT", `${repoPath()}/contents/${DATA_PATH}`, body);
+    if (r.status === 409 || r.status === 422) return { conflict: true };
+    if (!r.ok) throw new Error(await errOf2(r));
+    const j = await r.json();
+    meta.sha = j.content.sha;
+    meta.hash = hash;
+    meta.lastSync = Date.now();
+    saveMeta();
+    return { ok: true };
+  }
+  async function applyRemote(remote, why) {
+    if (!isEmptyLib() && canon(syncState(remote.doc.state)) !== hashNow()) {
+      conflictBackup = JSON.stringify({ format: "qari-sync", savedAt: (/* @__PURE__ */ new Date()).toISOString(), state: syncState(getState()) });
+    }
+    const local = getState();
+    const data = Object.assign({}, remote.doc.state, { metaCache: local.metaCache || {} });
+    data.settings = Object.assign({}, data.settings || {}, { gbKey: local.settings && local.settings.gbKey || "" });
+    applying = true;
+    try {
+      replaceState(data);
+    } finally {
+      applying = false;
+    }
+    meta.sha = remote.sha;
+    meta.hash = hashNow();
+    meta.lastSync = Date.now();
+    meta.changedAt = 0;
+    saveMeta();
+    try {
+      hooks.onApplied();
+    } catch {
+    }
+    lastNote = why || "";
+  }
+  async function syncFiles() {
+    const st = getState();
+    const books = st.books.filter((b) => b.fileKey && b.format !== "web").concat((st.images || []).filter((i) => i.fileKey));
+    if (!books.length) return;
+    const r = await gh("GET", `${repoPath()}/contents/files`);
+    let remote = /* @__PURE__ */ new Set();
+    if (r.ok) (await r.json()).forEach((f) => remote.add(f.name));
+    else if (r.status !== 404) throw new Error(await errOf2(r));
+    const local = new Set(await allFileKeys());
+    let skipped = 0;
+    for (const b of books) {
+      const k = b.fileKey;
+      if (local.has(k) && !remote.has(k)) {
+        const blob = await getFile(k);
+        if (!blob) continue;
+        if (blob.size > MAX_FILE2) {
+          skipped++;
+          continue;
+        }
+        const pr = await gh("PUT", `${repoPath()}/contents/files/${enc2(k)}`, { message: "Qari book file " + k, content: await blobToB642(blob) });
+        if (!pr.ok && pr.status !== 422) throw new Error(await errOf2(pr));
+      } else if (!local.has(k) && remote.has(k)) {
+        const dr = await gh("GET", `${repoPath()}/contents/files/${enc2(k)}`, null, "application/vnd.github.raw");
+        if (!dr.ok) throw new Error(await errOf2(dr));
+        await putFile(k, await dr.blob());
+      }
+    }
+    if (skipped) lastNote = tt(`${skipped} \u0643\u062A\u0627\u0628 \u0623\u0643\u0628\u0631 \u0645\u0646 40MB \u0645\u0627 \u0627\u062A\u0631\u0641\u0639\u0634`, `${skipped} book file(s) over 40MB were not uploaded`);
+  }
+  async function syncNow(reason = "manual") {
+    if (!meta.token) return false;
+    if (busy) {
+      rerun = true;
+      return false;
+    }
+    busy = true;
+    clearTimeout(pushTimer);
+    lastNote = "";
+    setStatus("syncing");
+    try {
+      const remote = await getRemote();
+      const h = hashNow();
+      if (!remote) {
+        if (!isEmptyLib()) {
+          const p = await pushData(null);
+          if (p.conflict) {
+            rerun = true;
+          }
+        }
+      } else if (!meta.sha) {
+        if (isEmptyLib() || canon(syncState(remote.doc.state)) === h) await applyRemote(remote, "");
+        else if (hooks.confirm(tt("\u0627\u0644\u0631\u064A\u0628\u0648 \u0641\u064A\u0647 \u0628\u064A\u0627\u0646\u0627\u062A \u0648\u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647 \u0643\u0645\u0627\u0646 \u0641\u064A\u0647 \u0628\u064A\u0627\u0646\u0627\u062A.\nOK = \u0627\u0633\u062A\u062E\u062F\u0645 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0631\u064A\u0628\u0648 (\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u062C\u0647\u0627\u0632 \u0628\u062A\u062A\u062D\u0641\u0638 \u0646\u0633\u062E\u0629 \u062A\u0642\u062F\u0631 \u062A\u0646\u0632\u0644\u0647\u0627).\nCancel = \u0627\u0631\u0641\u0639 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u062C\u0647\u0627\u0632 \u0641\u0648\u0642 \u0627\u0644\u0631\u064A\u0628\u0648.", "The repo has data and this device has data too.\nOK = use the repo data (this device's data is kept as a downloadable copy).\nCancel = upload this device's data over the repo."))) {
+          await applyRemote(remote, tt("\u0627\u062A\u0633\u062A\u062E\u062F\u0645\u062A \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0631\u064A\u0628\u0648", "Repo data was used"));
+        } else {
+          const p = await pushData(remote.sha);
+          if (p.conflict) rerun = true;
+        }
+      } else if (remote.sha === meta.sha) {
+        if (h !== meta.hash) {
+          const p = await pushData(meta.sha);
+          if (p.conflict) rerun = true;
+        }
+      } else {
+        const dirty = h !== meta.hash;
+        if (canon(syncState(remote.doc.state)) === h) {
+          meta.sha = remote.sha;
+          meta.hash = h;
+          meta.lastSync = Date.now();
+          saveMeta();
+        } else if (!dirty) await applyRemote(remote, "");
+        else {
+          const remoteAt = Date.parse(remote.doc.savedAt) || 0;
+          if (remoteAt >= (meta.changedAt || 0)) {
+            await applyRemote(remote, "");
+            conflictNote = tt("\u26A0 \u062A\u0639\u0627\u0631\u0636: \u0627\u062A\u0639\u062F\u0651\u0644 \u0645\u0646 \u062C\u0647\u0627\u0632\u064A\u0646. \u0627\u062A\u0627\u062E\u062F\u062A \u0627\u0644\u0646\u0633\u062E\u0629 \u0627\u0644\u0623\u062D\u062F\u062B (\u0645\u0646 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u062A\u0627\u0646\u064A) \u0648\u0646\u0633\u062E\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647 \u0627\u062A\u062D\u0641\u0638\u062A \u0648\u062A\u0642\u062F\u0631 \u062A\u0646\u0632\u0644\u0647\u0627.", "\u26A0 Conflict: edited on two devices. The newer version (from the other device) was kept; this device's copy was saved and can be downloaded.");
+          } else {
+            const p = await pushData(remote.sha);
+            if (p.conflict) rerun = true;
+            conflictNote = tt("\u26A0 \u062A\u0639\u0627\u0631\u0636: \u0627\u062A\u0639\u062F\u0651\u0644 \u0645\u0646 \u062C\u0647\u0627\u0632\u064A\u0646. \u0627\u062A\u0627\u062E\u062F\u062A \u0627\u0644\u0646\u0633\u062E\u0629 \u0627\u0644\u0623\u062D\u062F\u062B (\u0628\u062A\u0627\u0639\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u062F\u0647) \u0648\u0627\u062A\u062D\u0641\u0638\u062A \u0641\u064A \u0627\u0644\u0631\u064A\u0628\u0648. \u0627\u0644\u0642\u062F\u064A\u0645\u0629 \u0645\u0648\u062C\u0648\u062F\u0629 \u0641\u064A \u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0631\u064A\u0628\u0648 (commits).", "\u26A0 Conflict: edited on two devices. The newer version (this device) was kept and pushed. The older one is in the repo history (commits).");
+          }
+          conflictNote = conflictNote + " (" + (/* @__PURE__ */ new Date()).toLocaleTimeString() + ")";
+        }
+      }
+      if (!rerun) await syncFiles();
+      setStatus("idle");
+      return true;
+    } catch (e) {
+      console.error(e);
+      setStatus("error", e.message || String(e));
+      return false;
+    } finally {
+      busy = false;
+      if (rerun) {
+        rerun = false;
+        setTimeout(() => syncNow("rerun"), 500);
+      }
+    }
+  }
+  function onLocalChange() {
+    if (applying || !meta.token) return;
+    if (hashNow() === meta.hash) return;
+    meta.changedAt = Date.now();
+    saveMeta();
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => syncNow("auto"), PUSH_DELAY);
+  }
+  async function connect(owner, repo, token) {
+    owner = (owner || "").trim();
+    repo = (repo || "").trim();
+    token = (token || "").trim();
+    if (!owner || !repo || !token) throw new Error(tt("\u0627\u0645\u0644\u0627 \u0627\u0644\u062E\u0627\u0646\u0627\u062A \u0627\u0644\u062A\u0644\u0627\u062A\u0629", "Fill all three fields"));
+    const prev2 = meta;
+    meta = { token, owner, repo, sha: null, hash: null, changedAt: 0, lastSync: 0 };
+    try {
+      const r = await gh("GET", repoPath());
+      if (r.status === 404 || r.status === 403 || r.status === 401) throw new Error(tt("\u0645\u0634 \u0642\u0627\u062F\u0631 \u0623\u062F\u062E\u0644 \u0639\u0644\u0649 \u0627\u0644\u0631\u064A\u0628\u0648. \u0627\u062A\u0623\u0643\u062F \u0645\u0646 \u0627\u0644\u0627\u0633\u0645 \u0648\u0627\u0644\u062A\u0648\u0643\u0646 \u0648\u0625\u0646\u0647 \u0645\u062F\u0651\u064A Contents \u0642\u0631\u0627\u0621\u0629 \u0648\u0643\u062A\u0627\u0628\u0629 \u0644\u0644\u0631\u064A\u0628\u0648 \u062F\u0647.", "Cannot reach the repo. Check the name, and that the token has Contents read and write on it."));
+      if (!r.ok) throw new Error(await errOf2(r));
+      const j = await r.json();
+      if (!j.private) throw new Error(tt("\u0627\u0644\u0631\u064A\u0628\u0648 \u062F\u0647 \u0639\u0627\u0645 (Public). \u0628\u064A\u0627\u0646\u0627\u062A\u0643 \u0644\u0627\u0632\u0645 \u062A\u062A\u062D\u0641\u0638 \u0641\u064A \u0631\u064A\u0628\u0648 \u062E\u0627\u0635 (Private).", "This repo is public. Your data must go to a private repo."));
+      if (j.permissions && j.permissions.push === false) throw new Error(tt("\u0627\u0644\u062A\u0648\u0643\u0646 \u0645\u0641\u064A\u0647\u0648\u0634 \u0635\u0644\u0627\u062D\u064A\u0629 \u0643\u062A\u0627\u0628\u0629 \u0639\u0644\u0649 \u0627\u0644\u0631\u064A\u0628\u0648.", "The token has no write access to the repo."));
+    } catch (e) {
+      meta = prev2;
+      throw e;
+    }
+    saveMeta();
+    setStatus("idle");
+    startPolling();
+    return syncNow("connect");
+  }
+  function disconnect2() {
+    meta = { token: "", owner: "", repo: "qari-data", sha: null, hash: null, changedAt: 0, lastSync: 0 };
+    localStorage.removeItem(KEY2);
+    clearTimeout(pushTimer);
+    clearInterval(pollTimer);
+    conflictBackup = null;
+    lastNote = "";
+    conflictNote = "";
+    setStatus("off");
+  }
+  function dismissConflict() {
+    conflictNote = "";
+    emit2();
+  }
+  function downloadConflictBackup() {
+    if (!conflictBackup) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([conflictBackup], { type: "application/json" }));
+    a.download = "qari-local-copy-" + (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace(/[:T]/g, "-") + ".json";
+    a.click();
+  }
+  var savedDefaults = () => ({ owner: meta.owner, repo: meta.repo });
+  function startPolling() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(() => {
+      if (document.visibilityState === "visible" && !busy) syncNow("poll");
+    }, POLL_MS);
+  }
+  function init2() {
+    try {
+      const raw = localStorage.getItem(KEY2);
+      if (raw) Object.assign(meta, JSON.parse(raw));
+    } catch {
+    }
+    onChange(onLocalChange);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") syncNow("visible");
+    });
+    window.addEventListener("online", () => syncNow("online"));
+    if (meta.token) {
+      setStatus("idle");
+      startPolling();
+      syncNow("start");
+    }
   }
 
   // src/cloudsync.js
@@ -26356,6 +26711,19 @@ ${suffix}`;
   }
   async function startReadingBook(book) {
     if (book.fileKey && book.format !== "web") return openReader(book);
+    if (book.source === "public" && book.public_file_path) {
+      try {
+        const r = await fetch(publicFileUrl(book.public_file_path), { cache: "no-store" });
+        if (!r.ok) throw new Error("download failed");
+        const blob = await r.blob();
+        const fileKey = "file-" + uid();
+        await putFile(fileKey, blob);
+        const b2 = updateBook(book.id, { fileKey });
+        if (b2) return openReader(b2);
+      } catch (e) {
+        console.warn("public file download failed", e);
+      }
+    }
     const b = await pickBookFile(book);
     if (b) openReader(b);
   }
@@ -26496,6 +26864,7 @@ ${suffix}`;
     "author": (v, a) => renderAuthorPage(v, a),
     "book": (v, a) => renderBookPage(v, a, "book"),
     "work": (v, a) => renderBookPage(v, a, "work"),
+    "pub": (v, a) => renderBookPage(v, a, "pub"),
     "lists": renderLists,
     "account": renderAccount
   };
@@ -26599,51 +26968,114 @@ ${suffix}`;
     }
     return el;
   }
-  var libFilter = { q: "", fav: false, sort: "default" };
-  function renderLibrary(view) {
-    const st = getState();
+  function pubCard(pb, savedId) {
+    const el = document.createElement("div");
+    el.className = "book-card";
+    el.innerHTML = `
+    <div class="cover">${coverHTML(pb)}</div>
+    <div class="book-meta">
+      <div class="book-title">${esc(pb.title)}</div>
+      <div class="book-author">${authorHTML(pb.author)}</div>
+      <button class="read-link pub-save-btn">${savedId ? "\u2713 " + t("inMyLibrary") : "\uFF0B " + t("addToMyLibrary")}</button>
+    </div>`;
+    el.querySelector(".pub-save-btn").onclick = (ev) => {
+      ev.stopPropagation();
+      saveToMyLibrary(pb);
+      ev.currentTarget.textContent = "\u2713 " + t("inMyLibrary");
+      toast(t("added"));
+    };
+    el.onclick = () => {
+      location.hash = "#/pub/" + pb.id;
+    };
+    return el;
+  }
+  var pubFilter = { q: "", cat: "", sort: "default" };
+  async function renderLibrary(view) {
     view.innerHTML = `
-    <div class="view-head"><h1>${t("navLibrary")}</h1><span class="muted">${st.books.filter((b) => b.shelf !== "finished").length} ${t("pages") === "\u0635\u0641\u062D\u0629" ? "\u0643\u062A\u0627\u0628" : "books"}</span></div>
-    ${st.books.length === 0 ? `<div class="empty-state"><div class="big">\u{1F4DA}</div><h2>${t("emptyLib")}</h2><p>${t("emptyLibSub")}</p></div>` : `
-    <div class="lib-filter"><input id="libQ" placeholder="${getLang() === "ar" ? "\u062F\u0648\u0651\u0631 \u0641\u064A \u0645\u0643\u062A\u0628\u062A\u0643\u2026" : "Search your library\u2026"}" value="${esc(libFilter.q)}">
-      <button class="chip ${libFilter.fav ? "active" : ""}" id="favChip">\u2764 ${getLang() === "ar" ? "\u0627\u0644\u0645\u0641\u0636\u0644\u0629" : "Favorites"}</button>
-      <select id="libSort" title="${getLang() === "ar" ? "\u0627\u0644\u062A\u0631\u062A\u064A\u0628" : "Sort"}">${sortOptionsHTML(libFilter.sort)}</select></div>`}
-    <div id="readingRow"></div>
-    <div class="grid" id="libGrid"></div>`;
-    const paint = () => {
-      const q = libFilter.q.trim().toLowerCase();
-      const match = (b) => (!libFilter.fav || b.favorite) && (!q || (b.title + " " + (b.author || "")).toLowerCase().includes(q));
-      const reading = sortBooks(st.books.filter((b) => b.shelf === "reading" && match(b)), libFilter.sort);
-      const rest = sortBooks(st.books.filter((b) => b.shelf !== "reading" && b.shelf !== "finished" && match(b)), libFilter.sort);
-      const row = $9("#readingRow", view);
-      row.innerHTML = "";
-      if (reading.length) {
-        row.innerHTML = `<h2 style="margin-bottom:.7rem;font-size:1.1rem">\u25B6 ${t("continueReading")}</h2>`;
-        const g = document.createElement("div");
-        g.className = "grid";
-        g.style.marginBottom = "1.6rem";
-        reading.forEach((b) => g.appendChild(bookCard(b, paint)));
-        row.appendChild(g);
+    <div class="view-head"><h1>${t("navLibrary")}</h1><span class="muted" id="pubCount"></span></div>
+    <div class="chip-row" id="pubCats" style="margin-bottom:.7rem"></div>
+    <div class="lib-filter"><input id="pubQ" placeholder="${getLang() === "ar" ? "\u062F\u0648\u0651\u0631 \u0641\u064A \u0627\u0644\u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0639\u0627\u0645\u0629\u2026" : "Search the public library\u2026"}" value="${esc(pubFilter.q)}">
+      <select id="pubSort" title="${getLang() === "ar" ? "\u0627\u0644\u062A\u0631\u062A\u064A\u0628" : "Sort"}">${sortOptionsHTML(pubFilter.sort)}</select></div>
+    <div class="grid" id="pubGrid"></div>
+    <p class="muted" id="pubMsg"></p>`;
+    let catalog = null;
+    const paintCats = () => {
+      const host = $9("#pubCats", view);
+      if (!host) return;
+      host.innerHTML = "";
+      const cats = catalog && catalog.categories || [];
+      const all = document.createElement("button");
+      all.className = "chip" + (pubFilter.cat === "" ? " active" : "");
+      all.textContent = t("allCategories");
+      all.onclick = () => {
+        pubFilter.cat = "";
+        paint();
+      };
+      host.appendChild(all);
+      cats.forEach((c) => {
+        const chip2 = document.createElement("button");
+        chip2.className = "chip" + (pubFilter.cat === c.id ? " active" : "");
+        chip2.textContent = c.name;
+        chip2.onclick = () => {
+          pubFilter.cat = c.id;
+          paint();
+        };
+        host.appendChild(chip2);
+      });
+      if (isAdmin()) {
+        const add = document.createElement("button");
+        add.className = "chip";
+        add.textContent = "\uFF0B " + t("addCategory");
+        add.onclick = async () => {
+          const name = prompt(t("categoryNamePh"));
+          if (!name || !name.trim()) return;
+          try {
+            await addCategory(name.trim());
+            toast(t("added"));
+            renderLibrary(view);
+          } catch (e) {
+            toast("\u26A0 " + (e.message || e), 4e3);
+          }
+        };
+        host.appendChild(add);
       }
-      const grid = $9("#libGrid", view);
+    };
+    const paint = () => {
+      if (!catalog) return;
+      const q = pubFilter.q.trim().toLowerCase();
+      const match = (b) => (!pubFilter.cat || b.category_id === pubFilter.cat) && (!q || ((b.title || "") + " " + (b.author || "")).toLowerCase().includes(q));
+      const list = sortBooks(catalog.books.filter(match), pubFilter.sort);
+      const grid = $9("#pubGrid", view);
+      if (!grid) return;
       grid.innerHTML = "";
-      rest.forEach((b) => grid.appendChild(bookCard(b, paint)));
+      if (!catalog.books.length) {
+        grid.innerHTML = `<div class="empty-state"><div class="big">\u{1F4DA}</div><h2>${esc(t("emptyPublic"))}</h2><p>${esc(t("emptyPublicSub"))}</p></div>`;
+      } else {
+        const savedIds = new Map(getState().books.filter((b) => b.public_book_id).map((b) => [b.public_book_id, b.id]));
+        list.forEach((pb) => grid.appendChild(pubCard(pb, savedIds.get(pb.id))));
+      }
+      const cnt = $9("#pubCount", view);
+      if (cnt) cnt.textContent = catalog.books.length + " " + (getLang() === "ar" ? "\u0643\u062A\u0627\u0628" : "books");
+      const msg = $9("#pubMsg", view);
+      if (msg) msg.textContent = catalog.books.length && !list.length ? t("noResults") : "";
+      paintCats();
     };
+    try {
+      catalog = await getCatalog();
+    } catch (e) {
+      const msg = $9("#pubMsg", view);
+      if (msg) msg.textContent = "\u26A0 " + (e.message || e);
+      return;
+    }
     paint();
-    const qi = $9("#libQ", view);
+    const qi = $9("#pubQ", view);
     if (qi) qi.oninput = () => {
-      libFilter.q = qi.value;
+      pubFilter.q = qi.value;
       paint();
     };
-    const fc = $9("#favChip", view);
-    if (fc) fc.onclick = () => {
-      libFilter.fav = !libFilter.fav;
-      fc.classList.toggle("active", libFilter.fav);
-      paint();
-    };
-    const ls = $9("#libSort", view);
+    const ls = $9("#pubSort", view);
     if (ls) ls.onchange = () => {
-      libFilter.sort = ls.value;
+      pubFilter.sort = ls.value;
       paint();
     };
   }
@@ -26951,6 +27383,22 @@ ${suffix}`;
     if (!isAdmin()) return;
     const m = $9("#addModal");
     m.classList.remove("hidden");
+    let row = $9("#pubCatRow", m);
+    if (!row) {
+      row = document.createElement("div");
+      row.id = "pubCatRow";
+      row.className = "search-row";
+      row.style.marginBottom = ".6rem";
+      row.innerHTML = `<label class="muted" style="align-self:center">${t("categories")}:</label><select id="pubCatSel" style="flex:1"></select>`;
+      m.querySelector(".modal-tabs").after(row);
+    }
+    const sel = $9("#pubCatSel", m);
+    listCategories().then((cats) => {
+      sel.innerHTML = `<option value="">\u2014</option>` + cats.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
+      const tr2 = cats.find((c) => c.name === "\u062A\u0631\u062C\u0645\u0627\u062A");
+      sel.value = tr2 ? tr2.id : cats[0] ? cats[0].id : "";
+    }).catch(() => {
+    });
     $$2(".modal-tabs .tab", m).forEach((tabBtn) => tabBtn.onclick = () => {
       $$2(".modal-tabs .tab", m).forEach((x) => x.classList.toggle("active", x === tabBtn));
       $9("#pane-file", m).classList.toggle("hidden", tabBtn.dataset.tab !== "file");
@@ -26966,8 +27414,6 @@ ${suffix}`;
       toast("\u26A0 EPUB / PDF / TXT");
       return;
     }
-    const fileKey = "file-" + uid();
-    await putFile(fileKey, file);
     let meta3 = { title: file.name.replace(/\.(epub|pdf|txt)$/i, ""), author: "", cover: "", subjects: [] };
     if (ext === "epub") {
       try {
@@ -27011,10 +27457,16 @@ ${suffix}`;
         console.warn("epub meta read failed", e);
       }
     }
-    const b = addBook({ ...meta3, format: ext, fileKey, source: "local", shelf: "want" });
-    toast(t("added"));
-    closeAddModal();
-    location.hash = "#/book/" + b.id;
+    try {
+      const categoryId = ($9("#pubCatSel") || {}).value || "";
+      const pb = await publishBook({ file, meta: meta3, format: ext, categoryId: categoryId || null });
+      saveToMyLibrary(pb, file);
+      toast(t("published"));
+      closeAddModal();
+      location.hash = "#/pub/" + pb.id;
+    } catch (e) {
+      toast("\u26A0 " + (e.message || e), 5e3);
+    }
   }
   async function runOnlineSearch() {
     const q = $9("#onlineQuery").value.trim();
@@ -27037,15 +27489,23 @@ ${suffix}`;
             location.hash = "#/work/" + it.olKey;
           }
         };
-        row.querySelector("button").onclick = (ev) => {
+        row.querySelector("button").onclick = async (ev) => {
           ev.stopPropagation();
-          const b = addBook({ title: it.title, author: it.author, format: "web", cover: it.cover || "", source: "openlibrary", subjects: it.subjects || [], isbn: it.isbn || "", olKey: it.olKey || "", year: it.year || "", shelf: "want" });
-          row.querySelector("button").textContent = t("added");
-          row.querySelector("button").disabled = true;
-          setTimeout(() => {
-            closeAddModal();
-            location.hash = "#/book/" + b.id;
-          }, 500);
+          const btn = row.querySelector("button");
+          btn.disabled = true;
+          try {
+            const categoryId = ($9("#pubCatSel") || {}).value || "";
+            const pb = await publishBook({ file: null, meta: { title: it.title, author: it.author, cover: it.cover || "", subjects: it.subjects || [], isbn: it.isbn || "", olKey: it.olKey || "", year: it.year || "" }, format: "web", categoryId: categoryId || null });
+            saveToMyLibrary(pb);
+            btn.textContent = t("published");
+            setTimeout(() => {
+              closeAddModal();
+              location.hash = "#/pub/" + pb.id;
+            }, 500);
+          } catch (e) {
+            btn.disabled = false;
+            toast("\u26A0 " + (e.message || e), 5e3);
+          }
         };
         host.appendChild(row);
       });
