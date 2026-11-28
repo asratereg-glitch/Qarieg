@@ -1,6 +1,7 @@
 // discover.js — online search, taste recommendations, award lists, mood search
 import * as store from './store.js';
 import { t, getLang } from './i18n.js';
+import { saveToMyLibrary, findSavedBook } from './public.js';
 import { worksByAuthor } from './meta.js';
 import { authorHTML, esc, toast, coverImgHTML, placeholderHTML, findCover, sortBooks, sortOptionsHTML } from './app.js';
 
@@ -327,7 +328,7 @@ function recCard(it, view) {
   const c = document.createElement('div'); c.className = 'book-card';
   c.innerHTML = `<div class="cover">${coverImgHTML(it)}</div>
     <div class="book-meta"><div class="book-title">${esc(it.title)}</div><div class="book-author">${authorHTML(it.author)}</div>${it.rating ? `<div class="muted">★ ${it.rating.toFixed(1)} (${it.ratingCount})</div>` : ''}
-    <button class="btn btn-primary" style="margin-top:.4rem;font-size:.75rem;padding:.25rem .7rem">${t('addToLibrary')}</button></div>`;
+    <button class="btn btn-primary" style="margin-top:.4rem;font-size:.75rem;padding:.25rem .7rem">${t('addToMyLibrary')}</button></div>`;
   c.onclick = async () => {
     if (it.olKey) { location.hash = '#/work/' + it.olKey; return; }
     toast(t('loading'));
@@ -341,9 +342,14 @@ function recCard(it, view) {
   }
   c.querySelector('button').onclick = e => {
     e.stopPropagation();
-    store.addBook({ title: it.title, author: it.author, format: 'web', cover: it.cover, source: 'openlibrary', subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || '', year: it.year || '', shelf: 'want' });
-    e.target.textContent = t('added'); e.target.disabled = true; toast(t('added'));
+    saveToMyLibrary({ title: it.title, author: it.author, format: 'web', cover: it.cover, source: 'openlibrary', subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || '', year: it.year || '' });
+    e.target.textContent = t('inMyLibrary'); e.target.disabled = true; toast(t('added'));
   };
+  // reflect an already-saved book instead of offering to save it again
+  if (findSavedBook({ title: it.title, author: it.author, olKey: it.olKey || '' })) {
+    const btn = c.querySelector('button');
+    btn.textContent = t('inMyLibrary'); btn.disabled = true;
+  }
   return c;
 }
 
@@ -373,9 +379,7 @@ async function showResults(view, title, fetcher, saveable = false) {
         saveBtn = document.createElement('button'); saveBtn.className = 'btn btn-primary'; saveBtn.style.gridColumn = '1/-1'; saveBtn.textContent = '📋 ' + (getLang() === 'ar' ? 'احفظها كقائمة قراءة (كل اللي ظاهر)' : 'Save as reading list (everything loaded)');
         saveBtn.onclick = () => {
           const l = store.createList(title.replace(/^[^ ]+ /, '').split(' · ')[0], 'Open Library');
-          all.forEach(it => { let bk = (it.olKey && store.findBookByOl(it.olKey)) || store.getState().books.find(x => x.title === it.title && x.author === it.author);
-            if (!bk) bk = store.addBook({ title: it.title, author: it.author, format: 'web', cover: it.cover, source: 'openlibrary', subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || '', year: it.year || '', shelf: 'want' });
-            store.listToggleBook(l.id, bk.id); });
+          all.forEach(it => { const bk = saveToMyLibrary({ title: it.title, author: it.author, format: 'web', cover: it.cover, source: 'openlibrary', subjects: it.subjects, isbn: it.isbn, olKey: it.olKey || '', year: it.year || '' }); store.listToggleBook(l.id, bk.id); });
           toast(t('added')); location.hash = '#/lists/' + l.id;
         };
       }
