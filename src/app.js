@@ -125,7 +125,7 @@ async function findCover1(title, author, k) {
 export function coverHTML(book, small = false) {
   return coverImgHTML(book, book.format === 'pdf' ? '📄' : book.format === 'epub' ? '📕' : '📃');
 }
-function shelfName(s) { return ({ want: t('shelf_want'), reading: t('shelf_reading'), finished: t('shelf_finished') })[s] || s; }
+function shelfName(s) { return ({ want: t('shelf_want'), reading: t('shelf_reading'), finished: t('shelf_finished'), translations: t('shelf_translations') })[s] || s; }
 export function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(getLang() === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return ''; } }
 
 /* ---------- theme & language ---------- */
@@ -168,6 +168,7 @@ function updateSettingsVisibility() {
   const db = $('#dbChip'); if (db) db.style.display = admin ? '' : 'none';
   const sc = $('#syncChip');
   if (sc) { if (admin) updateSyncUi(); else sc.style.display = 'none'; }
+  const ab = $('#addBookBtn'); if (ab) ab.style.display = admin ? '' : 'none';
 }
 
 
@@ -276,11 +277,13 @@ function renderLibrary(view) {
 /* ---------- shelves ---------- */
 function renderShelves(view) {
   const st = store.getState();
-  const groups = [['reading', t('shelf_reading')], ['want', t('shelf_want')], ['finished', t('shelf_finished')]];
+  const groups = [['translations', t('shelf_translations')], ['reading', t('shelf_reading')], ['want', t('shelf_want')], ['finished', t('shelf_finished')]];
   view.innerHTML = `<div class="view-head"><h1>${t('navShelves')}</h1></div>
-    <div class="search-row" style="max-width:420px"><input id="newShelfName" placeholder="${t('shelfNamePh')}"><button id="newShelfBtn" class="btn">＋ ${t('newShelf')}</button></div>
+    <div class="search-row" id="newShelfRow" style="max-width:420px"><input id="newShelfName" placeholder="${t('shelfNamePh')}"><button id="newShelfBtn" class="btn">＋ ${t('newShelf')}</button></div>
     <div id="shelfBlocks"></div>`;
+  if (!auth.isAdmin()) { const nr = $('#newShelfRow', view); if (nr) nr.style.display = 'none'; }
   $('#newShelfBtn', view).onclick = () => {
+    if (!auth.isAdmin()) return;
     const v = $('#newShelfName', view).value.trim();
     if (v) { store.addCustomShelf(v); renderShelves(view); }
   };
@@ -459,6 +462,7 @@ function renderCommunityRoute(view) { renderCommunity(view); bindCommunity(view)
 
 /* ---------- add-book modal ---------- */
 function openAddModal() {
+  if (!auth.isAdmin()) return; // adding books is admin-only
   const m = $('#addModal'); m.classList.remove('hidden');
   $$('.modal-tabs .tab', m).forEach(tabBtn => tabBtn.onclick = () => {
     $$('.modal-tabs .tab', m).forEach(x => x.classList.toggle('active', x === tabBtn));
