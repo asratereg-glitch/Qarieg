@@ -22,8 +22,8 @@
     <a href="#/stats" data-route="stats" data-i18n="navStats">إحصائياتي</a>
     <a href="#/discover" data-route="discover" data-i18n="navDiscover">اكتشف</a>
     <a href="#/community" data-route="community" data-i18n="navCommunity">المجتمع</a>
-    <a href="#/account" data-route="account" data-i18n="navAccount">الحساب</a>
     <a href="#/settings" data-route="settings" data-i18n="navSettings">الإعدادات</a>
+    <a href="#/account" data-route="account" data-i18n="navAccount">الحساب</a>
   </nav>
   <button id="addBookBtn" class="btn btn-primary">＋ <span data-i18n="addBook">أضف كتاب</span></button>
 </header>
@@ -79,6 +79,26 @@
         <button id="onlineSearchBtn" class="btn btn-primary" data-i18n="search">بحث</button>
       </div>
       <div id="onlineResults" class="results"></div>
+    </div>
+    <div class="tab-pane hidden" id="pane-cover">
+      <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+        <div id="coverPreview" style="width:130px;min-height:190px;flex:none"></div>
+        <div style="flex:1;min-width:200px">
+          <div id="coverBookTitle" style="font-weight:700;margin-bottom:.2rem"></div>
+          <div id="coverBookAuthor" class="muted" style="margin-bottom:.8rem"></div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button id="coverChangeBtn" class="btn">🖼 <span data-i18n="changeCover">غيّر الغلاف</span></button>
+            <button id="coverUrlBtn" class="btn">🔗 <span data-i18n="coverUrlBtn">رابط صورة</span></button>
+            <button id="coverRemoveBtn" class="btn btn-danger">✕ <span data-i18n="removeCover">إزالة الغلاف</span></button>
+          </div>
+          <input type="file" id="coverInput" accept="image/*" hidden>
+          <p class="muted" style="margin-top:.7rem" data-i18n="coverHint">ده الغلاف اللي هيظهر في المكتبة العامة. لو مفيش غلاف، الكتاب هيظهر بغلاف افتراضي.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button id="coverPublishBtn" class="btn btn-primary">✓ <span data-i18n="publishToPublic">انشر في المكتبة العامة</span></button>
+        <button id="coverBackBtn" class="btn"><span data-i18n="back">رجوع</span></button>
+      </div>
     </div>
   </div>
 </div>
