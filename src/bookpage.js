@@ -1,6 +1,8 @@
 // bookpage.js — IMDb-style book page (library book or online work), favorites, lists, comments
 import * as store from './store.js';
 import * as db from './db.js';
+import * as auth from './auth.js';
+import { saveToMyLibrary, getPublicBook, publishExistingBook, deletePublicBook } from './public.js';
 import { t, tr, getLang } from './i18n.js';
 import { authorHTML, openAuthor, findCover, esc, stars, coverHTML, fmtDate, toast, pickBookFile, startReadingBook } from './app.js';
 import { findBookHTML } from './findbook.js';
@@ -27,6 +29,16 @@ function ensureLib(meta) {
 
 export async function renderBookPage(view, arg, kind) {
   let lib = null, olKey = '';
+  if (kind === 'pub') {
+    // Public book page: load the public row, resolve the user's saved copy.
+    let pb = null;
+    try { pb = await getPublicBook(arg); } catch (e) { view.innerHTML = `<p class="muted">⚠ ${esc(e.message || e)}</p>`; return; }
+    if (!pb) { view.innerHTML = `<p class="muted">?</p>`; return; }
+    lib = store.findBookByPublicId(pb.id);
+    const meta = { olKey: pb.ol_key || '', title: pb.title, author: pb.author, cover: pb.cover, subjects: pb.subjects || [], isbn: pb.isbn || '', year: pb.year || '', description: pb.description || '', pages: 0 };
+    draw(view, lib, meta, ++TOKEN, false, pb);
+    return;
+  }
   if (kind === 'book') {
     lib = store.getBook(arg);
     if (!lib) { view.innerHTML = `<p class="muted">?</p>`; return; }
@@ -60,7 +72,7 @@ function ratingBox(label, value, count, extra = '') {
   return `<div class="bp-rate"><div class="bp-rate-l">${label}</div><div class="bp-rate-v">★ ${value.toFixed(1)}<small>/5</small></div><div class="muted">${nf(count)} ${tr('تقييم', 'ratings')}${extra}</div></div>`;
 }
 
-function draw(view, lib, meta, tok, loading = false) {
+function draw(view, lib, meta, tok, loading = false, pub = null) {
   const title = (lib && lib.title) || meta.title || '?';
   const author = (lib && lib.author) || meta.author || '';
   const cover = (lib && lib.cover) || meta.cover || '';
@@ -95,7 +107,7 @@ function draw(view, lib, meta, tok, loading = false) {
         ${meta.wantToRead || meta.alreadyRead || meta.currentlyReading ? `<div class="bp-community">🔖 ${nf(meta.wantToRead)} ${tr('عايزين يقروه', 'want to read')} · 📖 ${nf(meta.currentlyReading)} ${tr('بيقروه', 'reading')} · ✅ ${nf(meta.alreadyRead)} ${tr('قروه', 'have read')}</div>` : ''}
         <div class="bp-actions">
           ${lib ? `<button id="readBtn" class="btn btn-primary">▶ ${t('startReading')}</button><button id="attachBtn" class="btn" title="${tr('اختار ملف الكتاب من جهازك', 'Choose the book file from your device')}">📎 ${lib.fileKey ? tr('غيّر الملف', 'Change file') : tr('اربط ملف الكتاب', 'Link book file')}</button>` : ''}
-          ${!lib ? `<button id="addLibBtn" class="btn btn-primary">＋ ${t('addToLibrary')}</button>` : ''}
+          ${!lib ? `<button id="addLibBtn" class="btn btn-primary">＋ ${t(pub ? 'addToMyLibrary' : 'addToLibrary')}</button>` : ''}
           <button id="favBtn" class="btn ${lib && lib.favorite ? 'btn-fav on' : 'btn-fav'}">${lib && lib.favorite ? '❤' : '🤍'} ${tr('المفضلة', 'Favorite')}</button>
           <button id="listsBtn" class="btn">📋 ${tr('القوائم', 'Lists')}${myLists.length ? ` (${myLists.length})` : ''}</button>
           ${lib ? `<select id="shelfSel" title="${tr('الرف', 'Shelf')}">${shelfOpts.map(([v, l]) => `<option value="${esc(v)}" ${lib.shelf === v || (lib.customShelves || []).includes(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}
@@ -147,12 +159,15 @@ function draw(view, lib, meta, tok, loading = false) {
         <div class="muted">${esc([meta.authorBorn, meta.authorDied].filter(Boolean).join(' – '))}</div></div></div>
         ${meta.authorBio ? `<p class="bp-bio" dir="auto">${esc(meta.authorBio)}</p>` : ''}</div>` : ''}
       ${lib ? `<button id="delBtn" class="btn btn-danger" style="width:100%">🗑 ${t('removeBook')}</button>` : ''}
+      ${lib && auth.isAdmin() && !lib.public_book_id ? `<button id="pubBtn" class="btn" style="width:100%;margin-top:.5rem">📢 ${t('publishToPublic')}</button>` : ''}
+      ${pub && auth.isAdmin() ? `<button id="delPubBtn" class="btn btn-danger" style="width:100%;margin-top:.5rem">🗑 ${t('removeFromPublic')}</button>` : ''}
     </aside>
   </div>`;
 
-  const redraw = () => draw(view, lib, meta, tok, false);
+  const redraw = () => draw(view, lib, meta, tok, false, pub);
   // make sure the book exists in the library before mutating; returns the (possibly new) book
-  const need = () => { if (!lib) { lib = ensureLib(meta); toast(t('added')); } return lib; };
+  // (public books are saved via the shared helper: copy, don't reference)
+  const need = () => { if (!lib) { lib = pub ? saveToMyLibrary(pub) : ensureLib(meta); toast(t('added')); } return lib; };
   const after = (created) => { if (created) location.hash = '#/book/' + lib.id; else redraw(); };
 
   $('#ratingHost', view).appendChild(stars(lib ? lib.rating : 0, true, v => { const c = !lib; need(); store.updateBook(lib.id, { rating: v }); after(c); }));
@@ -174,6 +189,19 @@ function draw(view, lib, meta, tok, loading = false) {
     if (!confirm(t('confirmDelete'))) return;
     if (lib.fileKey) await db.deleteFile(lib.fileKey).catch(() => {});
     store.removeBook(lib.id); location.hash = '#/';
+  };
+  const pbBtn = $('#pubBtn', view);
+  if (pbBtn) pbBtn.onclick = async () => {
+    pbBtn.disabled = true;
+    try { const pb = await publishExistingBook(lib); toast(t('published')); location.hash = '#/pub/' + pb.id; }
+    catch (e) { toast('⚠ ' + (e.message || e), 5000); pbBtn.disabled = false; }
+  };
+  const dpb = $('#delPubBtn', view);
+  if (dpb) dpb.onclick = async () => {
+    if (!confirm(t('confirmDeletePublic'))) return;
+    dpb.disabled = true;
+    try { await deletePublicBook(pub.id); toast(t('removedFromPublic')); location.hash = '#/'; }
+    catch (e) { toast('⚠ ' + (e.message || e), 5000); dpb.disabled = false; }
   };
   const sr = $('#saveReview', view); if (sr) sr.onclick = () => { store.updateBook(lib.id, { review: $('#reviewBox', view).value }); toast(t('added')); };
   const md = $('#moreDesc', view);
