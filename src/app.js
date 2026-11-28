@@ -13,6 +13,7 @@ import { renderLists } from './lists.js';
 import { fontPicker } from './fonts.js';
 import * as dbfile from './dbfile.js';
 import * as sync from './sync.js';
+import * as pub from './public.js';
 import * as auth from './auth.js';
 import * as cloudsync from './cloudsync.js';
 import { renderAccount, refreshAccountView } from './account.js';
@@ -44,9 +45,22 @@ export function pickBookFile(book) {
     inp.click();
   });
 }
-/* Start reading: open the linked file, or ask for the file first. */
+/* Start reading: open the linked file, or ask for the file first.
+   Public saved books without a local file yet download it from the public
+   repo first (lazy download; after that they read offline like any book). */
 export async function startReadingBook(book) {
   if (book.fileKey && book.format !== 'web') return openReader(book);
+  if (book.source === 'public' && book.public_file_path) {
+    try {
+      const r = await fetch(pub.publicFileUrl(book.public_file_path), { cache: 'no-store' });
+      if (!r.ok) throw new Error('download failed');
+      const blob = await r.blob();
+      const fileKey = 'file-' + store.uid();
+      await db.putFile(fileKey, blob);
+      const b = store.updateBook(book.id, { fileKey });
+      if (b) return openReader(b);
+    } catch (e) { console.warn('public file download failed', e); }
+  }
   const b = await pickBookFile(book);
   if (b) openReader(b);
 }
@@ -145,7 +159,7 @@ store.onChange(() => { /* live updates handled per-view */ });
 const routes = {
   '': renderLibrary, 'shelves': renderShelves, 'stats': renderStatsRoute,
   'discover': renderDiscoverRoute, 'community': renderCommunityRoute, 'settings': renderSettings,
-  'author': (v, a) => renderAuthorPage(v, a), 'book': (v, a) => renderBookPage(v, a, 'book'), 'work': (v, a) => renderBookPage(v, a, 'work'), 'lists': renderLists,
+  'author': (v, a) => renderAuthorPage(v, a), 'book': (v, a) => renderBookPage(v, a, 'book'), 'work': (v, a) => renderBookPage(v, a, 'work'), 'pub': (v, a) => renderBookPage(v, a, 'pub'), 'lists': renderLists,
   'account': renderAccount,
 };
 function route() {
@@ -243,35 +257,93 @@ function bookCard(b, onDelete = null) {
   return el;
 }
 
-let libFilter = { q: '', fav: false, sort: 'default' };
-function renderLibrary(view) {
-  const st = store.getState();
-  view.innerHTML = `
-    <div class="view-head"><h1>${t('navLibrary')}</h1><span class="muted">${st.books.filter(b => b.shelf !== 'finished').length} ${t('pages') === 'صفحة' ? 'كتاب' : 'books'}</span></div>
-    ${st.books.length === 0 ? `<div class="empty-state"><div class="big">📚</div><h2>${t('emptyLib')}</h2><p>${t('emptyLibSub')}</p></div>` : `
-    <div class="lib-filter"><input id="libQ" placeholder="${getLang() === 'ar' ? 'دوّر في مكتبتك…' : 'Search your library…'}" value="${esc(libFilter.q)}">
-      <button class="chip ${libFilter.fav ? 'active' : ''}" id="favChip">❤ ${getLang() === 'ar' ? 'المفضلة' : 'Favorites'}</button>
-      <select id="libSort" title="${getLang() === 'ar' ? 'الترتيب' : 'Sort'}">${sortOptionsHTML(libFilter.sort)}</select></div>`}
-    <div id="readingRow"></div>
-    <div class="grid" id="libGrid"></div>`;
-  const paint = () => {
-    const q = libFilter.q.trim().toLowerCase();
-    const match = b => (!libFilter.fav || b.favorite) && (!q || (b.title + ' ' + (b.author || '')).toLowerCase().includes(q));
-    const reading = sortBooks(st.books.filter(b => b.shelf === 'reading' && match(b)), libFilter.sort);
-    const rest = sortBooks(st.books.filter(b => b.shelf !== 'reading' && b.shelf !== 'finished' && match(b)), libFilter.sort);
-    const row = $('#readingRow', view); row.innerHTML = '';
-    if (reading.length) {
-      row.innerHTML = `<h2 style="margin-bottom:.7rem;font-size:1.1rem">▶ ${t('continueReading')}</h2>`;
-      const g = document.createElement('div'); g.className = 'grid'; g.style.marginBottom = '1.6rem';
-      reading.forEach(b => g.appendChild(bookCard(b, paint))); row.appendChild(g);
-    }
-    const grid = $('#libGrid', view); grid.innerHTML = '';
-    rest.forEach(b => grid.appendChild(bookCard(b, paint)));
+/* ---------- public library (الرئيسية) ---------- */
+/* A public book card: no per-user progress, no delete — a save button
+   instead. Clicking the card opens the public book page (#/pub/<id>). */
+function pubCard(pb, savedId) {
+  const el = document.createElement('div');
+  el.className = 'book-card';
+  el.innerHTML = `
+    <div class="cover">${coverHTML(pb)}</div>
+    <div class="book-meta">
+      <div class="book-title">${esc(pb.title)}</div>
+      <div class="book-author">${authorHTML(pb.author)}</div>
+      <button class="read-link pub-save-btn">${savedId ? '✓ ' + t('inMyLibrary') : '＋ ' + t('addToMyLibrary')}</button>
+    </div>`;
+  el.querySelector('.pub-save-btn').onclick = ev => {
+    ev.stopPropagation();
+    pub.saveToMyLibrary(pb);
+    ev.currentTarget.textContent = '✓ ' + t('inMyLibrary');
+    toast(t('added'));
   };
+  el.onclick = () => { location.hash = '#/pub/' + pb.id; };
+  return el;
+}
+
+let pubFilter = { q: '', cat: '', sort: 'default' };
+async function renderLibrary(view) {
+  view.innerHTML = `
+    <div class="view-head"><h1>${t('navLibrary')}</h1><span class="muted" id="pubCount"></span></div>
+    <div class="chip-row" id="pubCats" style="margin-bottom:.7rem"></div>
+    <div class="lib-filter"><input id="pubQ" placeholder="${getLang() === 'ar' ? 'دوّر في المكتبة العامة…' : 'Search the public library…'}" value="${esc(pubFilter.q)}">
+      <select id="pubSort" title="${getLang() === 'ar' ? 'الترتيب' : 'Sort'}">${sortOptionsHTML(pubFilter.sort)}</select></div>
+    <div class="grid" id="pubGrid"></div>
+    <p class="muted" id="pubMsg"></p>`;
+  let catalog = null;
+  const paintCats = () => {
+    const host = $('#pubCats', view); if (!host) return;
+    host.innerHTML = '';
+    const cats = (catalog && catalog.categories) || [];
+    const all = document.createElement('button');
+    all.className = 'chip' + (pubFilter.cat === '' ? ' active' : '');
+    all.textContent = t('allCategories');
+    all.onclick = () => { pubFilter.cat = ''; paint(); };
+    host.appendChild(all);
+    cats.forEach(c => {
+      const chip = document.createElement('button');
+      chip.className = 'chip' + (pubFilter.cat === c.id ? ' active' : '');
+      chip.textContent = c.name;
+      chip.onclick = () => { pubFilter.cat = c.id; paint(); };
+      host.appendChild(chip);
+    });
+    if (auth.isAdmin()) {
+      const add = document.createElement('button');
+      add.className = 'chip'; add.textContent = '＋ ' + t('addCategory');
+      add.onclick = async () => {
+        const name = prompt(t('categoryNamePh'));
+        if (!name || !name.trim()) return;
+        try { await pub.addCategory(name.trim()); toast(t('added')); renderLibrary(view); }
+        catch (e) { toast('⚠ ' + (e.message || e), 4000); }
+      };
+      host.appendChild(add);
+    }
+  };
+  const paint = () => {
+    if (!catalog) return;
+    const q = pubFilter.q.trim().toLowerCase();
+    const match = b => (!pubFilter.cat || b.category_id === pubFilter.cat) && (!q || ((b.title || '') + ' ' + (b.author || '')).toLowerCase().includes(q));
+    const list = sortBooks(catalog.books.filter(match), pubFilter.sort);
+    const grid = $('#pubGrid', view); if (!grid) return;
+    grid.innerHTML = '';
+    if (!catalog.books.length) {
+      grid.innerHTML = `<div class="empty-state"><div class="big">📚</div><h2>${esc(t('emptyPublic'))}</h2><p>${esc(t('emptyPublicSub'))}</p></div>`;
+    } else {
+      const savedIds = new Map(store.getState().books.filter(b => b.public_book_id).map(b => [b.public_book_id, b.id]));
+      list.forEach(pb => grid.appendChild(pubCard(pb, savedIds.get(pb.id))));
+    }
+    const cnt = $('#pubCount', view); if (cnt) cnt.textContent = catalog.books.length + ' ' + (getLang() === 'ar' ? 'كتاب' : 'books');
+    const msg = $('#pubMsg', view); if (msg) msg.textContent = catalog.books.length && !list.length ? t('noResults') : '';
+    paintCats();
+  };
+  try {
+    catalog = await pub.getCatalog();
+  } catch (e) {
+    const msg = $('#pubMsg', view); if (msg) msg.textContent = '⚠ ' + (e.message || e);
+    return;
+  }
   paint();
-  const qi = $('#libQ', view); if (qi) qi.oninput = () => { libFilter.q = qi.value; paint(); };
-  const fc = $('#favChip', view); if (fc) fc.onclick = () => { libFilter.fav = !libFilter.fav; fc.classList.toggle('active', libFilter.fav); paint(); };
-  const ls = $('#libSort', view); if (ls) ls.onchange = () => { libFilter.sort = ls.value; paint(); };
+  const qi = $('#pubQ', view); if (qi) qi.oninput = () => { pubFilter.q = qi.value; paint(); };
+  const ls = $('#pubSort', view); if (ls) ls.onchange = () => { pubFilter.sort = ls.value; paint(); };
 }
 
 /* ---------- shelves ---------- */
@@ -460,10 +532,24 @@ function renderStatsRoute(view) { renderStats(view); }
 function renderDiscoverRoute(view) { renderDiscover(view); bindDiscover(view); }
 function renderCommunityRoute(view) { renderCommunity(view); bindCommunity(view); }
 
-/* ---------- add-book modal ---------- */
+/* ---------- add-book modal (admin-only: publishes to the public library) ---------- */
 function openAddModal() {
   if (!auth.isAdmin()) return; // adding books is admin-only
   const m = $('#addModal'); m.classList.remove('hidden');
+  // Category picker for the public book: injected once, applies to both tabs.
+  let row = $('#pubCatRow', m);
+  if (!row) {
+    row = document.createElement('div');
+    row.id = 'pubCatRow'; row.className = 'search-row'; row.style.marginBottom = '.6rem';
+    row.innerHTML = `<label class="muted" style="align-self:center">${t('categories')}:</label><select id="pubCatSel" style="flex:1"></select>`;
+    m.querySelector('.modal-tabs').after(row);
+  }
+  const sel = $('#pubCatSel', m);
+  pub.listCategories().then(cats => {
+    sel.innerHTML = `<option value="">—</option>` + cats.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+    const tr = cats.find(c => c.name === 'ترجمات');
+    sel.value = tr ? tr.id : (cats[0] ? cats[0].id : '');
+  }).catch(() => {});
   $$('.modal-tabs .tab', m).forEach(tabBtn => tabBtn.onclick = () => {
     $$('.modal-tabs .tab', m).forEach(x => x.classList.toggle('active', x === tabBtn));
     $('#pane-file', m).classList.toggle('hidden', tabBtn.dataset.tab !== 'file');
@@ -475,8 +561,6 @@ function closeAddModal() { $('#addModal').classList.add('hidden'); }
 async function handleFile(file) {
   const ext = (file.name.split('.').pop() || '').toLowerCase();
   if (!['epub', 'pdf', 'txt'].includes(ext)) { toast('⚠ EPUB / PDF / TXT'); return; }
-  const fileKey = 'file-' + store.uid();
-  await db.putFile(fileKey, file);
   let meta = { title: file.name.replace(/\.(epub|pdf|txt)$/i, ''), author: '', cover: '', subjects: [] };
   if (ext === 'epub') {
     try {
@@ -507,8 +591,12 @@ async function handleFile(file) {
       }
     } catch (e) { console.warn('epub meta read failed', e); }
   }
-  const b = store.addBook({ ...meta, format: ext, fileKey, source: 'local', shelf: 'want' });
-  toast(t('added')); closeAddModal(); location.hash = '#/book/' + b.id;
+  try {
+    const categoryId = ($('#pubCatSel') || {}).value || '';
+    const pb = await pub.publishBook({ file, meta, format: ext, categoryId: categoryId || null });
+    pub.saveToMyLibrary(pb, file); // admin keeps a private copy; blob passed, no re-download
+    toast(t('published')); closeAddModal(); location.hash = '#/pub/' + pb.id;
+  } catch (e) { toast('⚠ ' + (e.message || e), 5000); }
 }
 
 async function runOnlineSearch() {
@@ -524,11 +612,17 @@ async function runOnlineSearch() {
         <div class="r-info"><div class="r-title">${esc(it.title)}</div><div class="r-author">${esc(it.author)} ${it.year ? '· ' + it.year : ''}</div></div>
         <button class="btn btn-primary" style="padding:.3rem .8rem;font-size:.8rem">${t('addToLibrary')}</button>`;
       row.onclick = () => { if (it.olKey) { closeAddModal(); location.hash = '#/work/' + it.olKey; } };
-      row.querySelector('button').onclick = (ev) => {
+      row.querySelector('button').onclick = async (ev) => {
         ev.stopPropagation();
-        const b = store.addBook({ title: it.title, author: it.author, format: 'web', cover: it.cover || '', source: 'openlibrary', subjects: it.subjects || [], isbn: it.isbn || '', olKey: it.olKey || '', year: it.year || '', shelf: 'want' });
-        row.querySelector('button').textContent = t('added'); row.querySelector('button').disabled = true;
-        setTimeout(() => { closeAddModal(); location.hash = '#/book/' + b.id; }, 500);
+        const btn = row.querySelector('button');
+        btn.disabled = true;
+        try {
+          const categoryId = ($('#pubCatSel') || {}).value || '';
+          const pb = await pub.publishBook({ file: null, meta: { title: it.title, author: it.author, cover: it.cover || '', subjects: it.subjects || [], isbn: it.isbn || '', olKey: it.olKey || '', year: it.year || '' }, format: 'web', categoryId: categoryId || null });
+          pub.saveToMyLibrary(pb);
+          btn.textContent = t('published');
+          setTimeout(() => { closeAddModal(); location.hash = '#/pub/' + pb.id; }, 500);
+        } catch (e) { btn.disabled = false; toast('⚠ ' + (e.message || e), 5000); }
       };
       host.appendChild(row);
     });
