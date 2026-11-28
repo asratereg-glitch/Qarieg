@@ -167,6 +167,8 @@ function route() {
   const [name, arg] = hash.split('/');
   // Settings page is admin-only: non-admins (and logged-out users) go to the library
   if (name === 'settings' && !auth.isAdmin()) { location.hash = '#/'; return; }
+  // مكتبتى / القوائم / إحصائياتي are login-only: logged-out users go to the login page
+  if ((name === 'shelves' || name === 'lists' || name === 'stats') && !auth.isLoggedIn()) { location.hash = '#/account'; return; }
   const fn = routes[name] || renderLibrary;
   $$('#mainnav a').forEach(a => a.classList.toggle('active', a.dataset.route === (name || 'library')));
   const view = $('#view'); view.innerHTML = ''; window.scrollTo(0, 0);
@@ -195,6 +197,17 @@ function updateAccountNav() {
   link.textContent = auth.isLoggedIn()
     ? (getLang() === 'ar' ? 'خروج' : 'Sign out')
     : (getLang() === 'ar' ? 'تسجيل الدخول' : 'Sign in');
+  updatePrivateNavVisibility();
+}
+
+/* مكتبتى / القوائم / إحصائياتي show only after login: hide their nav links for
+   logged-out visitors (the router also redirects direct links to #/account). */
+function updatePrivateNavVisibility() {
+  const loggedIn = auth.isLoggedIn();
+  ['shelves', 'lists', 'stats'].forEach(r => {
+    const link = document.querySelector(`#mainnav a[data-route="${r}"]`);
+    if (link) link.style.display = loggedIn ? '' : 'none';
+  });
 }
 
 
@@ -665,7 +678,7 @@ async function boot() {
   });
   cloudsync.configure({ lang: getLang, onApplied: () => { applySettings(); route(); } });
   cloudsync.init();
-  auth.onAuthChange(() => { cloudsync.onAuthChange(); refreshAccountView(); updateSettingsVisibility(); updateAccountNav(); if (!auth.isAdmin() && location.hash.replace(/^#\/?/, '').split('/')[0] === 'settings') route(); });
+  auth.onAuthChange(() => { cloudsync.onAuthChange(); refreshAccountView(); updateSettingsVisibility(); updateAccountNav(); const cur = location.hash.replace(/^#\/?/, '').split('/')[0]; if ((!auth.isLoggedIn() && ['shelves', 'lists', 'stats'].includes(cur)) || (!auth.isAdmin() && cur === 'settings')) route(); });
   $('#addBookBtn').onclick = openAddModal;
   $$('#addModal .modal-close').forEach(b => b.onclick = closeAddModal);
   $('#addModal').addEventListener('click', e => { if (e.target.id === 'addModal') closeAddModal(); });
