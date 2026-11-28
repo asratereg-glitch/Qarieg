@@ -13,7 +13,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const nf = n => (n || 0).toLocaleString(getLang() === 'ar' ? 'ar-EG' : 'en-US');
 let TOKEN = 0;
 
-function shelfLabel(v) { return ({ want: t('shelf_want'), reading: t('shelf_reading'), finished: t('shelf_finished') })[v] || v; }
+function shelfLabel(v) { return ({ want: t('shelf_want'), reading: t('shelf_reading'), finished: t('shelf_finished'), translations: t('shelf_translations') })[v] || v; }
 
 function basicMeta(b) {
   return { olKey: b.olKey || '', title: b.title, author: b.author, cover: b.cover, subjects: b.subjects || [], isbn: b.isbn, pages: b.totalPages || 0, basic: true };
@@ -70,7 +70,7 @@ function draw(view, lib, meta, tok, loading = false) {
   const hls = lib ? store.bookHighlights(lib.id) : [];
   const comments = lib ? store.bookComments(lib.id) : [];
   const myLists = lib ? store.listsOfBook(lib.id) : [];
-  const shelfOpts = lib ? [['want', t('shelf_want')], ['reading', t('shelf_reading')], ['finished', t('shelf_finished')], ...store.getState().customShelves.map(s => [s, s])] : [];
+  const shelfOpts = lib ? [['translations', t('shelf_translations')], ['want', t('shelf_want')], ['reading', t('shelf_reading')], ['finished', t('shelf_finished')], ...store.getState().customShelves.map(s => [s, s])] : [];
   const details = [
     [tr('العنوان', 'Title'), title], [tr('المؤلف', 'Author'), author], [tr('أول نشر', 'First published'), meta.year],
     [tr('عدد الصفحات', 'Pages'), meta.pages ? nf(meta.pages) : ''], [tr('عدد الإصدارات', 'Editions'), meta.editions ? nf(meta.editions) : ''],
@@ -164,7 +164,7 @@ function draw(view, lib, meta, tok, loading = false) {
   const sel = $('#shelfSel', view);
   if (sel) sel.onchange = e => {
     const v = e.target.value;
-    if (['want', 'reading', 'finished'].includes(v)) store.updateBook(lib.id, { shelf: v });
+    if (['want', 'reading', 'finished', 'translations'].includes(v)) store.updateBook(lib.id, { shelf: v });
     else { const cs = new Set(lib.customShelves || []); cs.has(v) ? cs.delete(v) : cs.add(v); store.updateBook(lib.id, { customShelves: [...cs] }); }
     redraw();
   };
