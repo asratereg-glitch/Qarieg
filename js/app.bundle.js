@@ -496,6 +496,7 @@
       shelf_want: "\u0639\u0627\u064A\u0632 \u0623\u0642\u0631\u0627",
       shelf_reading: "\u0628\u0642\u0631\u0627 \u062D\u0627\u0644\u064A\u064B\u0627",
       shelf_finished: "\u062E\u0644\u0635\u062A",
+      shelf_translations: "\u062A\u0631\u062C\u0645\u0627\u062A",
       customShelves: "\u0631\u0641\u0648\u0641 \u0645\u062E\u0635\u0635\u0629",
       newShelf: "\u0631\u0641 \u062C\u062F\u064A\u062F",
       shelfNamePh: "\u0627\u0633\u0645 \u0627\u0644\u0631\u0641\u2026",
@@ -655,6 +656,7 @@
       shelf_want: "Want to read",
       shelf_reading: "Reading",
       shelf_finished: "Finished",
+      shelf_translations: "Translations",
       customShelves: "Custom shelves",
       newShelf: "New shelf",
       shelfNamePh: "Shelf name\u2026",
@@ -3768,7 +3770,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const hls = lib ? bookHighlights(lib.id) : [];
     const comments = lib ? bookComments(lib.id) : [];
     const myLists = lib ? listsOfBook(lib.id) : [];
-    const shelfOpts = lib ? [["want", t("shelf_want")], ["reading", t("shelf_reading")], ["finished", t("shelf_finished")], ...getState().customShelves.map((s) => [s, s])] : [];
+    const shelfOpts = lib ? [["translations", t("shelf_translations")], ["want", t("shelf_want")], ["reading", t("shelf_reading")], ["finished", t("shelf_finished")], ...getState().customShelves.map((s) => [s, s])] : [];
     const details = [
       [tr("\u0627\u0644\u0639\u0646\u0648\u0627\u0646", "Title"), title],
       [tr("\u0627\u0644\u0645\u0624\u0644\u0641", "Author"), author],
@@ -3897,7 +3899,7 @@ ${h.note ? h.note + "\n\n" : ""}\u2014 *${new Date(h.createdAt).toLocaleDateStri
     const sel = $6("#shelfSel", view);
     if (sel) sel.onchange = (e) => {
       const v = e.target.value;
-      if (["want", "reading", "finished"].includes(v)) updateBook(lib.id, { shelf: v });
+      if (["want", "reading", "finished", "translations"].includes(v)) updateBook(lib.id, { shelf: v });
       else {
         const cs = new Set(lib.customShelves || []);
         cs.has(v) ? cs.delete(v) : cs.add(v);
@@ -26463,7 +26465,7 @@ ${suffix}`;
     return coverImgHTML(book, book.format === "pdf" ? "\u{1F4C4}" : book.format === "epub" ? "\u{1F4D5}" : "\u{1F4C3}");
   }
   function shelfName(s) {
-    return { want: t("shelf_want"), reading: t("shelf_reading"), finished: t("shelf_finished") }[s] || s;
+    return { want: t("shelf_want"), reading: t("shelf_reading"), finished: t("shelf_finished"), translations: t("shelf_translations") }[s] || s;
   }
   function fmtDate(iso) {
     try {
@@ -26523,6 +26525,8 @@ ${suffix}`;
       if (admin) updateSyncUi();
       else sc.style.display = "none";
     }
+    const ab = $9("#addBookBtn");
+    if (ab) ab.style.display = admin ? "" : "none";
   }
   function updateAccountNav() {
     const link = document.querySelector('#mainnav a[data-route="account"]');
@@ -26645,11 +26649,16 @@ ${suffix}`;
   }
   function renderShelves(view) {
     const st = getState();
-    const groups = [["reading", t("shelf_reading")], ["want", t("shelf_want")], ["finished", t("shelf_finished")]];
+    const groups = [["translations", t("shelf_translations")], ["reading", t("shelf_reading")], ["want", t("shelf_want")], ["finished", t("shelf_finished")]];
     view.innerHTML = `<div class="view-head"><h1>${t("navShelves")}</h1></div>
-    <div class="search-row" style="max-width:420px"><input id="newShelfName" placeholder="${t("shelfNamePh")}"><button id="newShelfBtn" class="btn">\uFF0B ${t("newShelf")}</button></div>
+    <div class="search-row" id="newShelfRow" style="max-width:420px"><input id="newShelfName" placeholder="${t("shelfNamePh")}"><button id="newShelfBtn" class="btn">\uFF0B ${t("newShelf")}</button></div>
     <div id="shelfBlocks"></div>`;
+    if (!isAdmin()) {
+      const nr = $9("#newShelfRow", view);
+      if (nr) nr.style.display = "none";
+    }
     $9("#newShelfBtn", view).onclick = () => {
+      if (!isAdmin()) return;
       const v = $9("#newShelfName", view).value.trim();
       if (v) {
         addCustomShelf(v);
@@ -26939,6 +26948,7 @@ ${suffix}`;
     bindCommunity(view);
   }
   function openAddModal() {
+    if (!isAdmin()) return;
     const m = $9("#addModal");
     m.classList.remove("hidden");
     $$2(".modal-tabs .tab", m).forEach((tabBtn) => tabBtn.onclick = () => {
