@@ -25808,6 +25808,7 @@ ${suffix}`;
   var getUser = () => user;
   var getProfile = () => profile;
   var getProfileError = () => profileError;
+  var isLoggedIn = () => !!user;
   var isAdmin = () => !!profile && profile.role === "admin";
   function friendlyError(e) {
     const m = e && e.message || String(e || "");
@@ -26478,6 +26479,7 @@ ${suffix}`;
     document.documentElement.dir = s.lang === "ar" ? "rtl" : "ltr";
     setLang(s.lang);
     applyI18n();
+    updateAccountNav();
     $9("#addBookBtn").firstChild.textContent = "\uFF0B ";
   }
   onChange(() => {
@@ -26498,6 +26500,10 @@ ${suffix}`;
   function route() {
     const hash = location.hash.replace(/^#\/?/, "");
     const [name, arg2] = hash.split("/");
+    if (name === "settings" && !isAdmin()) {
+      location.hash = "#/";
+      return;
+    }
     const fn = routes[name] || renderLibrary;
     $$2("#mainnav a").forEach((a) => a.classList.toggle("active", a.dataset.route === (name || "library")));
     const view = $9("#view");
@@ -26506,6 +26512,23 @@ ${suffix}`;
     fn(view, arg2);
   }
   window.addEventListener("hashchange", route);
+  function updateSettingsVisibility() {
+    const admin = isAdmin();
+    const link = document.querySelector('#mainnav a[data-route="settings"]');
+    if (link) link.style.display = admin ? "" : "none";
+    const db = $9("#dbChip");
+    if (db) db.style.display = admin ? "" : "none";
+    const sc = $9("#syncChip");
+    if (sc) {
+      if (admin) updateSyncUi();
+      else sc.style.display = "none";
+    }
+  }
+  function updateAccountNav() {
+    const link = document.querySelector('#mainnav a[data-route="account"]');
+    if (!link) return;
+    link.textContent = isLoggedIn() ? getLang() === "ar" ? "\u062E\u0631\u0648\u062C" : "Sign out" : getLang() === "ar" ? "\u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062F\u062E\u0648\u0644" : "Sign in";
+  }
   var SORT_MODES = ["year-desc", "year-asc", "rating-desc", "rating-asc"];
   function sortLabel(mode2) {
     return {
@@ -26838,7 +26861,7 @@ ${suffix}`;
     const c = $9("#syncChip");
     const i = info2();
     if (c) {
-      c.style.display = i.connected ? "" : "none";
+      c.style.display = i.connected && isAdmin() ? "" : "none";
       c.textContent = { idle: "\u2601\u2713", syncing: "\u2601\u2026", error: "\u2601\u2715", off: "\u2601" }[i.status] || "\u2601";
       c.title = syncText();
       c.dataset.s = i.status;
@@ -27070,6 +27093,16 @@ ${suffix}`;
     init2();
     updateSyncUi();
     await initAuth();
+    updateSettingsVisibility();
+    updateAccountNav();
+    const accLink = document.querySelector('#mainnav a[data-route="account"]');
+    if (accLink) accLink.addEventListener("click", async (e) => {
+      if (!isLoggedIn()) return;
+      e.preventDefault();
+      await signOut();
+      toast(getLang() === "ar" ? "\u2713 \u062A\u0645 \u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062E\u0631\u0648\u062C" : "\u2713 Signed out");
+      location.hash = "#/";
+    });
     configure2({ lang: getLang, onApplied: () => {
       applySettings();
       route();
@@ -27078,6 +27111,9 @@ ${suffix}`;
     onAuthChange(() => {
       onAuthChange2();
       refreshAccountView();
+      updateSettingsVisibility();
+      updateAccountNav();
+      if (!isAdmin() && location.hash.replace(/^#\/?/, "").split("/")[0] === "settings") route();
     });
     $9("#addBookBtn").onclick = openAddModal;
     $$2("#addModal .modal-close").forEach((b) => b.onclick = closeAddModal);
