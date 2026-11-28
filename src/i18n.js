@@ -3,7 +3,7 @@ const STR = {
   ar: {
     addImage:'إضافة صورة للكتاب', imgHint:'الصورة بتتحط بعد النص اللي محدده، ولو مفيش تحديد بعد أول فقرة في الصفحة الحالية. ممكن تضغط على الصورة جوا الكتاب عشان تمسحها.', imgCaption:'تعليق (اختياري)', imgChoose:'اختار صورة', imgInBook:'الصور في الكتاب', imgNone:'مفيش صور لسه.', imgNoPos:'مش قادر أحدد المكان، اعمل صفحة وجرب تاني', imgNoPdf:'إضافة الصور مدعومة في EPUB و TXT بس، مش PDF.', imgSize:'الحجم',
     toc:'جدول المحتويات', tocNone:'الكتاب ده مفيهوش جدول محتويات. استخدم شريط الصفحات تحت.', layoutAuto:'تنسيق تلقائي', layoutPhone:'تنسيق الموبايل', layoutTablet:'تنسيق التابلت', pagesPreparing:'بيجهّز أرقام الصفحات، جرب كمان ثواني',
-    appName:'قارئ', navLibrary:'مكتبتي', navShelves:'الرفوف', navStats:'إحصائياتي',
+    appName:'قارئ', navLibrary:'الرئيسية', navShelves:'مكتبتى', navStats:'إحصائياتي',
     navDiscover:'اكتشف', navCommunity:'المجتمع', navSettings:'الإعدادات', navLists:'القوائم', navAccount:'الحساب',
     login:'تسجيل دخول', signup:'حساب جديد', email:'الإيميل', password:'الباسورد', displayName:'الاسم الظاهر', logout:'تسجيل الخروج',
     addBook:'أضف كتاب', tabFile:'من جهازك', tabOnline:'بحث أونلاين',
@@ -46,7 +46,7 @@ const STR = {
   en: {
     addImage:'Add image to book', imgHint:'The image goes after the text you selected, or after the first paragraph of the current page if nothing is selected. Tap an image inside the book to remove it.', imgCaption:'Caption (optional)', imgChoose:'Choose image', imgInBook:'Images in this book', imgNone:'No images yet.', imgNoPos:'Could not find the position, turn a page and retry', imgNoPdf:'Adding images works for EPUB and TXT, not PDF.', imgSize:'Size',
     toc:'Table of contents', tocNone:'This book has no table of contents. Use the page bar below.', layoutAuto:'Auto layout', layoutPhone:'Phone layout', layoutTablet:'Tablet layout', pagesPreparing:'Preparing page numbers, try again in a few seconds',
-    appName:'Qari', navLibrary:'My Library', navShelves:'Shelves', navStats:'My Stats',
+    appName:'Qari', navLibrary:'Home', navShelves:'My Library', navStats:'My Stats',
     navDiscover:'Discover', navCommunity:'Community', navSettings:'Settings', navLists:'Lists', navAccount:'Account',
     login:'Log in', signup:'Create account', email:'Email', password:'Password', displayName:'Display name', logout:'Log out',
     addBook:'Add book', tabFile:'From device', tabOnline:'Search online',
